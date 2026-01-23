@@ -109,6 +109,14 @@ vi.mock("@/server-lib/internal-request", () => ({
     }
     throw new Error(`Unhandled internalPOST path: ${path}`);
   }),
+  isAnthropicAvailable: vi.fn().mockResolvedValue({
+    available: true,
+    status: "healthy",
+    message: "Mock health check",
+    checkedAt: Date.now(),
+  }),
+  clearAnthropicHealthCache: vi.fn(),
+  isAnthropicDownPOST: vi.fn(),
 }));
 vi.mock("@/server-lib/generate-thread-name", () => ({
   generateThreadName: vi.fn().mockResolvedValue("test-thread-name"),
