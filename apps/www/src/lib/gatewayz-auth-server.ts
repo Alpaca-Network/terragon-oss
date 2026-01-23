@@ -67,7 +67,7 @@ export async function findOrCreateUserFromGatewayZ(
 export async function createSessionForGatewayZUser(
   gwSession: GatewayZSession,
 ): Promise<{ sessionToken: string; userId: string }> {
-  const { userId, isNewUser } = await findOrCreateUserFromGatewayZ(gwSession);
+  const { userId } = await findOrCreateUserFromGatewayZ(gwSession);
 
   // Create a new session using better-auth
   const session = await auth.api.createSession({
