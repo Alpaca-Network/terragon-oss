@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { verifyGatewayZToken, type GatewayZSession } from "./gatewayz-auth";
 import { db } from "./db";
-import { auth } from "./auth";
 import * as schema from "@terragon/shared/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -69,16 +68,23 @@ export async function createSessionForGatewayZUser(
 ): Promise<{ sessionToken: string; userId: string }> {
   const { userId } = await findOrCreateUserFromGatewayZ(gwSession);
 
-  // Create a new session using better-auth
-  const session = await auth.api.createSession({
-    body: {
-      userId,
-      expiresIn: 60 * 60, // 1 hour to match GatewayZ token
-    },
+  // Create a new session directly in the database
+  const sessionId = crypto.randomUUID();
+  const sessionToken = crypto.randomUUID();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour to match GatewayZ token
+
+  await db.insert(schema.session).values({
+    id: sessionId,
+    token: sessionToken,
+    userId,
+    expiresAt,
+    createdAt: now,
+    updatedAt: now,
   });
 
   return {
-    sessionToken: session.token,
+    sessionToken,
     userId,
   };
 }
