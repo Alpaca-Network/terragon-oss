@@ -6,7 +6,7 @@
     "dev": "next dev --turbo",
     "dev:cron": "dotenv -e .env.development.local -- vercel-cron",
     "dev:stripe": "stripe listen --forward-to localhost:3000/api/auth/stripe/webhook",
-    "build": "pnpm --filter bundled build && next build",
+    "build": "pnpm --filter @terragon/daemon build && pnpm --filter @terragon/mcp-server build && pnpm --filter bundled build && next build",
     "start": "next start",
     "test": "vitest",
     "storybook": "ladle serve",
