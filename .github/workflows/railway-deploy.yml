@@ -3,11 +3,9 @@ name: Railway Deploy
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 concurrency:
-  group: railway-${{ github.ref }}
+  group: railway-deploy
   cancel-in-progress: true
 
 jobs:
