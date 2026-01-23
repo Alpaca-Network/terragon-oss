@@ -32,7 +32,7 @@ export async function isGatewayZEmbedMode(): Promise<boolean> {
  * This links GatewayZ users to terragon-oss accounts.
  */
 export async function findOrCreateUserFromGatewayZ(
-  gwSession: GatewayZSession
+  gwSession: GatewayZSession,
 ): Promise<{ userId: string; isNewUser: boolean }> {
   // Look for existing user by email
   const existingUser = await db
@@ -41,8 +41,9 @@ export async function findOrCreateUserFromGatewayZ(
     .where(eq(schema.user.email, gwSession.email))
     .limit(1);
 
-  if (existingUser.length > 0) {
-    return { userId: existingUser[0].id, isNewUser: false };
+  const firstUser = existingUser[0];
+  if (firstUser) {
+    return { userId: firstUser.id, isNewUser: false };
   }
 
   // Create new user
@@ -64,7 +65,7 @@ export async function findOrCreateUserFromGatewayZ(
  * This allows the user to interact with terragon-oss as if they logged in directly.
  */
 export async function createSessionForGatewayZUser(
-  gwSession: GatewayZSession
+  gwSession: GatewayZSession,
 ): Promise<{ sessionToken: string; userId: string }> {
   const { userId, isNewUser } = await findOrCreateUserFromGatewayZ(gwSession);
 
