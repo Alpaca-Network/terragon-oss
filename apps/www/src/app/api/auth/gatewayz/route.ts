@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyGatewayZToken } from "@/lib/gatewayz-auth";
-import {
-  findOrCreateUserFromGatewayZ,
-  createSessionForGatewayZUser,
-} from "@/lib/gatewayz-auth-server";
+import { createSessionForGatewayZUser } from "@/lib/gatewayz-auth-server";
 
 /**
  * POST /api/auth/gatewayz
@@ -17,10 +14,7 @@ export async function POST(request: NextRequest) {
     const { token } = body;
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Missing token" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing token" }, { status: 400 });
     }
 
     // Verify the GatewayZ token
@@ -28,12 +22,13 @@ export async function POST(request: NextRequest) {
     if (!gwSession) {
       return NextResponse.json(
         { error: "Invalid or expired token" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Create or link user and create session
-    const { sessionToken, userId } = await createSessionForGatewayZUser(gwSession);
+    const { sessionToken, userId } =
+      await createSessionForGatewayZUser(gwSession);
 
     // Return session info
     return NextResponse.json({
@@ -50,7 +45,7 @@ export async function POST(request: NextRequest) {
     console.error("GatewayZ auth error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
