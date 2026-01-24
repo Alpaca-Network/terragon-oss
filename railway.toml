@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm install && pnpm --filter @terragon/www build"
+buildCommand = "pnpm install && pnpm --filter @terragon/shared drizzle-kit push && pnpm --filter @terragon/www build"
 
 [deploy]
 startCommand = "pnpm --filter @terragon/www start"
