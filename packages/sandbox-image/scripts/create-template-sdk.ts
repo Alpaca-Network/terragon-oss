@@ -74,7 +74,7 @@ async function buildDaytonaTemplateWithSdk(templateArgs: TemplateArgs) {
       resources: {
         cpu: templateArgs.cpuCount,
         memory: templateArgs.memoryGB, // Memory in GiB
-        disk: 20, // 20 GiB
+        disk: 10, // 10 GiB (Daytona max limit)
       },
     },
     {
