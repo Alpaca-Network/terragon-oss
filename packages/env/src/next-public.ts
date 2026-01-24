@@ -13,7 +13,9 @@ export function publicBroadcastUrl(): string | undefined {
   }
   if (!process.env.NEXT_PUBLIC_BROADCAST_URL) {
     if (!warnedBroadcastUrl) {
-      console.warn("NEXT_PUBLIC_BROADCAST_URL is not set - realtime features will be disabled");
+      console.warn(
+        "NEXT_PUBLIC_BROADCAST_URL is not set - realtime features will be disabled",
+      );
       warnedBroadcastUrl = true;
     }
     return undefined;
@@ -54,7 +56,9 @@ export function publicBroadcastHost(): string | undefined {
   }
   if (!process.env.NEXT_PUBLIC_BROADCAST_HOST) {
     if (!warnedBroadcastHost) {
-      console.warn("NEXT_PUBLIC_BROADCAST_HOST is not set - realtime features will be disabled");
+      console.warn(
+        "NEXT_PUBLIC_BROADCAST_HOST is not set - realtime features will be disabled",
+      );
       warnedBroadcastHost = true;
     }
     return undefined;
