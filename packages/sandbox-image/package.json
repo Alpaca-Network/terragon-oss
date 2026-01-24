@@ -22,6 +22,8 @@
     "create-template:e2b:large": "NODE_ENV=production tsx scripts/create-template.ts --size=large --provider=e2b",
     "create-template:daytona:small": "NODE_ENV=production tsx scripts/create-template.ts --size=small --provider=daytona",
     "create-template:daytona:large": "NODE_ENV=production tsx scripts/create-template.ts --size=large --provider=daytona",
+    "create-template:daytona-sdk:small": "NODE_ENV=production tsx scripts/create-template-sdk.ts --size=small --provider=daytona",
+    "create-template:daytona-sdk:large": "NODE_ENV=production tsx scripts/create-template-sdk.ts --size=large --provider=daytona",
     "create-template:all": "pnpm create-template:e2b:small && pnpm create-template:e2b:large && pnpm create-template:daytona:small && pnpm create-template:daytona:large",
     "update-dockerfile-versions": "bun scripts/update-dockerfile-versions.ts"
   },
@@ -36,6 +38,7 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
+    "@daytonaio/sdk": "0.115.2",
     "handlebars": "^4.7.8"
   }
 }
