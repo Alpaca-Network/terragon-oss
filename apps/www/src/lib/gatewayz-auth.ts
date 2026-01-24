@@ -1,4 +1,4 @@
-import { createHmac, createDecipheriv } from "crypto";
+import { createHmac, createDecipheriv, hkdfSync } from "crypto";
 
 export interface GatewayZSession {
   gwUserId: number;
@@ -11,11 +11,21 @@ export interface GatewayZSession {
 }
 
 /**
+ * Derive a 32-byte encryption key from the secret using HKDF.
+ * This matches the key derivation used in the GatewayZ frontend.
+ */
+function deriveKey(secret: string): Buffer {
+  return Buffer.from(
+    hkdfSync("sha256", secret, "", "gatewayz-terragon-auth", 32),
+  );
+}
+
+/**
  * Decrypt an AES-256-GCM encrypted payload
  * Format: iv.ciphertext.authTag (all base64url encoded)
  */
 function decryptPayload(encryptedPayload: string, secret: string): string {
-  const key = Buffer.from(secret.padEnd(32, "0").slice(0, 32)); // Ensure 32 bytes
+  const key = deriveKey(secret);
   const [ivB64, encrypted, authTagB64] = encryptedPayload.split(".");
 
   if (!ivB64 || !encrypted || !authTagB64) {
