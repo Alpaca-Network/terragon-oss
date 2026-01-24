@@ -43,6 +43,51 @@ function getDockerfilePath(provider: SandboxProvider): string {
   return path.join(__dirname, `../Dockerfile.${provider}`);
 }
 
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  {
+    maxRetries = 3,
+    baseDelayMs = 5000,
+    onRetry,
+  }: {
+    maxRetries?: number;
+    baseDelayMs?: number;
+    onRetry?: (attempt: number, error: Error) => void;
+  } = {},
+): Promise<T> {
+  let lastError: Error | undefined;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      const isNetworkError =
+        error instanceof Error &&
+        (error.message.includes("terminated") ||
+          error.message.includes("socket") ||
+          error.message.includes("ECONNRESET") ||
+          error.message.includes("ETIMEDOUT") ||
+          (error.cause as Error)?.message?.includes("closed"));
+
+      if (!isNetworkError || attempt === maxRetries) {
+        throw error;
+      }
+
+      const delayMs = baseDelayMs * Math.pow(2, attempt - 1); // Exponential backoff
+      onRetry?.(attempt, lastError);
+      console.log(
+        `\nRetrying in ${delayMs / 1000}s due to network error (attempt ${attempt}/${maxRetries})...`,
+      );
+      await sleep(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 async function buildDaytonaTemplateWithSdk(templateArgs: TemplateArgs) {
   const apiKey = process.env.DAYTONA_API_KEY;
   if (!apiKey) {
@@ -66,22 +111,32 @@ async function buildDaytonaTemplateWithSdk(templateArgs: TemplateArgs) {
   // Create Image from Dockerfile
   const image = Image.fromDockerfile(dockerfilePath);
 
-  // Create snapshot using SDK
-  const snapshot = await daytona.snapshot.create(
+  // Create snapshot using SDK with retry logic for network failures
+  const snapshot = await withRetry(
+    () =>
+      daytona.snapshot.create(
+        {
+          name,
+          image,
+          resources: {
+            cpu: templateArgs.cpuCount,
+            memory: templateArgs.memoryGB, // Memory in GiB
+            disk: 10, // 10 GiB (Daytona max limit)
+          },
+        },
+        {
+          onLogs: (chunk: string) => {
+            process.stdout.write(chunk);
+          },
+          timeout: 600, // 10 minutes
+        },
+      ),
     {
-      name,
-      image,
-      resources: {
-        cpu: templateArgs.cpuCount,
-        memory: templateArgs.memoryGB, // Memory in GiB
-        disk: 10, // 10 GiB (Daytona max limit)
+      maxRetries: 3,
+      baseDelayMs: 5000,
+      onRetry: (attempt, error) => {
+        console.error(`\nAttempt ${attempt} failed: ${error.message}`);
       },
-    },
-    {
-      onLogs: (chunk: string) => {
-        process.stdout.write(chunk);
-      },
-      timeout: 600, // 10 minutes
     },
   );
 
