@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "pnpm install && pnpm --filter @terragon/www build"
 
 [deploy]
-startCommand = "pnpm --filter @terragon/shared drizzle-kit push && pnpm --filter @terragon/www start"
+startCommand = "cd packages/shared && npx drizzle-kit push && cd ../.. && pnpm --filter @terragon/www start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
