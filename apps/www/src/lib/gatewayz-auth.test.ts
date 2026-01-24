@@ -1,5 +1,10 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { createHmac, createCipheriv, randomBytes } from "crypto";
-import { verifyGatewayZToken, isGatewayZEmbed, getGatewayZToken } from "./gatewayz-auth";
+import {
+  verifyGatewayZToken,
+  isGatewayZEmbed,
+  getGatewayZToken,
+} from "./gatewayz-auth";
 
 // Store original env
 const originalEnv = process.env;
@@ -29,7 +34,7 @@ function createTestToken(payload: object, secret: string): string {
 
 describe("gatewayz-auth", () => {
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
     process.env.GATEWAYZ_AUTH_BRIDGE_SECRET = "test-secret-key-for-testing";
   });
