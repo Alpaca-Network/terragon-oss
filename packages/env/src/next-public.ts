@@ -1,6 +1,10 @@
 import { devDefaultAppUrl, devDefaultBroadcastPort } from "./common";
 
-export function publicBroadcastUrl() {
+// Track if we've already warned about missing env vars to avoid log spam
+let warnedBroadcastUrl = false;
+let warnedBroadcastHost = false;
+
+export function publicBroadcastUrl(): string | undefined {
   if (process.env.NODE_ENV === "development") {
     return (
       process.env.NEXT_PUBLIC_BROADCAST_URL ??
@@ -8,7 +12,13 @@ export function publicBroadcastUrl() {
     );
   }
   if (!process.env.NEXT_PUBLIC_BROADCAST_URL) {
-    throw new Error("NEXT_PUBLIC_BROADCAST_URL is not set");
+    if (!warnedBroadcastUrl) {
+      console.warn(
+        "NEXT_PUBLIC_BROADCAST_URL is not set - realtime features will be disabled",
+      );
+      warnedBroadcastUrl = true;
+    }
+    return undefined;
   }
   return process.env.NEXT_PUBLIC_BROADCAST_URL;
 }
@@ -34,7 +44,7 @@ export function publicAppUrl() {
   return process.env.NEXT_PUBLIC_APP_URL;
 }
 
-export function publicBroadcastHost() {
+export function publicBroadcastHost(): string | undefined {
   if (process.env.NODE_ENV === "development") {
     if (process.env.NEXT_PUBLIC_BROADCAST_HOST) {
       return process.env.NEXT_PUBLIC_BROADCAST_HOST;
@@ -45,7 +55,13 @@ export function publicBroadcastHost() {
     return `localhost:${devDefaultBroadcastPort}`;
   }
   if (!process.env.NEXT_PUBLIC_BROADCAST_HOST) {
-    throw new Error("NEXT_PUBLIC_BROADCAST_HOST is not set");
+    if (!warnedBroadcastHost) {
+      console.warn(
+        "NEXT_PUBLIC_BROADCAST_HOST is not set - realtime features will be disabled",
+      );
+      warnedBroadcastHost = true;
+    }
+    return undefined;
   }
   return process.env.NEXT_PUBLIC_BROADCAST_HOST;
 }

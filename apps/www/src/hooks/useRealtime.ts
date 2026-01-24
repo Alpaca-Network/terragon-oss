@@ -25,10 +25,15 @@ function getOrCreatePartySocket({
   party: string;
   channel: string;
   authToken: string;
-}) {
+}): PartySocket | null {
+  const host = publicBroadcastHost();
+  if (!host) {
+    // Broadcast host not configured - realtime features disabled
+    return null;
+  }
   if (!partykitByChannel[channel]) {
     const socket = new PartySocket({
-      host: publicBroadcastHost(),
+      host,
       party,
       room: channel,
       maxRetries: 10,
@@ -137,8 +142,12 @@ function useRealtimeBase({
     [debouncedOnMessage, matches, debounceMs, onMessage],
   );
 
+  // Set socketReadyState to CLOSED when socket is null (broadcast disabled)
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      setSocketReadyState(WebSocket.CLOSED);
+      return;
+    }
     const onReadyStateChange = () => {
       setSocketReadyState(socket.readyState);
     };
