@@ -110,9 +110,7 @@ vi.mock("@/server-lib/internal-request", () => ({
     throw new Error(`Unhandled internalPOST path: ${path}`);
   }),
   isAnthropicAvailable: vi.fn().mockResolvedValue({
-    available: true,
-    status: "healthy",
-    message: "Mock health check",
+    down: false,
     checkedAt: Date.now(),
   }),
   clearAnthropicHealthCache: vi.fn(),

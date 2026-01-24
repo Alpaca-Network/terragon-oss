@@ -16,9 +16,7 @@ export async function internalPOST(path: string) {
 }
 
 export interface AnthropicHealthStatus {
-  available: boolean;
-  status?: "healthy" | "degraded" | "down";
-  message?: string;
+  down: boolean;
   checkedAt: number;
 }
 
@@ -27,14 +25,16 @@ let cachedStatus: AnthropicHealthStatus | null = null;
 const CACHE_TTL_MS = 30_000; // 30 seconds
 
 /**
- * Check if Anthropic API is available by querying the centralized health service.
+ * Check if Anthropic API is down by querying the centralized health service.
  * This allows the deployment to:
  * - Avoid hitting Anthropic if it's known to be down
  * - Centralize health logic in one tiny service
  * - Cache status externally
  *
+ * The health service periodically calls Anthropic API and returns { down: boolean }
+ *
  * @param skipCache - If true, bypass the local cache and fetch fresh status
- * @returns AnthropicHealthStatus indicating availability
+ * @returns AnthropicHealthStatus with down: true if Anthropic is unavailable
  */
 export async function isAnthropicAvailable(
   skipCache = false,
@@ -49,26 +49,20 @@ export async function isAnthropicAvailable(
   }
 
   try {
-    const response = await fetch(
-      `${env.IS_ANTHROPIC_DOWN_URL}/api/health/status`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: env.IS_ANTHROPIC_DOWN_API_SECRET,
-          "Content-Type": "application/json",
-        },
-        // Short timeout to avoid blocking requests for too long
-        signal: AbortSignal.timeout(5000),
+    const response = await fetch(env.IS_ANTHROPIC_DOWN_URL, {
+      method: "GET",
+      headers: {
+        Authorization: env.IS_ANTHROPIC_DOWN_API_SECRET,
       },
-    );
+      // Short timeout to avoid blocking requests for too long
+      signal: AbortSignal.timeout(5000),
+    });
 
     if (!response.ok) {
       // If health service is unavailable, assume Anthropic is available
       // (fail open to avoid blocking users when health service is down)
       const status: AnthropicHealthStatus = {
-        available: true,
-        status: "healthy",
-        message: "Health service unavailable, assuming available",
+        down: false,
         checkedAt: Date.now(),
       };
       cachedStatus = status;
@@ -76,15 +70,11 @@ export async function isAnthropicAvailable(
     }
 
     const data = (await response.json()) as {
-      available?: boolean;
-      status?: "healthy" | "degraded" | "down";
-      message?: string;
+      down: boolean;
     };
 
     const status: AnthropicHealthStatus = {
-      available: data.available ?? true,
-      status: data.status ?? "healthy",
-      message: data.message,
+      down: data.down ?? false,
       checkedAt: Date.now(),
     };
 
@@ -94,9 +84,7 @@ export async function isAnthropicAvailable(
     console.error("Error checking Anthropic availability:", error);
     // Fail open: if we can't reach the health service, assume Anthropic is available
     const status: AnthropicHealthStatus = {
-      available: true,
-      status: "healthy",
-      message: "Health check failed, assuming available",
+      down: false,
       checkedAt: Date.now(),
     };
     cachedStatus = status;

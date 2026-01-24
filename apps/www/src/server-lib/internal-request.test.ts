@@ -23,9 +23,7 @@ const originalFetch = global.fetch;
 describe("isAnthropicAvailable", () => {
   let mockFetch: ReturnType<typeof vi.fn>;
   let isAnthropicAvailable: (skipCache?: boolean) => Promise<{
-    available: boolean;
-    status?: "healthy" | "degraded" | "down";
-    message?: string;
+    down: boolean;
     checkedAt: number;
   }>;
   let clearAnthropicHealthCache: () => void;
@@ -52,76 +50,37 @@ describe("isAnthropicAvailable", () => {
     global.fetch = originalFetch;
   });
 
-  it("returns healthy status when health service responds with available: true", async () => {
+  it("returns down: false when health service responds with down: false", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        available: true,
-        status: "healthy",
-        message: "All systems operational",
-      }),
+      json: async () => ({ down: false }),
     });
 
     const result = await isAnthropicAvailable();
 
-    expect(result).toMatchObject({
-      available: true,
-      status: "healthy",
-      message: "All systems operational",
-    });
+    expect(result).toMatchObject({ down: false });
     expect(result.checkedAt).toBeGreaterThan(0);
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://health.example.com/api/health/status",
-      {
-        method: "GET",
-        headers: {
-          Authorization: "test-api-secret",
-          "Content-Type": "application/json",
-        },
-        signal: expect.any(AbortSignal),
+    expect(mockFetch).toHaveBeenCalledWith("https://health.example.com", {
+      method: "GET",
+      headers: {
+        Authorization: "test-api-secret",
       },
-    );
+      signal: expect.any(AbortSignal),
+    });
   });
 
-  it("returns degraded status when health service reports degraded", async () => {
+  it("returns down: true when health service reports Anthropic is down", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        available: true,
-        status: "degraded",
-        message: "High latency detected",
-      }),
+      json: async () => ({ down: true }),
     });
 
     const result = await isAnthropicAvailable();
 
-    expect(result).toMatchObject({
-      available: true,
-      status: "degraded",
-      message: "High latency detected",
-    });
+    expect(result).toMatchObject({ down: true });
   });
 
-  it("returns down status when health service reports down", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        available: false,
-        status: "down",
-        message: "Anthropic API is experiencing an outage",
-      }),
-    });
-
-    const result = await isAnthropicAvailable();
-
-    expect(result).toMatchObject({
-      available: false,
-      status: "down",
-      message: "Anthropic API is experiencing an outage",
-    });
-  });
-
-  it("fails open when health service returns non-OK response", async () => {
+  it("fails open (down: false) when health service returns non-OK response", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -129,23 +88,15 @@ describe("isAnthropicAvailable", () => {
 
     const result = await isAnthropicAvailable();
 
-    expect(result).toMatchObject({
-      available: true,
-      status: "healthy",
-      message: "Health service unavailable, assuming available",
-    });
+    expect(result).toMatchObject({ down: false });
   });
 
-  it("fails open when health service throws an error", async () => {
+  it("fails open (down: false) when health service throws an error", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
     const result = await isAnthropicAvailable();
 
-    expect(result).toMatchObject({
-      available: true,
-      status: "healthy",
-      message: "Health check failed, assuming available",
-    });
+    expect(result).toMatchObject({ down: false });
   });
 
   it("returns cached result within TTL", async () => {
@@ -153,10 +104,7 @@ describe("isAnthropicAvailable", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        available: true,
-        status: "healthy",
-      }),
+      json: async () => ({ down: false }),
     });
 
     // First call - should fetch
@@ -169,7 +117,7 @@ describe("isAnthropicAvailable", () => {
     // Second call - should use cache
     const result = await isAnthropicAvailable();
     expect(mockFetch).toHaveBeenCalledTimes(1); // Still only 1 call
-    expect(result.available).toBe(true);
+    expect(result.down).toBe(false);
   });
 
   it("fetches fresh status after TTL expires", async () => {
@@ -178,22 +126,16 @@ describe("isAnthropicAvailable", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          available: true,
-          status: "healthy",
-        }),
+        json: async () => ({ down: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          available: false,
-          status: "down",
-        }),
+        json: async () => ({ down: true }),
       });
 
     // First call
     const result1 = await isAnthropicAvailable();
-    expect(result1.available).toBe(true);
+    expect(result1.down).toBe(false);
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
     // Advance time by 31 seconds (past 30s TTL)
@@ -201,7 +143,7 @@ describe("isAnthropicAvailable", () => {
 
     // Second call - should fetch fresh
     const result2 = await isAnthropicAvailable();
-    expect(result2.available).toBe(false);
+    expect(result2.down).toBe(true);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
@@ -209,30 +151,24 @@ describe("isAnthropicAvailable", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          available: true,
-          status: "healthy",
-        }),
+        json: async () => ({ down: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          available: false,
-          status: "down",
-        }),
+        json: async () => ({ down: true }),
       });
 
     // First call
     const result1 = await isAnthropicAvailable();
-    expect(result1.available).toBe(true);
+    expect(result1.down).toBe(false);
 
     // Second call with skipCache - should fetch again
     const result2 = await isAnthropicAvailable(true);
-    expect(result2.available).toBe(false);
+    expect(result2.down).toBe(true);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("handles missing fields in response gracefully", async () => {
+  it("defaults to down: false when response has no down field", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({}), // Empty response
@@ -240,37 +176,14 @@ describe("isAnthropicAvailable", () => {
 
     const result = await isAnthropicAvailable();
 
-    // Should default to available when not specified
-    expect(result).toMatchObject({
-      available: true,
-      status: "healthy",
-    });
-  });
-
-  it("handles partial response fields", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        available: false,
-        // No status or message
-      }),
-    });
-
-    const result = await isAnthropicAvailable();
-
-    expect(result).toMatchObject({
-      available: false,
-      status: "healthy", // Defaults to healthy
-    });
+    expect(result).toMatchObject({ down: false });
   });
 });
 
 describe("clearAnthropicHealthCache", () => {
   let mockFetch: ReturnType<typeof vi.fn>;
   let isAnthropicAvailable: (skipCache?: boolean) => Promise<{
-    available: boolean;
-    status?: "healthy" | "degraded" | "down";
-    message?: string;
+    down: boolean;
     checkedAt: number;
   }>;
   let clearAnthropicHealthCache: () => void;
@@ -298,10 +211,7 @@ describe("clearAnthropicHealthCache", () => {
   it("clears the cached status", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({
-        available: true,
-        status: "healthy",
-      }),
+      json: async () => ({ down: false }),
     });
 
     // First call - populates cache
