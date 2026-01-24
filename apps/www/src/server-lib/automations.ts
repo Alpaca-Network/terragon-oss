@@ -255,7 +255,7 @@ export async function validateAutomationCreationOrUpdate({
           }
           if (error === "pro-only") {
             throw new UserFacingError(
-              "This schedule is only supported on the Pro tier.",
+              "This schedule is only supported on the Max tier.",
             );
           }
           throw new UserFacingError("Invalid or unsupported schedule.");
@@ -281,11 +281,11 @@ export async function validateAutomationCreationOrUpdate({
       case "github_mention": {
         const config = triggerConfig as GitHubMentionTriggerConfig;
         if (config.filter.includeBotMentions) {
-          // Check if user has Pro tier for bot mentions
+          // Check if user has Max tier for bot mentions
           const accessInfo = await getAccessInfoForUser(userId);
           if (accessInfo.tier !== "pro") {
             throw new UserFacingError(
-              "The 'Include mentions from bot users' feature is only available on the Pro tier. Upgrade to the Pro tier to enable this feature.",
+              "The 'Include mentions from bot users' feature is only available on the Max tier. Upgrade to the Max tier to enable this feature.",
             );
           }
           if (!config.filter.botUsernames) {

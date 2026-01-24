@@ -116,7 +116,7 @@ function createAutomationFormSchema({
           },
           {
             message:
-              "Including mentions from bot users is only available on the Pro tier.",
+              "Including mentions from bot users is only available on the Max tier.",
             path: ["config"],
           },
         )
