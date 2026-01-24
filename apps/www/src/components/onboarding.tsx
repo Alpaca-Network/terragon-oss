@@ -200,7 +200,25 @@ function GithubStepContents({
   onContinue: () => void;
   repos: UserRepo[] | null;
 }) {
+  const queryClient = useQueryClient();
   const hasRepos = repos && repos.length > 0;
+
+  const openGitHubAppInstall = () => {
+    const popup = window.open(
+      getGHAppInstallUrl() + "?state=close",
+      "github-app-permissions",
+      "width=700,height=600,left=100,top=100",
+    );
+
+    if (popup) {
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          queryClient.invalidateQueries({ queryKey: ["repos-onboarding"] });
+        }
+      }, 500);
+    }
+  };
 
   return (
     <div
@@ -236,8 +254,7 @@ function GithubStepContents({
         <Button
           className="w-full group"
           size="lg"
-          disabled={!hasRepos}
-          onClick={onContinue}
+          onClick={hasRepos ? onContinue : openGitHubAppInstall}
         >
           <span>{hasRepos ? "Continue" : "Grant Repository Access"}</span>
           <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
