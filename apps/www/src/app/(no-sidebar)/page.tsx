@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { OG_IMAGE_URL } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { getFeatureFlagsGlobal } from "@terragon/shared/model/feature-flags";
+import { isGatewayZEmbedMode } from "@/lib/gatewayz-auth-server";
 
 export const maxDuration = 800;
 
@@ -78,13 +79,24 @@ export default async function Home() {
   } else if (userInfo) {
     redirect("/welcome");
   }
-  const flags = await getFeatureFlagsGlobal({ db });
+
+  // Check if in embed mode (from GatewayZ iframe)
+  const isEmbedMode = await isGatewayZEmbedMode();
+
+  // Get feature flags with error handling
+  let flags: Record<string, boolean> = {};
+  try {
+    flags = await getFeatureFlagsGlobal({ db });
+  } catch (error) {
+    console.error("[Home] Failed to fetch feature flags:", error);
+    // Continue with empty flags to avoid 500 error
+  }
 
   return (
     <>
       <StructuredData />
       <main className="w-full">
-        <Landing isShutdownMode={flags.shutdownMode} />
+        <Landing isShutdownMode={flags.shutdownMode} isEmbedMode={isEmbedMode} />
       </main>
       {/* Google tag (gtag.js) - Production only */}
       {process.env.NODE_ENV === "production" && (

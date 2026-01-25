@@ -13,7 +13,27 @@ import CTA from "./sections/CTA";
 import { HowItWorks } from "./sections/HowItWorks";
 import AnnouncementBanner from "./sections/AnnouncementBanner";
 
-export function Landing({ isShutdownMode }: { isShutdownMode?: boolean }) {
+interface LandingProps {
+  isShutdownMode?: boolean;
+  isEmbedMode?: boolean;
+}
+
+export function Landing({ isShutdownMode, isEmbedMode }: LandingProps) {
+  // In embed mode, don't show the full landing page - just show minimal loading UI
+  // The embed mode is used when Terragon is embedded in GatewayZ inbox
+  if (isEmbedMode) {
+    return (
+      <div className="flex flex-col min-h-[100dvh] w-full relative bg-background text-foreground overflow-x-hidden items-center justify-center">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-semibold mb-4">Loading...</h1>
+          <p className="text-muted-foreground">
+            Please wait while we set up your session.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-[100dvh] w-full relative bg-background text-foreground overflow-x-hidden">
       <GridBackground />
