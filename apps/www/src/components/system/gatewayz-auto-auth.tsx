@@ -4,31 +4,75 @@ import { useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 
 /**
- * Allowed origins for postMessage authentication.
+ * Static allowed origins for postMessage authentication.
  * Only messages from these origins will be processed.
  */
-const ALLOWED_ORIGINS = [
+const STATIC_ALLOWED_ORIGINS = [
   "https://beta.gatewayz.ai",
   "https://gatewayz.ai",
   "https://www.gatewayz.ai",
-  // Allow localhost for development
-  ...(process.env.NODE_ENV === "development"
-    ? [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-      ]
-    : []),
+  "https://inbox.gatewayz.ai",
 ];
 
 /**
+ * Get the configured GatewayZ URL origin if available.
+ * This allows the auth to work with custom GatewayZ deployments.
+ *
+ * @returns The configured GatewayZ origin or null
+ */
+function getConfiguredGatewayZOrigin(): string | null {
+  const configuredUrl = process.env.NEXT_PUBLIC_GATEWAYZ_URL;
+  if (!configuredUrl) return null;
+  try {
+    return new URL(configuredUrl).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if running in localhost environment (runtime check).
+ *
+ * @returns True if running on localhost
+ */
+function isLocalhost(): boolean {
+  if (typeof window === "undefined") return false;
+  const hostname = window.location.hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+/**
  * Check if an origin is allowed to send auth messages.
+ * Validates against static allowlist, configured GatewayZ URL, and localhost (in dev).
  *
  * @param origin - The origin to validate
- * @returns True if the origin is in the allowed list
+ * @returns True if the origin is allowed
  */
 function isAllowedOrigin(origin: string): boolean {
-  return ALLOWED_ORIGINS.includes(origin);
+  // Check static allowlist
+  if (STATIC_ALLOWED_ORIGINS.includes(origin)) {
+    return true;
+  }
+
+  // Check configured GatewayZ URL
+  const configuredOrigin = getConfiguredGatewayZOrigin();
+  if (configuredOrigin && origin === configuredOrigin) {
+    return true;
+  }
+
+  // Allow localhost origins when running locally (runtime check)
+  if (isLocalhost()) {
+    const localhostOrigins = [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+    ];
+    if (localhostOrigins.includes(origin)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
