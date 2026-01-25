@@ -4,6 +4,34 @@ import { useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 
 /**
+ * Allowed origins for postMessage authentication.
+ * Only messages from these origins will be processed.
+ */
+const ALLOWED_ORIGINS = [
+  "https://beta.gatewayz.ai",
+  "https://gatewayz.ai",
+  "https://www.gatewayz.ai",
+  // Allow localhost for development
+  ...(process.env.NODE_ENV === "development"
+    ? [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+      ]
+    : []),
+];
+
+/**
+ * Check if an origin is allowed to send auth messages.
+ *
+ * @param origin - The origin to validate
+ * @returns True if the origin is in the allowed list
+ */
+function isAllowedOrigin(origin: string): boolean {
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
+/**
  * GatewayZ Auto-Auth Component
  *
  * This component enables seamless SSO from GatewayZ to Terragon.
@@ -11,6 +39,8 @@ import { useSearchParams } from "next/navigation";
  * 1. Sends a GATEWAYZ_AUTH_REQUEST message to the parent window
  * 2. Listens for GATEWAYZ_AUTH message with the auth token
  * 3. Redirects to the callback API to create a session
+ *
+ * Security: Only processes messages from allowed GatewayZ origins.
  *
  * This allows users who are already logged into GatewayZ to automatically
  * be authenticated in Terragon without clicking any login buttons.
@@ -24,13 +54,15 @@ export function GatewayZAutoAuth() {
   const awaitAuth = searchParams.get("awaitAuth") === "true";
   const isEmbed = searchParams.get("embed") === "true";
 
-  // Handle incoming auth token
+  /**
+   * Handle incoming auth token by redirecting to the callback API.
+   *
+   * @param token - The encrypted GatewayZ auth token
+   */
   const handleAuthToken = useCallback(
-    async (token: string) => {
+    (token: string) => {
       if (authProcessedRef.current) return;
       authProcessedRef.current = true;
-
-      console.log("[GatewayZAutoAuth] Received auth token, processing...");
 
       // Redirect to the callback API to create a session
       // The callback will verify the token, create/link the user, and redirect to dashboard
@@ -49,14 +81,17 @@ export function GatewayZAutoAuth() {
     [isEmbed],
   );
 
-  // Request auth from parent window
+  /**
+   * Request authentication token from parent window via postMessage.
+   * Uses "*" as target origin since we don't know the parent's origin,
+   * but the parent will validate the request origin before responding.
+   */
   const requestAuthFromParent = useCallback(() => {
     if (requestSentRef.current || !window.parent || window.parent === window) {
       return;
     }
 
     requestSentRef.current = true;
-    console.log("[GatewayZAutoAuth] Requesting auth from parent window");
 
     // Send request to parent - use "*" since we don't know the parent origin
     // The parent will validate the request origin before responding
@@ -69,17 +104,22 @@ export function GatewayZAutoAuth() {
       return;
     }
 
-    console.log("[GatewayZAutoAuth] Awaiting auth from GatewayZ parent");
-
-    // Listen for auth message from parent
+    /**
+     * Handle incoming postMessage events.
+     * Only processes GATEWAYZ_AUTH messages from allowed origins.
+     */
     const handleMessage = (event: MessageEvent) => {
+      // Security: Validate origin before processing
+      if (!isAllowedOrigin(event.origin)) {
+        return;
+      }
+
       // Validate message structure
       if (!event.data || typeof event.data !== "object") {
         return;
       }
 
       if (event.data.type === "GATEWAYZ_AUTH" && event.data.token) {
-        console.log("[GatewayZAutoAuth] Received GATEWAYZ_AUTH message");
         handleAuthToken(event.data.token);
       }
     };
