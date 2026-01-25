@@ -27,7 +27,7 @@ describe("Onboarding button logic", () => {
     });
 
     it("should be falsy when repos is null", () => {
-      const repos = null;
+      const repos: any[] | null = null;
       const hasRepos = repos && repos.length > 0;
       expect(hasRepos).toBeFalsy();
     });
