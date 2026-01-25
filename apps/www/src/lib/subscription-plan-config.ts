@@ -17,7 +17,7 @@ export const SUBSCRIPTION_PLAN_CONFIG: Record<
 > = {
   core: {
     id: "core",
-    name: "Core",
+    name: "Pro", // Displayed as "Pro" (formerly "Core")
     price: "$25",
     period: "per month",
     description:
@@ -34,7 +34,7 @@ export const SUBSCRIPTION_PLAN_CONFIG: Record<
   },
   pro: {
     id: "pro",
-    name: "Pro",
+    name: "Max", // Displayed as "Max" (formerly "Pro")
     price: "$50",
     period: "per month",
     description:

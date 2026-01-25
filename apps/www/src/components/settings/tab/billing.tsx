@@ -428,7 +428,7 @@ function SubscriptionPlanAction({
       >
         {startCheckoutPending
           ? "Redirecting…"
-          : `Upgrade to ${targetPlan === "pro" ? "Pro" : "Core"}`}
+          : `Upgrade to ${targetPlan === "pro" ? "Max" : "Pro"}`}
       </Button>
     );
   }

@@ -45,6 +45,8 @@ import {
   AutomationTriggerConfig,
 } from "../automations";
 
+export type GatewayZTier = "free" | "pro" | "max";
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -62,6 +64,10 @@ export const user = pgTable("user", {
   shadowBanned: boolean("shadow_banned").notNull().default(false),
   stripeCustomerId: text("stripe_customer_id"),
   signupTrialPlan: text("signup_trial_plan"),
+  // GatewayZ integration fields
+  gwUserId: text("gw_user_id"), // GatewayZ user ID for cross-platform identification
+  gwTier: text("gw_tier"), // GatewayZ subscription tier (free/pro/max) - use GatewayZTier type when accessing
+  gwTierUpdatedAt: timestamp("gw_tier_updated_at"), // Last time tier was synced from GatewayZ
 });
 
 export const userStripePromotionCode = pgTable(

@@ -139,6 +139,16 @@ export const auth = betterAuth({
       signupTrialPlan: {
         type: "string",
       },
+      // GatewayZ integration fields
+      gwUserId: {
+        type: "string",
+      },
+      gwTier: {
+        type: "string",
+      },
+      gwTierUpdatedAt: {
+        type: "date",
+      },
     },
   },
   session: {

@@ -17,6 +17,10 @@ export type User = WithOptional<
   | "banExpires"
   | "shadowBanned"
   | "stripeCustomerId"
+  // GatewayZ integration fields (optional since Better Auth additionalFields uses generic string type)
+  | "gwUserId"
+  | "gwTier"
+  | "gwTierUpdatedAt"
 >;
 export type Session = WithOptional<
   SessionInner,

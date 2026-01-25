@@ -12,6 +12,9 @@ import {
 } from "@terragon/shared/model/subscription";
 import { getFeatureFlagsGlobal } from "@terragon/shared/model/feature-flags";
 import { isStripeConfigured } from "@/server-lib/stripe";
+import * as schema from "@terragon/shared/db/schema";
+import { eq } from "drizzle-orm";
+type GatewayZTier = "free" | "pro" | "max";
 
 function resolvePaidTier(plan: string): AccessTier {
   switch (plan) {
@@ -25,13 +28,51 @@ function resolvePaidTier(plan: string): AccessTier {
 }
 
 /**
+ * Maps GatewayZ tier to Terragon access tier.
+ * - gw:free -> none
+ * - gw:pro -> core (displayed as "Pro" in UI)
+ * - gw:max -> pro (displayed as "Max" in UI)
+ */
+function mapGatewayZTierToAccessTier(gwTier: GatewayZTier): AccessTier {
+  switch (gwTier) {
+    case "pro":
+      return "core"; // GatewayZ Pro maps to Terragon core (displayed as "Pro")
+    case "max":
+      return "pro"; // GatewayZ Max maps to Terragon pro (displayed as "Max")
+    case "free":
+    default:
+      return "none";
+  }
+}
+
+/**
  * Returns the access tier for the current user.
+ * Priority:
+ * 1. GatewayZ tier (if user authenticated via GatewayZ)
+ * 2. Stripe subscription
+ * 3. Signup trial
+ * 4. "none" (free tier)
+ *
  * If billing is disabled for the user or Stripe is not configured,
- * defaults to "core" (don’t block in dev).
+ * defaults to "core" (don't block in dev).
  */
 export async function getAccessInfoForUser(
   userId: string,
 ): Promise<AccessInfo> {
+  // First, check if user has a GatewayZ tier (they logged in via GatewayZ)
+  const userRecord = await db
+    .select({ gwTier: schema.user.gwTier })
+    .from(schema.user)
+    .where(eq(schema.user.id, userId))
+    .limit(1);
+
+  const gwTier = userRecord[0]?.gwTier as GatewayZTier | null | undefined;
+  if (gwTier && gwTier !== "free") {
+    // User has an active GatewayZ subscription - use that tier
+    return { tier: mapGatewayZTierToAccessTier(gwTier) };
+  }
+
+  // Fall back to Stripe subscription check
   if (!isStripeConfigured()) {
     // Don't block in dev/misconfig
     return { tier: "core" };
