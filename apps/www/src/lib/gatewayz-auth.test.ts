@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
-import { createHmac, createCipheriv, randomBytes } from "crypto";
+import { createHmac, createCipheriv, randomBytes, hkdfSync } from "crypto";
 import {
   verifyGatewayZToken,
   isGatewayZEmbed,
@@ -9,9 +9,16 @@ import {
 // Store original env
 const originalEnv = process.env;
 
+// Derive key using HKDF to match the implementation
+function deriveKey(secret: string): Buffer {
+  return Buffer.from(
+    hkdfSync("sha256", secret, "", "gatewayz-terragon-auth", 32),
+  );
+}
+
 // Helper to encrypt payload for testing (matching the frontend implementation)
 function encryptPayload(payload: string, secret: string): string {
-  const key = Buffer.from(secret.padEnd(32, "0").slice(0, 32));
+  const key = deriveKey(secret);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
 
