@@ -90,7 +90,8 @@ export async function createSessionForGatewayZUser(
   const sessionId = crypto.randomUUID();
   const sessionToken = crypto.randomUUID();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour to match GatewayZ token
+  // 60 days expiry to match Better Auth session config
+  const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
   await db.insert(schema.session).values({
     id: sessionId,
