@@ -32,6 +32,14 @@ export function middleware(request: NextRequest) {
   // Check if user is already authenticated with Terragon
   const hasSessionToken = request.cookies.has("better-auth.session_token");
 
+  // Check if request is coming from an iframe using Sec-Fetch-Dest header
+  // This is more reliable than query params which can be lost during navigation
+  const secFetchDest = request.headers.get("Sec-Fetch-Dest");
+  const isIframeRequest = secFetchDest === "iframe";
+
+  // Also check for RSC (React Server Components) requests which shouldn't redirect
+  const isRscRequest = request.headers.has("rsc");
+
   // Redirect direct visits to GatewayZ inbox for seamless SSO
   // Only redirect if:
   // 1. Not in embed mode (not loaded in iframe)
@@ -39,6 +47,8 @@ export function middleware(request: NextRequest) {
   // 3. Not already authenticated
   // 4. Not on auth callback or API routes
   // 5. On the root or login page (main entry points)
+  // 6. Not an iframe request (detected via Sec-Fetch-Dest header)
+  // 7. Not an RSC request (would cause CORS issues)
   const isAuthCallback = pathname.startsWith("/api/auth");
   const isPublicEntryPoint = pathname === "/" || pathname === "/login";
 
@@ -49,11 +59,31 @@ export function middleware(request: NextRequest) {
     !hasSessionToken &&
     !isAuthCallback &&
     !gwAuthToken &&
+    !isIframeRequest &&
+    !isRscRequest &&
     isPublicEntryPoint
   ) {
     const gatewayZInboxUrl = getGatewayZInboxUrl();
     if (gatewayZInboxUrl) {
       return NextResponse.redirect(gatewayZInboxUrl);
+    }
+  }
+
+  // Set embed mode cookie if we detect iframe context (even without gwauth token)
+  // This ensures subsequent navigations within the iframe don't trigger redirects
+  if ((isEmbed || isIframeRequest) && !hasEmbedCookie) {
+    const response = gwAuthToken ? NextResponse.next() : NextResponse.next();
+    response.cookies.set("gw_embed_mode", "true", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: "/",
+    });
+
+    // If no gwauth token, just continue with the embed cookie set
+    if (!gwAuthToken) {
+      return response;
     }
   }
 
@@ -71,7 +101,7 @@ export function middleware(request: NextRequest) {
     });
 
     // Store embed mode preference
-    if (isEmbed) {
+    if (isEmbed || isIframeRequest) {
       response.cookies.set("gw_embed_mode", "true", {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
