@@ -72,7 +72,7 @@ export function middleware(request: NextRequest) {
   // Set embed mode cookie if we detect iframe context (even without gwauth token)
   // This ensures subsequent navigations within the iframe don't trigger redirects
   if ((isEmbed || isIframeRequest) && !hasEmbedCookie) {
-    const response = gwAuthToken ? NextResponse.next() : NextResponse.next();
+    const response = NextResponse.next();
     response.cookies.set("gw_embed_mode", "true", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
