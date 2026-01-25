@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyGatewayZToken } from "@/lib/gatewayz-auth";
 import { createSessionForGatewayZUser } from "@/lib/gatewayz-auth-server";
-import { cookies } from "next/headers";
 
 /**
  * Get the base URL for redirects.
@@ -57,9 +56,13 @@ export async function GET(request: NextRequest) {
     // Create or link user and create session
     const { sessionToken } = await createSessionForGatewayZUser(gwSession);
 
+    // Create redirect response first, then set cookies on it
+    // Note: cookies() API doesn't work with NextResponse.redirect() - must set on response directly
+    const redirectUrl = new URL(returnUrl, baseUrl);
+    const response = NextResponse.redirect(redirectUrl);
+
     // Set the session cookie (using the same cookie name as Better Auth)
-    const cookieStore = await cookies();
-    cookieStore.set("better-auth.session_token", sessionToken, {
+    response.cookies.set("better-auth.session_token", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Also store GatewayZ token for API calls
-    cookieStore.set("gw_auth_token", token, {
+    response.cookies.set("gw_auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -78,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     // Set embed mode cookie if applicable
     if (embed) {
-      cookieStore.set("gw_embed_mode", "true", {
+      response.cookies.set("gw_embed_mode", "true", {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -87,8 +90,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Redirect to the target page
-    return NextResponse.redirect(new URL(returnUrl, baseUrl));
+    return response;
   } catch (error) {
     console.error("GatewayZ callback error:", error);
     return NextResponse.redirect(
