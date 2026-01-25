@@ -4,6 +4,21 @@ import { createSessionForGatewayZUser } from "@/lib/gatewayz-auth-server";
 import { cookies } from "next/headers";
 
 /**
+ * Get the base URL for redirects.
+ * Uses NEXT_PUBLIC_APP_URL or BETTER_AUTH_URL in production,
+ * falls back to request.url in development.
+ */
+function getBaseUrl(request: NextRequest): string {
+  // In production, use the configured app URL to avoid localhost issues behind proxies
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL;
+  if (appUrl) {
+    return appUrl;
+  }
+  // Fallback to request URL (works in development)
+  return new URL(request.url).origin;
+}
+
+/**
  * GET /api/auth/gatewayz/callback
  *
  * Handle callback from GatewayZ login redirect.
@@ -12,6 +27,7 @@ import { cookies } from "next/headers";
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
+    const baseUrl = getBaseUrl(request);
     const token = url.searchParams.get("gwauth");
     const returnUrl = url.searchParams.get("returnUrl") || "/dashboard";
     const embed = url.searchParams.get("embed") === "true";
@@ -21,7 +37,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         new URL(
           `/login?error=missing_token&returnUrl=${encodeURIComponent(returnUrl)}`,
-          request.url,
+          baseUrl,
         ),
       );
     }
@@ -33,7 +49,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         new URL(
           `/login?error=invalid_token&returnUrl=${encodeURIComponent(returnUrl)}`,
-          request.url,
+          baseUrl,
         ),
       );
     }
@@ -72,11 +88,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to the target page
-    return NextResponse.redirect(new URL(returnUrl, request.url));
+    return NextResponse.redirect(new URL(returnUrl, baseUrl));
   } catch (error) {
     console.error("GatewayZ callback error:", error);
     return NextResponse.redirect(
-      new URL("/login?error=internal_error", request.url),
+      new URL("/login?error=internal_error", getBaseUrl(request)),
     );
   }
 }
