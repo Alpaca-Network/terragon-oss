@@ -56,6 +56,13 @@ export async function GET(request: NextRequest) {
     // Create or link user and create session
     const { sessionToken } = await createSessionForGatewayZUser(gwSession);
 
+    console.log("GatewayZ callback: Session created successfully", {
+      userId: gwSession.gwUserId,
+      email: gwSession.email?.substring(0, 3) + "***",
+      embed,
+      returnUrl,
+    });
+
     // Create redirect response first, then set cookies on it
     // Note: cookies() API doesn't work with NextResponse.redirect() - must set on response directly
     const redirectUrl = new URL(returnUrl, baseUrl);
@@ -63,15 +70,19 @@ export async function GET(request: NextRequest) {
 
     // When in embed mode (iframe context), we need sameSite: "none" with secure: true
     // for cookies to work cross-site. Otherwise use "lax" for regular auth flow.
+    // We also add partitioned: true for CHIPS support in modern browsers.
     const sameSiteValue = embed ? "none" : "lax";
 
     // Set the session cookie (using the same cookie name as Better Auth)
+    // Note: partitioned attribute enables CHIPS (Cookies Having Independent Partitioned State)
+    // which allows third-party cookies to work even when third-party cookies are blocked
     response.cookies.set("better-auth.session_token", sessionToken, {
       httpOnly: true,
       secure: true, // Always secure in production (required for sameSite: none)
       sameSite: sameSiteValue,
       path: "/",
       maxAge: 60 * 60 * 24 * 60, // 60 days to match Better Auth session expiry
+      ...(embed && { partitioned: true }), // CHIPS support for iframe context
     });
 
     // Also store GatewayZ token for API calls
@@ -81,6 +92,7 @@ export async function GET(request: NextRequest) {
       sameSite: sameSiteValue,
       path: "/",
       maxAge: 60 * 60, // 1 hour to match GatewayZ token expiry
+      ...(embed && { partitioned: true }), // CHIPS support for iframe context
     });
 
     // Set embed mode cookie if applicable
@@ -91,6 +103,7 @@ export async function GET(request: NextRequest) {
         sameSite: "none", // Always none for embed mode cookie in iframe context
         path: "/",
         maxAge: 60 * 60, // 1 hour
+        partitioned: true, // CHIPS support for iframe context
       });
     }
 
