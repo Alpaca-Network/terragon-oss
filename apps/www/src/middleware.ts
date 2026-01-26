@@ -4,11 +4,16 @@ import type { NextRequest } from "next/server";
 /**
  * Get the GatewayZ URL to redirect to when users visit Terragon directly.
  * This enables seamless SSO by redirecting to the GatewayZ-hosted inbox.
+ *
+ * NOTE: Redirect is DISABLED by default. Set NEXT_PUBLIC_GATEWAYZ_URL to enable.
+ * This prevents redirect loops when terragon-oss is embedded in GatewayZ.
  */
 function getGatewayZInboxUrl(): string | null {
-  // Use configured URL or default to beta.gatewayz.ai
-  const gatewayZUrl =
-    process.env.NEXT_PUBLIC_GATEWAYZ_URL || "https://beta.gatewayz.ai";
+  // Only redirect if explicitly configured - no default to prevent loops
+  const gatewayZUrl = process.env.NEXT_PUBLIC_GATEWAYZ_URL;
+  if (!gatewayZUrl) {
+    return null; // Disabled by default
+  }
   try {
     const url = new URL("/inbox", gatewayZUrl);
     return url.toString();
