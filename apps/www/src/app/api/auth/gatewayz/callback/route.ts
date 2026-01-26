@@ -61,11 +61,15 @@ export async function GET(request: NextRequest) {
     const redirectUrl = new URL(returnUrl, baseUrl);
     const response = NextResponse.redirect(redirectUrl);
 
+    // When in embed mode (iframe context), we need sameSite: "none" with secure: true
+    // for cookies to work cross-site. Otherwise use "lax" for regular auth flow.
+    const sameSiteValue = embed ? "none" : "lax";
+
     // Set the session cookie (using the same cookie name as Better Auth)
     response.cookies.set("better-auth.session_token", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true, // Always secure in production (required for sameSite: none)
+      sameSite: sameSiteValue,
       path: "/",
       maxAge: 60 * 60 * 24 * 60, // 60 days to match Better Auth session expiry
     });
@@ -73,8 +77,8 @@ export async function GET(request: NextRequest) {
     // Also store GatewayZ token for API calls
     response.cookies.set("gw_auth_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true, // Always secure in production (required for sameSite: none)
+      sameSite: sameSiteValue,
       path: "/",
       maxAge: 60 * 60, // 1 hour to match GatewayZ token expiry
     });
@@ -83,8 +87,8 @@ export async function GET(request: NextRequest) {
     if (embed) {
       response.cookies.set("gw_embed_mode", "true", {
         httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: true, // Always secure in production (required for sameSite: none)
+        sameSite: "none", // Always none for embed mode cookie in iframe context
         path: "/",
         maxAge: 60 * 60, // 1 hour
       });
