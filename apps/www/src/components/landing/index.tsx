@@ -26,9 +26,10 @@ interface LandingProps {
  */
 function EmbedLoading() {
   const [timedOut, setTimedOut] = useState(false);
-  const gatewayZInboxUrl = process.env.NEXT_PUBLIC_GATEWAYZ_URL
-    ? `${process.env.NEXT_PUBLIC_GATEWAYZ_URL}/inbox`
-    : "https://beta.gatewayz.ai/inbox";
+  const gatewayZInboxUrl = new URL(
+    "/inbox",
+    process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai"
+  ).toString();
 
   useEffect(() => {
     const timeout = setTimeout(() => {
