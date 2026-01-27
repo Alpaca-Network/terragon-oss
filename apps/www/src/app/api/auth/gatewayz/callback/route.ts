@@ -18,32 +18,57 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
- * Generate an HTML page that sets cookies via meta refresh and then redirects.
- * This approach works better in iframe contexts where Set-Cookie on redirects
- * may not be processed correctly due to third-party cookie restrictions.
+ * Generate an HTML page for embed mode authentication.
+ *
+ * In embed mode (iframe), third-party cookies are blocked by modern browsers.
+ * Instead of relying on cookies, we:
+ * 1. Send the session token to the parent window via postMessage
+ * 2. Store the token in sessionStorage for the iframe's use
+ * 3. Redirect to the dashboard
+ *
+ * The parent window (GatewayZ) will receive the session token and can store it
+ * to pass along with subsequent requests if needed.
  */
-function generateCookieSetterPage(
+function generateEmbedAuthPage(
   redirectUrl: string,
   sessionToken: string,
   gwAuthToken: string,
-  isEmbed: boolean,
 ): string {
-  // For embed mode, we use a meta refresh approach which processes Set-Cookie headers
-  // more reliably than a 302 redirect in iframe contexts
+  // Encode tokens for safe embedding in JavaScript
+  const safeSessionToken = sessionToken.replace(/'/g, "\\'");
+  const safeGwAuthToken = gwAuthToken.replace(/'/g, "\\'");
+
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
   <title>Authenticating...</title>
 </head>
 <body>
   <p>Authenticating, please wait...</p>
   <script>
-    // Fallback navigation in case meta refresh doesn't work
-    setTimeout(function() {
-      window.location.href = "${redirectUrl}";
-    }, 100);
+    (function() {
+      try {
+        // Store session token in sessionStorage for iframe's own use
+        sessionStorage.setItem('terragon_session_token', '${safeSessionToken}');
+        sessionStorage.setItem('gw_auth_token', '${safeGwAuthToken}');
+        sessionStorage.setItem('gw_embed_mode', 'true');
+
+        // Notify parent window that auth is complete
+        // Parent can use this to track auth state
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: 'TERRAGON_AUTH_COMPLETE',
+            success: true
+          }, '*');
+        }
+      } catch (e) {
+        console.error('Failed to store session:', e);
+      }
+
+      // Navigate to dashboard
+      window.location.href = '${redirectUrl}';
+    })();
   </script>
 </body>
 </html>`;
@@ -116,14 +141,15 @@ export async function GET(request: NextRequest) {
       cookies.push(`gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`);
     }
 
-    // In embed mode, return an HTML page that will process cookies and redirect
-    // This works more reliably than a 302 redirect for iframe cookie handling
+    // In embed mode, return an HTML page that stores the session in sessionStorage
+    // and notifies the parent. This avoids third-party cookie blocking issues.
     if (embed) {
-      const html = generateCookieSetterPage(redirectUrl, sessionToken, token, embed);
+      const html = generateEmbedAuthPage(redirectUrl, sessionToken, token);
       return new Response(html, {
         status: 200,
         headers: {
           "Content-Type": "text/html; charset=utf-8",
+          // Still try to set cookies (may work in some browsers), but don't rely on them
           "Set-Cookie": cookies.join(", "),
           "Cache-Control": "no-store, no-cache, must-revalidate",
         },
