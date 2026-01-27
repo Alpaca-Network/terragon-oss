@@ -391,7 +391,11 @@ export function usePromptBox({
             const lines = textContent.split("\n");
             for (let i = 0; i < lines.length; i++) {
               const line = lines[i]!;
-              editor.commands.insertContent({ type: "text", text: line });
+              // Only insert text content if the line is non-empty
+              // TipTap doesn't allow empty text nodes
+              if (line.length > 0) {
+                editor.commands.insertContent({ type: "text", text: line });
+              }
               if (i < lines.length - 1) {
                 editor.commands.setHardBreak();
               }
