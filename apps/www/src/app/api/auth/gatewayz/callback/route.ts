@@ -18,6 +18,38 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
+ * Generate an HTML page that sets cookies via meta refresh and then redirects.
+ * This approach works better in iframe contexts where Set-Cookie on redirects
+ * may not be processed correctly due to third-party cookie restrictions.
+ */
+function generateCookieSetterPage(
+  redirectUrl: string,
+  sessionToken: string,
+  gwAuthToken: string,
+  isEmbed: boolean,
+): string {
+  // For embed mode, we use a meta refresh approach which processes Set-Cookie headers
+  // more reliably than a 302 redirect in iframe contexts
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+  <title>Authenticating...</title>
+</head>
+<body>
+  <p>Authenticating, please wait...</p>
+  <script>
+    // Fallback navigation in case meta refresh doesn't work
+    setTimeout(function() {
+      window.location.href = "${redirectUrl}";
+    }, 100);
+  </script>
+</body>
+</html>`;
+}
+
+/**
  * GET /api/auth/gatewayz/callback
  *
  * Handle callback from GatewayZ login redirect.
@@ -63,49 +95,61 @@ export async function GET(request: NextRequest) {
       returnUrl,
     });
 
-    // Create redirect response first, then set cookies on it
-    // Note: cookies() API doesn't work with NextResponse.redirect() - must set on response directly
-    const redirectUrl = new URL(returnUrl, baseUrl);
-    const response = NextResponse.redirect(redirectUrl);
+    const redirectUrl = new URL(returnUrl, baseUrl).toString();
 
     // When in embed mode (iframe context), we need sameSite: "none" with secure: true
     // for cookies to work cross-site. Otherwise use "lax" for regular auth flow.
-    // We also add partitioned: true for CHIPS support in modern browsers.
     const sameSiteValue = embed ? "none" : "lax";
 
-    // Set the session cookie (using the same cookie name as Better Auth)
-    // Note: partitioned attribute enables CHIPS (Cookies Having Independent Partitioned State)
-    // which allows third-party cookies to work even when third-party cookies are blocked
-    response.cookies.set("better-auth.session_token", sessionToken, {
-      httpOnly: true,
-      secure: true, // Always secure in production (required for sameSite: none)
-      sameSite: sameSiteValue,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 60, // 60 days to match Better Auth session expiry
-      ...(embed && { partitioned: true }), // CHIPS support for iframe context
-    });
+    // Build cookie strings for Set-Cookie headers
+    const cookieOptions = embed
+      ? `; Path=/; Secure; SameSite=None; Partitioned`
+      : `; Path=/; Secure; SameSite=Lax`;
 
-    // Also store GatewayZ token for API calls
-    response.cookies.set("gw_auth_token", token, {
-      httpOnly: true,
-      secure: true, // Always secure in production (required for sameSite: none)
-      sameSite: sameSiteValue,
-      path: "/",
-      maxAge: 60 * 60, // 1 hour to match GatewayZ token expiry
-      ...(embed && { partitioned: true }), // CHIPS support for iframe context
-    });
+    const sessionCookieMaxAge = 60 * 60 * 24 * 60; // 60 days
+    const gwTokenMaxAge = 60 * 60; // 1 hour
 
-    // Set embed mode cookie if applicable
+    const cookies = [
+      `better-auth.session_token=${sessionToken}; Max-Age=${sessionCookieMaxAge}; HttpOnly${cookieOptions}`,
+      `gw_auth_token=${token}; Max-Age=${gwTokenMaxAge}; HttpOnly${cookieOptions}`,
+    ];
+
     if (embed) {
-      response.cookies.set("gw_embed_mode", "true", {
-        httpOnly: false,
-        secure: true, // Always secure in production (required for sameSite: none)
-        sameSite: "none", // Always none for embed mode cookie in iframe context
-        path: "/",
-        maxAge: 60 * 60, // 1 hour
-        partitioned: true, // CHIPS support for iframe context
+      cookies.push(`gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`);
+    }
+
+    // In embed mode, return an HTML page that will process cookies and redirect
+    // This works more reliably than a 302 redirect for iframe cookie handling
+    if (embed) {
+      const html = generateCookieSetterPage(redirectUrl, sessionToken, token, embed);
+      return new Response(html, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Set-Cookie": cookies.join(", "),
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
       });
     }
+
+    // For non-embed mode, use standard redirect with cookies
+    const response = NextResponse.redirect(redirectUrl);
+
+    response.cookies.set("better-auth.session_token", sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: sessionCookieMaxAge,
+    });
+
+    response.cookies.set("gw_auth_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: gwTokenMaxAge,
+    });
 
     return response;
   } catch (error) {
