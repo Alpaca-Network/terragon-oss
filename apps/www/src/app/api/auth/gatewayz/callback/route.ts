@@ -97,11 +97,9 @@ export async function GET(request: NextRequest) {
 
     const redirectUrl = new URL(returnUrl, baseUrl).toString();
 
-    // When in embed mode (iframe context), we need sameSite: "none" with secure: true
-    // for cookies to work cross-site. Otherwise use "lax" for regular auth flow.
-    const sameSiteValue = embed ? "none" : "lax";
-
     // Build cookie strings for Set-Cookie headers
+    // In embed mode (iframe context), we need sameSite: "none" with secure: true
+    // for cookies to work cross-site. Otherwise use "lax" for regular auth flow.
     const cookieOptions = embed
       ? `; Path=/; Secure; SameSite=None; Partitioned`
       : `; Path=/; Secure; SameSite=Lax`;
