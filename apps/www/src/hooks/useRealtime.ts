@@ -46,11 +46,23 @@ function getOrCreatePartySocket({
     socket.addEventListener("open", () => {
       console.log(`[broadcast] connected to channel: ${channel}`);
     });
-    socket.addEventListener("close", () => {
-      console.log(`[broadcast] disconnected from channel: ${channel}`);
+    socket.addEventListener("close", (event) => {
+      const closeEvent = event as CloseEvent;
+      if (closeEvent.code === 1000) {
+        console.log(`[broadcast] disconnected from channel: ${channel}`);
+      } else {
+        console.warn(
+          `[broadcast] connection closed on channel ${channel}: code=${closeEvent.code}, reason=${closeEvent.reason || "unknown"}, wasClean=${closeEvent.wasClean}`,
+        );
+      }
     });
-    socket.addEventListener("error", (error) => {
-      console.error(`[broadcast] socket error on channel ${channel}:`, error);
+    socket.addEventListener("error", () => {
+      // WebSocket error events don't contain useful information about what went wrong.
+      // The actual error details come from the close event that follows.
+      // We log at debug level to avoid console spam during normal reconnection cycles.
+      console.debug(
+        `[broadcast] connection error on channel ${channel} (check close event for details)`,
+      );
     });
     partykitByChannel[channel] = socket;
   }
