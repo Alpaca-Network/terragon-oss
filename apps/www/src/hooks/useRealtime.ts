@@ -10,6 +10,7 @@ import {
   getBroadcastChannelStr,
 } from "@terragon/types/broadcast";
 import PartySocket from "partysocket";
+import { type CloseEvent as PartyCloseEvent } from "partysocket/ws";
 import { useCallback, useEffect, useState } from "react";
 import { publicBroadcastHost } from "@terragon/env/next-public";
 import { SandboxProvider } from "@terragon/types/sandbox";
@@ -47,13 +48,27 @@ function getOrCreatePartySocket({
       console.log(`[broadcast] connected to channel: ${channel}`);
     });
     socket.addEventListener("close", (event) => {
-      const closeEvent = event as CloseEvent;
+      // PartySocket's CloseEvent may not properly propagate code/reason in browser
+      // due to cloneEventBrowser implementation, so we safely extract the values
+      const closeEvent = event as PartyCloseEvent;
+      const code =
+        typeof closeEvent.code === "number" ? closeEvent.code : undefined;
+      const reason =
+        typeof closeEvent.reason === "string" ? closeEvent.reason : undefined;
+      const wasClean = closeEvent.wasClean ?? false;
+
       // 1000 = Normal Closure, 1001 = Going Away (e.g., user navigating away)
-      if (closeEvent.code === 1000 || closeEvent.code === 1001) {
+      // undefined code typically means connection failed before WebSocket handshake
+      if (code === 1000 || code === 1001) {
         console.log(`[broadcast] disconnected from channel: ${channel}`);
+      } else if (code === undefined) {
+        // Connection failed - likely auth error, network issue, or server unavailable
+        console.warn(
+          `[broadcast] connection failed on channel ${channel} (no close code - check network/auth)`,
+        );
       } else {
         console.warn(
-          `[broadcast] connection closed on channel ${channel}: code=${closeEvent.code}, reason=${closeEvent.reason || "unknown"}, wasClean=${closeEvent.wasClean}`,
+          `[broadcast] connection closed on channel ${channel}: code=${code}, reason=${reason || "unknown"}, wasClean=${wasClean}`,
         );
       }
     });
