@@ -1,6 +1,7 @@
 import {
   getUserIdOrNull,
   getUserIdOrNullFromDaemonToken,
+  getUserIdOrNullFromBearerToken,
 } from "@/lib/auth-server";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
@@ -16,8 +17,13 @@ export async function GET(request: Request) {
   if (!parsedChannel) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // Try multiple authentication methods:
+  // 1. X-Daemon-Token header (for daemon/sandbox requests)
+  // 2. Authorization: Bearer header (for PartyKit broadcast validation)
+  // 3. Session cookies (for direct browser requests)
   const userId =
     (await getUserIdOrNullFromDaemonToken(request)) ??
+    (await getUserIdOrNullFromBearerToken(request)) ??
     (await getUserIdOrNull());
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
