@@ -48,7 +48,8 @@ function getOrCreatePartySocket({
     });
     socket.addEventListener("close", (event) => {
       const closeEvent = event as CloseEvent;
-      if (closeEvent.code === 1000) {
+      // 1000 = Normal Closure, 1001 = Going Away (e.g., user navigating away)
+      if (closeEvent.code === 1000 || closeEvent.code === 1001) {
         console.log(`[broadcast] disconnected from channel: ${channel}`);
       } else {
         console.warn(
