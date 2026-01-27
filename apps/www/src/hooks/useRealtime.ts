@@ -55,7 +55,7 @@ function getOrCreatePartySocket({
         typeof closeEvent.code === "number" ? closeEvent.code : undefined;
       const reason =
         typeof closeEvent.reason === "string" ? closeEvent.reason : undefined;
-      const wasClean = closeEvent.wasClean ?? true;
+      const wasClean = closeEvent.wasClean ?? false;
 
       // 1000 = Normal Closure, 1001 = Going Away (e.g., user navigating away)
       // undefined code typically means connection failed before WebSocket handshake
