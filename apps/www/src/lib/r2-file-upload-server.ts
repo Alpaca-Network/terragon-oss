@@ -217,7 +217,10 @@ export async function uploadClaudeSessionToR2({
     body: contents,
   });
   if (!uploadResponse.ok) {
-    throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    const responseText = await uploadResponse.text();
+    throw new Error(
+      `Claude session upload failed (status: ${uploadResponse.status}, size: ${Buffer.byteLength(contents)}): ${responseText}`,
+    );
   }
   return r2Key;
 }

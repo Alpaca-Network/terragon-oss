@@ -72,7 +72,8 @@ Generate a name that someone could easily understand at a glance.`;
       console.error("Failed to generate thread name:", error);
     }
     // Fallback to a truncated version of the original prompt
-    const fallbackName = prompt.trim().slice(0, 50);
+    // Normalize whitespace (collapse multiple spaces/newlines into single space)
+    const fallbackName = prompt.replace(/\s+/g, " ").trim().slice(0, 50);
     return fallbackName || "New thread";
   }
 }
