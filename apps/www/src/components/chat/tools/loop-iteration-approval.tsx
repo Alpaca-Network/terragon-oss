@@ -94,7 +94,7 @@ export function LoopIterationApproval({
   }
 
   const nextIteration = loopConfig.currentIteration + 1;
-  const isLastIteration = nextIteration > loopConfig.maxIterations;
+  const isLastIteration = nextIteration >= loopConfig.maxIterations;
 
   return (
     <div className="mx-4 my-3 p-4 bg-muted/50 rounded-lg border border-border">

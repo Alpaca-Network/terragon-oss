@@ -251,6 +251,13 @@ export const allowedSignups = pgTable(
   (table) => [uniqueIndex("allowed_signups_email_unique").on(table.email)],
 );
 
+/**
+ * Configuration for loop mode execution.
+ * Constraints:
+ * - maxIterations: 1-100
+ * - completionPromise: non-empty string
+ * - currentIteration: >= 1, <= maxIterations
+ */
 export type LoopConfig = {
   maxIterations: number;
   completionPromise: string;

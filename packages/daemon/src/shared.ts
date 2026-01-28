@@ -15,11 +15,11 @@ export type FeatureFlags = {
 };
 
 export const LoopConfigSchema = z.object({
-  maxIterations: z.number(),
-  completionPromise: z.string(),
+  maxIterations: z.number().min(1).max(100),
+  completionPromise: z.string().min(1),
   useRegex: z.boolean(),
   requireApproval: z.boolean(),
-  currentIteration: z.number(),
+  currentIteration: z.number().min(1),
   isLoopActive: z.boolean(),
   awaitingApproval: z.boolean(),
 });

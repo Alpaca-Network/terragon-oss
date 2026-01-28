@@ -485,11 +485,26 @@ export async function handleDaemonEvent({
     const lastAgentOutput = getLastAgentOutput(allMessages);
 
     // Check if completion promise is found in the output
-    const isComplete = loopConfig.useRegex
-      ? lastAgentOutput
-        ? new RegExp(loopConfig.completionPromise).test(lastAgentOutput)
-        : false
-      : (lastAgentOutput?.includes(loopConfig.completionPromise) ?? false);
+    let isComplete = false;
+    if (loopConfig.useRegex) {
+      try {
+        isComplete = lastAgentOutput
+          ? new RegExp(loopConfig.completionPromise).test(lastAgentOutput)
+          : false;
+      } catch (e) {
+        console.error("Invalid regex in loop completion promise", {
+          threadId,
+          completionPromise: loopConfig.completionPromise,
+          error: e,
+        });
+        // Fall back to exact string match if regex is invalid
+        isComplete =
+          lastAgentOutput?.includes(loopConfig.completionPromise) ?? false;
+      }
+    } else {
+      isComplete =
+        lastAgentOutput?.includes(loopConfig.completionPromise) ?? false;
+    }
 
     if (isComplete) {
       // Loop completed successfully
