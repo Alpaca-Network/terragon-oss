@@ -153,5 +153,5 @@ The MCP server acts as a bridge between Claude Code and Terragon, allowing you t
 
 ## Support
 
-- **Documentation**: [https://docs.terragonlabs.com](https://docs.terragonlabs.com)
-- **Website**: [https://terragonlabs.com](https://terragonlabs.com)
+- **Documentation**: [https://beta.gatewayz.ai/inbox/docs](https://beta.gatewayz.ai/inbox/docs)
+- **Website**: [https://beta.gatewayz.ai](https://beta.gatewayz.ai)

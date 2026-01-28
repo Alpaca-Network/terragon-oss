@@ -188,7 +188,7 @@ export function claudeCommand({
   sessionId: string | null;
   model: string;
   mcpConfigPath: string | null;
-  permissionMode?: "allowAll" | "plan";
+  permissionMode?: "allowAll" | "plan" | "loop";
   enableMcpPermissionPrompt?: boolean;
 }) {
   // Write prompt to a file.

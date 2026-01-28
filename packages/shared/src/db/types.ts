@@ -17,6 +17,10 @@ export type User = WithOptional<
   | "banExpires"
   | "shadowBanned"
   | "stripeCustomerId"
+  // GatewayZ integration fields (optional since Better Auth additionalFields uses generic string type)
+  | "gwUserId"
+  | "gwTier"
+  | "gwTierUpdatedAt"
 >;
 export type Session = WithOptional<
   SessionInner,
@@ -216,6 +220,7 @@ export type ThreadInfo = Omit<
   | "errorMessage"
   | "errorMessageInfo"
   | "permissionMode"
+  | "loopConfig"
   | "reattemptQueueAt"
   | "scheduleAt"
   | "contextLength"
@@ -262,6 +267,8 @@ export type SubscriptionInsert = typeof schema.subscription.$inferInsert;
 export type ThreadInsertRaw = typeof schema.thread.$inferInsert;
 export type ThreadChatInsertRaw = typeof schema.threadChat.$inferInsert;
 
+export type { LoopConfig } from "./schema";
+
 export type ThreadChatInsert = Partial<
   Omit<
     ThreadChatInsertRaw,
@@ -270,6 +277,7 @@ export type ThreadChatInsert = Partial<
     | "errorMessage"
     | "errorMessageInfo"
     | "status"
+    | "loopConfig"
   > &
     Partial<{
       // Only allow inserting one of our known types.
@@ -286,6 +294,8 @@ export type ThreadChatInsert = Partial<
       appendAndResetQueuedMessages?: boolean;
       // Exclude deprecated statuses.
       status?: Exclude<ThreadStatus, ThreadStatusDeprecated>;
+      // Loop configuration updates
+      loopConfig?: ThreadChatInsertRaw["loopConfig"];
     }>
 >;
 
@@ -398,6 +408,11 @@ export type StripePromotionCode = {
   stripePromotionCodeId: string;
 };
 
+export type GatewayZTierInfo = {
+  tier: "free" | "pro" | "max";
+  mappedAccessTier: AccessTier;
+};
+
 export type BillingInfo = {
   hasActiveSubscription: boolean;
   subscription: SubscriptionInfo | null;
@@ -406,6 +421,8 @@ export type BillingInfo = {
   unusedPromotionCode: boolean;
   // If true, new subscriptions are blocked (shutdown mode)
   isShutdownMode?: boolean;
+  // GatewayZ subscription info (takes priority over Stripe)
+  gatewayZTier: GatewayZTierInfo | null;
 };
 
 export type ClaudeAgentProviderMetadata = {

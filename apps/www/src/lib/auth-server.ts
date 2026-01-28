@@ -75,6 +75,34 @@ export async function getUserIdOrNullFromDaemonToken(
   return userId;
 }
 
+/**
+ * Get user ID from a Bearer token in the Authorization header.
+ * This is used for validating requests from external services (e.g., PartyKit broadcast)
+ * that send the session token as a Bearer token rather than via cookies.
+ */
+export async function getUserIdOrNullFromBearerToken(
+  request: Pick<Request, "headers">,
+): Promise<string | null> {
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+  const token = authHeader.slice(7); // Remove "Bearer " prefix
+  if (!token) {
+    return null;
+  }
+
+  // Use Better Auth's getSession with the Authorization header
+  // The bearer() plugin enables session token validation via Authorization header
+  const session = await auth.api.getSession({
+    headers: new Headers({
+      Authorization: `Bearer ${token}`,
+    }),
+  });
+
+  return session?.user?.id ?? null;
+}
+
 export async function getUserOrNull(): Promise<User | null> {
   const session = await getSessionOrNull();
   const user = session?.user ?? null;

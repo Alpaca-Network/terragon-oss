@@ -28,11 +28,15 @@ export async function isGatewayZEmbedMode(): Promise<boolean> {
 
 /**
  * Find or create a terragon-oss user from a GatewayZ session.
- * This links GatewayZ users to terragon-oss accounts.
+ * This links GatewayZ users to terragon-oss accounts and syncs their tier.
  */
 export async function findOrCreateUserFromGatewayZ(
   gwSession: GatewayZSession,
 ): Promise<{ userId: string; isNewUser: boolean }> {
+  const now = new Date();
+  // Normalize tier - treat undefined/null as 'free'
+  const gwTier = (gwSession.tier || "free") as "free" | "pro" | "max";
+
   // Look for existing user by email
   const existingUser = await db
     .select()
@@ -42,18 +46,32 @@ export async function findOrCreateUserFromGatewayZ(
 
   const firstUser = existingUser[0];
   if (firstUser) {
+    // Update GatewayZ fields on existing user
+    await db
+      .update(schema.user)
+      .set({
+        gwUserId: String(gwSession.gwUserId),
+        gwTier,
+        gwTierUpdatedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(schema.user.id, firstUser.id));
+
     return { userId: firstUser.id, isNewUser: false };
   }
 
-  // Create new user
+  // Create new user with GatewayZ fields
   const newUserId = crypto.randomUUID();
   await db.insert(schema.user).values({
     id: newUserId,
     email: gwSession.email,
     name: gwSession.username,
     emailVerified: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
+    gwUserId: String(gwSession.gwUserId),
+    gwTier,
+    gwTierUpdatedAt: now,
   });
 
   return { userId: newUserId, isNewUser: true };
@@ -72,7 +90,8 @@ export async function createSessionForGatewayZUser(
   const sessionId = crypto.randomUUID();
   const sessionToken = crypto.randomUUID();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour to match GatewayZ token
+  // 60 days expiry to match Better Auth session config
+  const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
   await db.insert(schema.session).values({
     id: sessionId,

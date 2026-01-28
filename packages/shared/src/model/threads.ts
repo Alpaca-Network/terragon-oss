@@ -717,6 +717,7 @@ type ThreadForThreadChatInfoFull = Pick<
   | "reattemptQueueAt"
   | "contextLength"
   | "permissionMode"
+  | "loopConfig"
   | "version"
   | "name"
   | "queuedMessages"
@@ -755,6 +756,7 @@ function createLegacyThreadChatFull(
     reattemptQueueAt: thread.reattemptQueueAt,
     contextLength: thread.contextLength,
     permissionMode: thread.permissionMode ?? "allowAll",
+    loopConfig: thread.loopConfig ?? null,
     isUnread: thread.isUnread,
     messages: thread.messages ?? [],
     queuedMessages: thread.queuedMessages ?? [],

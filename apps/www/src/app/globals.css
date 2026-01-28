@@ -4,48 +4,53 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Fumadocs UI styles */
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f8f5f0;
-  --foreground: #3e2723;
-  --card: #f8f5f0;
-  --card-foreground: #3e2723;
-  --popover: #f8f5f0;
-  --popover-foreground: #3e2723;
-  --primary: #2e7d32;
-  --primary-foreground: #ffffff;
-  --secondary: #e8f5e9;
-  --secondary-foreground: #1b5e20;
-  --muted: #f0e9e0;
-  --disabled: #d4cec4;
-  --muted-foreground: #6d4c41;
-  --accent: #c8e6c9;
-  --accent-foreground: #1b5e20;
-  --destructive: #c62828;
-  --destructive-foreground: #ffffff;
-  --border: #e0d6c9;
-  --input: #e0d6c9;
-  --ring: #2e7d32;
-  --chart-1: #4caf50;
-  --chart-2: #388e3c;
-  --chart-3: #2e7d32;
-  --chart-4: #1b5e20;
-  --chart-5: #0a1f0c;
-  --sidebar: #fcfaf8;
-  --sidebar-foreground: #3e2723;
-  --sidebar-primary: #2e7d32;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f2ed;
-  --sidebar-accent-foreground: #3e2723;
-  --sidebar-border: #e8e0d6;
-  --sidebar-ring: #2e7d32;
+  /* Gatewayz branding - Clean white background with indigo/blue theme */
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 9%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 9%);
+  --primary: hsl(238 87% 64%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(240 5% 96%);
+  --secondary-foreground: hsl(0 0% 9%);
+  --muted: hsl(240 5% 96%);
+  --disabled: hsl(240 5% 85%);
+  --muted-foreground: hsl(0 0% 45%);
+  --accent: hsl(238 87% 64%);
+  --accent-foreground: hsl(0 0% 100%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(240 6% 90%);
+  --input: hsl(240 6% 90%);
+  --ring: hsl(238 87% 64%);
+  --chart-1: hsl(238 87% 64%);
+  --chart-2: hsl(238 70% 55%);
+  --chart-3: hsl(238 60% 50%);
+  --chart-4: hsl(238 50% 45%);
+  --chart-5: hsl(238 40% 40%);
+  --sidebar: hsl(0 0% 2%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(238 87% 64%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(0 0% 8%);
+  --sidebar-accent-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(240 4% 16%);
+  --sidebar-ring: hsl(238 87% 64%);
   --font-geist-sans: "Geist", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
-  --font-sans: var(--font-geist-sans);
+  --font-sans: system-ui, -apple-system, sans-serif;
   --font-serif: Merriweather, serif;
   --font-mono: var(--font-geist-mono);
-  --radius: 0.5rem;
+  --radius: 0.625rem;
   --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-sm:
@@ -58,49 +63,64 @@
   --shadow-xl:
     0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --shadow-indigo: 0 10px 40px -10px rgba(99, 102, 241, 0.25);
+  --shadow-indigo-glow: 0 0 30px rgba(99, 102, 241, 0.2);
+  --shadow-primary: 0 4px 20px hsl(238 87% 64% / 0.15);
+
+  /* Fumadocs customization */
+  --fd-page-header-margin-bottom: 1.5rem;
+  --fd-title-margin-bottom: 0.5rem;
+  --fd-separator-margin: 0.75rem;
+  --fd-step-margin-bottom: 0.5em;
+  --fd-step-min-height: 2.5rem;
+  --fd-step-content-gap: 0.5rem;
+  --fd-page-width: 1250px;
+  --color-fd-primary: hsl(238, 87%, 64%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
 }
 
 .dark {
-  --background: #1a1a1a;
-  --foreground: #f0ebe5;
-  --card: #242424;
-  --card-foreground: #f0ebe5;
-  --popover: #242424;
-  --popover-foreground: #f0ebe5;
-  --primary: #4caf50;
-  --primary-foreground: #0a1f0c;
-  --secondary: #333333;
-  --secondary-foreground: #d7e0d6;
-  --muted: #2a2a2a;
-  --disabled: #3a3a3a;
-  --muted-foreground: #d7cfc4;
-  --accent: #2e7d32;
-  --accent-foreground: #ffffff;
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: #4a4a4a;
-  --input: #4a4a4a;
-  --ring: #4caf50;
-  --chart-1: #81c784;
-  --chart-2: #66bb6a;
-  --chart-3: #4caf50;
-  --chart-4: #43a047;
-  --chart-5: #388e3c;
-  --sidebar: #161616;
-  --sidebar-foreground: #f0ebe5;
-  --sidebar-primary: #4caf50;
-  --sidebar-primary-foreground: #0a1f0c;
-  --sidebar-accent: #202020;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #4a4a4a;
-  --sidebar-ring: #4caf50;
+  /* Gatewayz dark mode branding */
+  --background: hsl(0 0% 9%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(0 0% 9%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(0 0% 9%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(238 87% 64%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(240 4% 16%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(240 4% 16%);
+  --disabled: hsl(240 4% 25%);
+  --muted-foreground: hsl(0 0% 64%);
+  --accent: hsl(238 87% 64%);
+  --accent-foreground: hsl(0 0% 100%);
+  --destructive: hsl(0 63% 31%);
+  --destructive-foreground: hsl(0 84% 60%);
+  --border: hsl(240 4% 16%);
+  --input: hsl(240 4% 16%);
+  --ring: hsl(238 87% 64%);
+  --chart-1: hsl(238 87% 74%);
+  --chart-2: hsl(238 80% 68%);
+  --chart-3: hsl(238 87% 64%);
+  --chart-4: hsl(238 70% 58%);
+  --chart-5: hsl(238 60% 52%);
+  --sidebar: hsl(0 0% 2%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(238 87% 64%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(0 0% 8%);
+  --sidebar-accent-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(240 4% 16%);
+  --sidebar-ring: hsl(238 87% 64%);
   --font-geist-sans: "Geist", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
   --font-cabin: "Cabin", sans-serif;
-  --font-sans: var(--font-geist-sans);
+  --font-sans: system-ui, -apple-system, sans-serif;
   --font-serif: Merriweather, serif;
   --font-mono: var(--font-geist-mono);
-  --radius: 0.5rem;
+  --radius: 0.625rem;
   --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-sm:
@@ -113,6 +133,13 @@
   --shadow-xl:
     0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --shadow-indigo: 0 10px 40px -10px rgba(99, 102, 241, 0.25);
+  --shadow-indigo-glow: 0 0 30px rgba(99, 102, 241, 0.2);
+  --shadow-primary: 0 4px 20px hsl(238 87% 64% / 0.15);
+
+  /* Fumadocs dark mode customization */
+  --color-fd-primary: hsl(238, 87%, 74%);
+  --color-fd-primary-foreground: hsl(238, 40%, 10%);
 }
 
 @theme inline {

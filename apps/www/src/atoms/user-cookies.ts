@@ -4,8 +4,10 @@ import {
   UserCookies,
   CollapsedSections,
   ThreadListGroupBy,
+  DashboardViewMode,
   defaultCollapsedSections,
   defaultThreadListGroupBy,
+  defaultDashboardViewMode,
   defaultTimeZone,
   timeZoneKey,
   threadListCollapsedSectionsKey,
@@ -15,6 +17,7 @@ import {
   threadListGroupByKey,
   threadListCollapsedKey,
   secondaryPaneClosedKey,
+  dashboardViewModeKey,
 } from "@/lib/cookies";
 import { getCookieOrNull, setCookie } from "@/lib/cookies-client";
 
@@ -68,6 +71,12 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
         case secondaryPaneClosedKey: {
           if (typeof userCookies[key] === "boolean") {
             set(secondaryPaneClosedAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
+        case dashboardViewModeKey: {
+          if (userCookies[key]) {
+            set(dashboardViewModeAtom, userCookies[key]);
           }
           break;
         }
@@ -164,7 +173,7 @@ const booleanCookieStorage = createJSONStorage<boolean>(() => ({
       const parsed = JSON.parse(value);
       setCookie({
         key,
-        value: String(parsed),
+        value: JSON.stringify(parsed),
         maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
       });
     } catch (e) {
@@ -224,5 +233,13 @@ export const secondaryPaneClosedAtom = atomWithStorage<boolean>(
   secondaryPaneClosedKey,
   false,
   booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Persist the dashboard view mode (list or kanban)
+export const dashboardViewModeAtom = atomWithStorage<DashboardViewMode>(
+  dashboardViewModeKey,
+  defaultDashboardViewMode,
+  cookieStorage,
   { getOnInit: true },
 );

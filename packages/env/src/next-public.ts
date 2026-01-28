@@ -13,7 +13,9 @@ export function publicBroadcastUrl(): string | undefined {
   }
   if (!process.env.NEXT_PUBLIC_BROADCAST_URL) {
     if (!warnedBroadcastUrl) {
-      console.warn("NEXT_PUBLIC_BROADCAST_URL is not set - realtime features will be disabled");
+      console.warn(
+        "NEXT_PUBLIC_BROADCAST_URL is not set - realtime features will be disabled",
+      );
       warnedBroadcastUrl = true;
     }
     return undefined;
@@ -54,7 +56,9 @@ export function publicBroadcastHost(): string | undefined {
   }
   if (!process.env.NEXT_PUBLIC_BROADCAST_HOST) {
     if (!warnedBroadcastHost) {
-      console.warn("NEXT_PUBLIC_BROADCAST_HOST is not set - realtime features will be disabled");
+      console.warn(
+        "NEXT_PUBLIC_BROADCAST_HOST is not set - realtime features will be disabled",
+      );
       warnedBroadcastHost = true;
     }
     return undefined;
@@ -64,7 +68,11 @@ export function publicBroadcastHost(): string | undefined {
 
 export function publicDocsUrl() {
   if (process.env.NODE_ENV === "development") {
-    return process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:3001";
+    return (
+      process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:3000/inbox/docs"
+    );
   }
-  return process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.terragonlabs.com";
+  return (
+    process.env.NEXT_PUBLIC_DOCS_URL ?? "https://beta.gatewayz.ai/inbox/docs"
+  );
 }

@@ -14,6 +14,13 @@ export type DBMessage =
   | DBThreadContextMessage
   | DBThreadContextResultMessage;
 
+export type LoopConfigInput = {
+  maxIterations: number;
+  completionPromise: string;
+  useRegex: boolean;
+  requireApproval: boolean;
+};
+
 export type DBUserMessage = {
   type: "user";
   model: AIModel | null;
@@ -25,7 +32,8 @@ export type DBUserMessage = {
     | DBTextFilePart
   )[];
   timestamp?: string;
-  permissionMode?: "allowAll" | "plan";
+  permissionMode?: "allowAll" | "plan" | "loop";
+  loopConfig?: LoopConfigInput;
 };
 
 export type DBUserMessageWithModel = DBUserMessage & {
