@@ -28,7 +28,7 @@ function EmbedLoading() {
   const [timedOut, setTimedOut] = useState(false);
   const gatewayZInboxUrl = new URL(
     "/inbox",
-    process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai"
+    process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai",
   ).toString();
 
   useEffect(() => {
@@ -45,7 +45,8 @@ function EmbedLoading() {
         <div className="text-center p-8 max-w-md">
           <h1 className="text-2xl font-semibold mb-4">Session Setup Failed</h1>
           <p className="text-muted-foreground mb-6">
-            Unable to establish a session. This page should be accessed through the GatewayZ app.
+            Unable to establish a session. This page should be accessed through
+            the GatewayZ app.
           </p>
           <a
             href={gatewayZInboxUrl}
@@ -79,7 +80,7 @@ export function Landing({ isShutdownMode, isEmbedMode }: LandingProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh] w-full relative bg-background text-foreground overflow-x-hidden">
+    <div className="flex flex-col min-h-[100dvh] w-full relative bg-white dark:bg-background text-gray-900 dark:text-foreground overflow-x-hidden">
       <GridBackground />
       <Header />
       <main className="flex-1 pt-18 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
