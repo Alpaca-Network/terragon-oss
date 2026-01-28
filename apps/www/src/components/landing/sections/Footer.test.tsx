@@ -147,26 +147,27 @@ describe("Footer branding configuration", () => {
 
   describe("styling", () => {
     const footerStyles = {
-      background: "bg-white dark:bg-background",
-      border: "border-gray-200 dark:border-border",
+      background: "bg-background",
+      border: "border-border",
       grid: "grid-cols-2 md:grid-cols-4",
     };
 
-    it("should use white background", () => {
-      expect(footerStyles.background).toContain("bg-white");
+    it("should use semantic background variable", () => {
+      expect(footerStyles.background).toBe("bg-background");
     });
 
-    it("should use gray-200 border", () => {
-      expect(footerStyles.border).toContain("border-gray-200");
+    it("should use semantic border variable", () => {
+      expect(footerStyles.border).toBe("border-border");
     });
 
     it("should have 4-column grid layout on md screens", () => {
       expect(footerStyles.grid).toContain("md:grid-cols-4");
     });
 
-    it("should support dark mode", () => {
-      expect(footerStyles.background).toContain("dark:bg-background");
-      expect(footerStyles.border).toContain("dark:border-border");
+    it("should support automatic dark mode via semantic variables", () => {
+      // Semantic variables don't need explicit dark: prefixes
+      expect(footerStyles.background).not.toContain("dark:");
+      expect(footerStyles.border).not.toContain("dark:");
     });
   });
 });

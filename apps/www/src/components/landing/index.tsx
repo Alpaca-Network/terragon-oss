@@ -80,7 +80,7 @@ export function Landing({ isShutdownMode, isEmbedMode }: LandingProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh] w-full relative bg-white dark:bg-background text-gray-900 dark:text-foreground overflow-x-hidden">
+    <div className="flex flex-col min-h-[100dvh] w-full relative bg-background text-foreground overflow-x-hidden">
       <GridBackground />
       <Header />
       <main className="flex-1 pt-18 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">

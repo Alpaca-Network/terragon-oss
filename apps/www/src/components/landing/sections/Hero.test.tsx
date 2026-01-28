@@ -49,9 +49,9 @@ describe("Hero branding configuration", () => {
       expect(subheadline).toContain("Delegate to AI");
     });
 
-    it("should use gray-600 color for subheadline", () => {
-      const subheadlineStyle = "text-gray-600 dark:text-muted-foreground";
-      expect(subheadlineStyle).toContain("text-gray-600");
+    it("should use semantic muted-foreground color for subheadline", () => {
+      const subheadlineStyle = "text-muted-foreground";
+      expect(subheadlineStyle).toBe("text-muted-foreground");
     });
   });
 
@@ -126,22 +126,27 @@ describe("Hero branding configuration", () => {
 
   describe("styling", () => {
     const heroStyles = {
-      background: "bg-white dark:bg-background",
+      background: "bg-background",
       section: "flex items-center justify-center pt-8",
-      videoContainer: "border border-gray-200 dark:border-border",
+      videoContainer: "bg-card border border-border",
       blurEffect: "bg-primary/30 blur-3xl",
     };
 
-    it("should use white background", () => {
-      expect(heroStyles.background).toContain("bg-white");
+    it("should use semantic background variable", () => {
+      expect(heroStyles.background).toBe("bg-background");
     });
 
-    it("should support dark mode", () => {
-      expect(heroStyles.background).toContain("dark:bg-background");
+    it("should support automatic dark mode via semantic variables", () => {
+      // Semantic variables don't need explicit dark: prefixes
+      expect(heroStyles.background).not.toContain("dark:");
     });
 
-    it("should have border on video container", () => {
-      expect(heroStyles.videoContainer).toContain("border-gray-200");
+    it("should have semantic border on video container", () => {
+      expect(heroStyles.videoContainer).toContain("border-border");
+    });
+
+    it("should use card background for video container", () => {
+      expect(heroStyles.videoContainer).toContain("bg-card");
     });
 
     it("should have blur effect with primary color", () => {

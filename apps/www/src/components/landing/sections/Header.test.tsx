@@ -58,32 +58,33 @@ describe("Header branding configuration", () => {
 
   describe("styling configuration", () => {
     const headerStyles = {
-      background: "bg-white dark:bg-background",
-      border: "border-gray-200 dark:border-border",
-      textColor: "text-gray-600 dark:text-muted-foreground",
-      hoverColor: "hover:text-gray-900 dark:hover:text-foreground",
+      background: "bg-background",
+      border: "border-border",
+      textColor: "text-muted-foreground",
+      hoverColor: "hover:text-foreground",
     };
 
-    it("should use white background for light mode", () => {
-      expect(headerStyles.background).toContain("bg-white");
+    it("should use semantic background variable", () => {
+      expect(headerStyles.background).toBe("bg-background");
     });
 
-    it("should use gray-200 border for light mode", () => {
-      expect(headerStyles.border).toContain("border-gray-200");
+    it("should use semantic border variable", () => {
+      expect(headerStyles.border).toBe("border-border");
     });
 
-    it("should use gray-600 text color for nav links", () => {
-      expect(headerStyles.textColor).toContain("text-gray-600");
+    it("should use semantic text color for nav links", () => {
+      expect(headerStyles.textColor).toBe("text-muted-foreground");
     });
 
-    it("should have hover state to gray-900", () => {
-      expect(headerStyles.hoverColor).toContain("hover:text-gray-900");
+    it("should have semantic hover state", () => {
+      expect(headerStyles.hoverColor).toBe("hover:text-foreground");
     });
 
-    it("should support dark mode variants", () => {
-      expect(headerStyles.background).toContain("dark:bg-background");
-      expect(headerStyles.border).toContain("dark:border-border");
-      expect(headerStyles.textColor).toContain("dark:text-muted-foreground");
+    it("should use semantic theme variables for automatic dark mode support", () => {
+      // Semantic variables like bg-background, text-foreground automatically
+      // support dark mode through CSS custom properties
+      expect(headerStyles.background).not.toContain("dark:");
+      expect(headerStyles.border).not.toContain("dark:");
     });
   });
 

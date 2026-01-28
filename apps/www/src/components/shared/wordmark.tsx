@@ -23,7 +23,7 @@ export function Wordmark({
       {showText && (
         <span
           className={cn(
-            "font-semibold text-gray-900 dark:text-gray-100",
+            "font-semibold text-foreground",
             size === "sm" ? "text-lg" : size === "md" ? "text-lg" : "text-xl",
           )}
         >

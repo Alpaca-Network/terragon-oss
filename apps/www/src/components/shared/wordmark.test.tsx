@@ -82,7 +82,7 @@ describe("Wordmark branding configuration", () => {
   describe("styling", () => {
     const wordmarkStyles = {
       container: "flex items-center gap-2 select-none group",
-      text: "font-semibold text-gray-900 dark:text-gray-100",
+      text: "font-semibold text-foreground",
       logoHover: "transition-transform group-hover:scale-105",
     };
 
@@ -90,12 +90,13 @@ describe("Wordmark branding configuration", () => {
       expect(wordmarkStyles.text).toContain("font-semibold");
     });
 
-    it("should use gray-900 text color for light mode", () => {
-      expect(wordmarkStyles.text).toContain("text-gray-900");
+    it("should use semantic text-foreground color", () => {
+      expect(wordmarkStyles.text).toContain("text-foreground");
     });
 
-    it("should use gray-100 text color for dark mode", () => {
-      expect(wordmarkStyles.text).toContain("dark:text-gray-100");
+    it("should support automatic dark mode via semantic variables", () => {
+      // Semantic variables don't need explicit dark: prefixes
+      expect(wordmarkStyles.text).not.toContain("dark:");
     });
 
     it("should have group class for hover effects", () => {
