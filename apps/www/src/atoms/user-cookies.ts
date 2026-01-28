@@ -236,36 +236,6 @@ export const secondaryPaneClosedAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 );
 
-// Create a string-based cookie storage for dashboard view mode
-const stringCookieStorage = createJSONStorage<string>(() => ({
-  getItem: (key: string) => {
-    const value = getCookieOrNull(key);
-    return value !== null ? JSON.stringify(value) : null;
-  },
-  setItem: (key: string, value: string) => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    try {
-      const parsed = JSON.parse(value);
-      setCookie({
-        key,
-        value: JSON.stringify(parsed),
-        maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
-      });
-    } catch (e) {
-      console.error("Failed to set cookie:", e);
-    }
-  },
-  removeItem: (key: string) => {
-    setCookie({
-      key,
-      value: "",
-      maxAgeSecs: 0, // Expire immediately
-    });
-  },
-}));
-
 // Persist the dashboard view mode (list or kanban)
 export const dashboardViewModeAtom = atomWithStorage<DashboardViewMode>(
   dashboardViewModeKey,
