@@ -375,11 +375,17 @@ export type UsageEventInsert = typeof schema.usageEvents.$inferInsert;
 export type UserCredit = typeof schema.userCredits.$inferSelect;
 export type UserCreditInsert = typeof schema.userCredits.$inferInsert;
 
+export type GatewayZTier = "free" | "pro" | "max";
+
 export type UserCredentials = {
   hasClaude: boolean;
   hasAmp: boolean;
   hasOpenAI: boolean;
   hasOpenAIOAuthCredentials: boolean;
+  // GatewayZ subscription tier - 'free' means no active subscription
+  gwTier: GatewayZTier;
+  // Whether user has an active Gatewayz subscription (pro or max)
+  hasGatewayz: boolean;
 };
 
 export type SignupTrialInfo = {
@@ -434,6 +440,18 @@ export type OpenAIProviderMetadata = {
   chatgptAccountId?: string;
 };
 
+export type GeminiAgentProviderMetadata = {
+  type: "gemini";
+  accountId?: string;
+  accountEmail?: string;
+  // Indicates if this is via Google account subscription
+  isSubscription?: boolean;
+  // Subscription tier: pro (Google One AI Premium), ultra, or free
+  subscriptionType?: "pro" | "ultra" | "free";
+  scope?: string;
+};
+
 export type AgentProviderMetadata =
   | ClaudeAgentProviderMetadata
-  | OpenAIProviderMetadata;
+  | OpenAIProviderMetadata
+  | GeminiAgentProviderMetadata;

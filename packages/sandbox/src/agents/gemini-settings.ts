@@ -10,10 +10,17 @@ type GeminiMcpServer = {
   headers?: Record<string, string>;
 };
 
+// Gemini CLI auth types
+// - "gemini-api-key": Uses GEMINI_API_KEY environment variable
+// - "google-cloud-oauth": Uses Google OAuth access token via GOOGLE_APPLICATION_CREDENTIALS
+export type GeminiAuthType = "gemini-api-key" | "google-cloud-oauth";
+
 export function buildGeminiSettings({
   userMcpConfig,
+  authType = "gemini-api-key",
 }: {
   userMcpConfig: McpConfig | undefined;
+  authType?: GeminiAuthType;
 }): string {
   const mcpServers: Record<string, GeminiMcpServer> = {};
   for (const [name, server] of Object.entries(
@@ -43,7 +50,7 @@ export function buildGeminiSettings({
     {
       security: {
         auth: {
-          selectedType: "gemini-api-key",
+          selectedType: authType,
         },
       },
       ui: {

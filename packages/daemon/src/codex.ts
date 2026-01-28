@@ -236,12 +236,14 @@ export function codexCommand({
   model,
   sessionId,
   useCredits = false,
+  useGatewayz = false,
 }: {
   runtime: IDaemonRuntime;
   prompt: string;
   model: string;
   sessionId: string | null;
   useCredits?: boolean;
+  useGatewayz?: boolean;
 }): string {
   // Write prompt to a file
   const tmpFileName = `/tmp/codex-prompt-${nanoid()}.txt`;
@@ -361,7 +363,10 @@ export function codexCommand({
       commandParts.push("--model gpt-5");
     }
   }
-  if (useCredits) {
+  // Gatewayz takes priority over built-in credits
+  if (useGatewayz) {
+    commandParts.push("-c", 'model_provider="gatewayz"');
+  } else if (useCredits) {
     commandParts.push("-c", 'model_provider="terry"');
   }
   if (sessionId) {
