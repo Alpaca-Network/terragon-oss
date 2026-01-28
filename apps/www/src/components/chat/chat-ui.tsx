@@ -30,6 +30,7 @@ import { retryThread } from "@/server-actions/retry-thread";
 import { retryGitCheckpoint } from "@/server-actions/retry-git-checkpoint";
 import { stopThread } from "@/server-actions/stop-thread";
 import { ChatError } from "./chat-error";
+import { LoopIterationApproval } from "./tools/loop-iteration-approval";
 import { ThreadProvider } from "./thread-context";
 import { ThreadPromptBox } from "@/components/promptbox/thread-promptbox";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -85,7 +86,7 @@ function ChatUI({
 
   const promptBoxRef = useRef<{
     focus: () => void;
-    setPermissionMode: (mode: "allowAll" | "plan") => void;
+    setPermissionMode: (mode: "allowAll" | "plan" | "loop") => void;
   } | null>(null);
 
   // Use React Query to fetch thread data.
@@ -297,6 +298,9 @@ function ChatUI({
                     reattemptQueueAt={threadChat.reattemptQueueAt ?? null}
                   />
                 )}
+                {threadChat.loopConfig?.awaitingApproval && (
+                  <LoopIterationApproval loopConfig={threadChat.loopConfig} />
+                )}
                 {threadChat.status === "scheduled" && threadChat.scheduleAt && (
                   <MessageScheduled
                     threadId={threadChat.threadId}
@@ -354,7 +358,7 @@ function ChatPromptBox({
   refetch: () => void;
   promptBoxRef: React.RefObject<{
     focus: () => void;
-    setPermissionMode: (mode: "allowAll" | "plan") => void;
+    setPermissionMode: (mode: "allowAll" | "plan" | "loop") => void;
   } | null>;
 }) {
   const threadId = thread.id;

@@ -220,6 +220,7 @@ export type ThreadInfo = Omit<
   | "errorMessage"
   | "errorMessageInfo"
   | "permissionMode"
+  | "loopConfig"
   | "reattemptQueueAt"
   | "scheduleAt"
   | "contextLength"
@@ -266,6 +267,8 @@ export type SubscriptionInsert = typeof schema.subscription.$inferInsert;
 export type ThreadInsertRaw = typeof schema.thread.$inferInsert;
 export type ThreadChatInsertRaw = typeof schema.threadChat.$inferInsert;
 
+export type { LoopConfig } from "./schema";
+
 export type ThreadChatInsert = Partial<
   Omit<
     ThreadChatInsertRaw,
@@ -274,6 +277,7 @@ export type ThreadChatInsert = Partial<
     | "errorMessage"
     | "errorMessageInfo"
     | "status"
+    | "loopConfig"
   > &
     Partial<{
       // Only allow inserting one of our known types.
@@ -290,6 +294,8 @@ export type ThreadChatInsert = Partial<
       appendAndResetQueuedMessages?: boolean;
       // Exclude deprecated statuses.
       status?: Exclude<ThreadStatus, ThreadStatusDeprecated>;
+      // Loop configuration updates
+      loopConfig?: ThreadChatInsertRaw["loopConfig"];
     }>
 >;
 
