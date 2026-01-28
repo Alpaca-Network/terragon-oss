@@ -9,10 +9,18 @@ import {
   KANBAN_COLUMNS,
   getKanbanColumn,
 } from "./types";
-import { LoaderCircle, X } from "lucide-react";
+import {
+  LoaderCircle,
+  X,
+  MessageSquare,
+  GitCommit,
+  MessageCircle,
+  LayoutList,
+} from "lucide-react";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
+  threadQueryOptions,
 } from "@/queries/thread-queries";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
@@ -20,6 +28,14 @@ import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
+import { useQuery } from "@tanstack/react-query";
+import { useSetAtom } from "jotai";
+import { dashboardViewModeAtom } from "@/atoms/user-cookies";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -31,9 +47,25 @@ const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
   ),
 });
 
-const TASK_PANEL_MIN_WIDTH = 400;
-const TASK_PANEL_MAX_WIDTH_PERCENT = 70;
-const TASK_PANEL_DEFAULT_WIDTH_PERCENT = 50;
+// Dynamically import GitDiffView for the Changes tab
+const GitDiffView = dynamic(
+  () =>
+    import("@/components/chat/git-diff-view").then((mod) => mod.GitDiffView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+type TaskPanelTab = "feed" | "changes" | "comments";
+
+const TASK_PANEL_MIN_WIDTH = 500;
+const TASK_PANEL_MAX_WIDTH_PERCENT = 75;
+const TASK_PANEL_DEFAULT_WIDTH_PERCENT = 55;
 
 export const KanbanBoard = memo(function KanbanBoard({
   queryFilters,
@@ -41,7 +73,9 @@ export const KanbanBoard = memo(function KanbanBoard({
   queryFilters: ThreadListFilters;
 }) {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const containerRef = useRef<HTMLDivElement>(null);
+  const setViewMode = useSetAtom(dashboardViewModeAtom);
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
@@ -113,8 +147,15 @@ export const KanbanBoard = memo(function KanbanBoard({
     },
   });
 
+  // Fetch full thread data for the selected thread (needed for Changes tab)
+  const { data: selectedThread } = useQuery({
+    ...threadQueryOptions(selectedThreadId ?? ""),
+    enabled: !!selectedThreadId,
+  });
+
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
+    setActiveTab("feed"); // Reset to feed tab when selecting a new thread
   }, []);
 
   const handleCloseDetail = useCallback(() => {
@@ -200,7 +241,7 @@ export const KanbanBoard = memo(function KanbanBoard({
       {/* Task detail panel */}
       {selectedThreadId && (
         <div
-          className="relative flex-shrink-0 border-l bg-background"
+          className="relative flex-shrink-0 border-l bg-background flex flex-col"
           style={{ width: `${panelWidth}px` }}
         >
           {/* Resize handle */}
@@ -212,20 +253,86 @@ export const KanbanBoard = memo(function KanbanBoard({
             onMouseDown={handleMouseDown}
           />
 
-          {/* Close button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCloseDetail}
-            className="absolute top-2 right-2 z-20 h-8 w-8"
-            title="Close task details"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          {/* Panel header with tabs and view toggle */}
+          <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+            {/* Tabs */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant={activeTab === "feed" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-3 gap-1.5"
+                onClick={() => setActiveTab("feed")}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span className="text-xs">Feed</span>
+              </Button>
+              <Button
+                variant={activeTab === "changes" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-3 gap-1.5"
+                onClick={() => setActiveTab("changes")}
+                disabled={!selectedThread?.gitDiff}
+              >
+                <GitCommit className="h-3.5 w-3.5" />
+                <span className="text-xs">Changes</span>
+              </Button>
+              <Button
+                variant={activeTab === "comments" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-3 gap-1.5"
+                onClick={() => setActiveTab("comments")}
+                disabled
+                title="Coming soon"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span className="text-xs">Comments</span>
+              </Button>
+            </div>
 
-          {/* ChatUI */}
-          <div className="h-full overflow-hidden">
-            <ChatUI threadId={selectedThreadId} isReadOnly={false} />
+            {/* View toggle and close button */}
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewMode("list")}
+                    className="h-8 w-8"
+                  >
+                    <LayoutList className="h-4 w-4 opacity-50" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Switch to List view
+                </TooltipContent>
+              </Tooltip>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseDetail}
+                className="h-8 w-8"
+                title="Close task details"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-hidden">
+            {activeTab === "feed" && (
+              <ChatUI threadId={selectedThreadId} isReadOnly={false} />
+            )}
+            {activeTab === "changes" && selectedThread && (
+              <div className="h-full overflow-auto">
+                <GitDiffView thread={selectedThread} />
+              </div>
+            )}
+            {activeTab === "comments" && (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <p className="text-sm">Comments coming soon</p>
+              </div>
+            )}
           </div>
         </div>
       )}
