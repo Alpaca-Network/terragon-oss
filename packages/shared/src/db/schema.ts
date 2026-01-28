@@ -294,6 +294,7 @@ export const thread = pgTable(
     gitDiff: text("git_diff"),
     gitDiffStats: jsonb("git_diff_stats").$type<GitDiffStats>(),
     archived: boolean("archived").notNull().default(false),
+    isBacklog: boolean("is_backlog").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
@@ -327,6 +328,7 @@ export const thread = pgTable(
     index("user_id_updated_at_index").on(table.userId, table.updatedAt),
     index("user_id_status_index").on(table.userId, table.status),
     index("user_id_archived_index").on(table.userId, table.archived),
+    index("user_id_is_backlog_index").on(table.userId, table.isBacklog),
     index("parent_thread_id_index").on(table.parentThreadId),
     index("user_id_automation_id_index").on(table.userId, table.automationId),
     index("github_repo_full_name_github_pr_number_index").on(

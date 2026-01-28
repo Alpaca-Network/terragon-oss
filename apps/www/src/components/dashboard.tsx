@@ -4,7 +4,7 @@ import {
   DashboardPromptBoxHandleSubmit,
   DashboardPromptBox,
 } from "./promptbox/dashboard-promptbox";
-import { ThreadListMain } from "./thread-list/main";
+import { ThreadListMain, ThreadViewFilter } from "./thread-list/main";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
@@ -27,8 +27,10 @@ import { KanbanBoard } from "./kanban";
 
 export function Dashboard({
   showArchived = false,
+  showBacklog = false,
 }: {
   showArchived?: boolean;
+  showBacklog?: boolean;
 }) {
   const [typewriterEffectEnabled, setTypewriterEffectEnabled] = useState(true);
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
@@ -109,6 +111,18 @@ export function Dashboard({
   // Show Kanban view on larger screens when viewMode is 'kanban'
   const showKanbanView = viewMode === "kanban" && mounted;
 
+  // Determine view filter and query filters
+  const viewFilter: ThreadViewFilter = showArchived
+    ? "archived"
+    : showBacklog
+      ? "backlog"
+      : "active";
+  const queryFilters = showArchived
+    ? { archived: true }
+    : showBacklog
+      ? { isBacklog: true }
+      : { archived: false };
+
   return (
     <div
       className={cn(
@@ -148,12 +162,12 @@ export function Dashboard({
       {mounted && (
         <div className="hidden lg:flex flex-1 min-h-0">
           {showKanbanView ? (
-            <KanbanBoard queryFilters={{ archived: showArchived }} />
+            <KanbanBoard queryFilters={queryFilters} />
           ) : (
             <div className="w-full">
               <ThreadListMain
-                queryFilters={{ archived: showArchived }}
-                viewFilter={showArchived ? "archived" : "active"}
+                queryFilters={queryFilters}
+                viewFilter={viewFilter}
                 allowGroupBy={true}
                 showSuggestedTasks={false}
                 setPromptText={setPromptText}
@@ -167,8 +181,8 @@ export function Dashboard({
       {mounted && (
         <div className="lg:hidden">
           <ThreadListMain
-            queryFilters={{ archived: showArchived }}
-            viewFilter={showArchived ? "archived" : "active"}
+            queryFilters={queryFilters}
+            viewFilter={viewFilter}
             allowGroupBy={true}
             showSuggestedTasks={showRecommendedTasks}
             setPromptText={setPromptText}

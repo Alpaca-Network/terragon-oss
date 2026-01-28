@@ -12,6 +12,7 @@ import {
   Archive,
   SlidersHorizontal,
   List,
+  Clock,
 } from "lucide-react";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
@@ -38,6 +39,8 @@ import { cn } from "@/lib/utils";
 import { ThreadListGroupBy } from "@/lib/cookies";
 import { sortThreadsUpdatedAt } from "@/lib/thread-sorting";
 
+export type ThreadViewFilter = "all" | "active" | "backlog" | "archived";
+
 export const ThreadListHeader = memo(function ThreadListHeader({
   className,
   viewFilter,
@@ -45,8 +48,8 @@ export const ThreadListHeader = memo(function ThreadListHeader({
   allowGroupBy,
 }: {
   className?: string;
-  viewFilter: "all" | "active" | "archived";
-  setViewFilter: (viewFilter: "active" | "archived") => void;
+  viewFilter: ThreadViewFilter;
+  setViewFilter: (viewFilter: "active" | "backlog" | "archived") => void;
   allowGroupBy: boolean;
 }) {
   const [groupBy, setGroupBy] = useAtom(threadListGroupByAtom);
@@ -69,6 +72,8 @@ export const ThreadListHeader = memo(function ThreadListHeader({
               >
                 {viewFilter === "active" ? (
                   <Inbox className="h-3.5 w-3.5" />
+                ) : viewFilter === "backlog" ? (
+                  <Clock className="h-3.5 w-3.5" />
                 ) : (
                   <Archive className="h-3.5 w-3.5" />
                 )}
@@ -86,15 +91,23 @@ export const ThreadListHeader = memo(function ThreadListHeader({
                 type: "checkbox",
                 label: "Inbox",
                 checked: viewFilter === "active",
-                onCheckedChange: (checked) => {
+                onCheckedChange: () => {
                   setViewFilter("active");
+                },
+              },
+              {
+                type: "checkbox",
+                label: "Backlog",
+                checked: viewFilter === "backlog",
+                onCheckedChange: () => {
+                  setViewFilter("backlog");
                 },
               },
               {
                 type: "checkbox",
                 label: "Archived",
                 checked: viewFilter === "archived",
-                onCheckedChange: (checked) => {
+                onCheckedChange: () => {
                   setViewFilter("archived");
                 },
               },
@@ -232,8 +245,10 @@ const CollapsableThreadSection = memo(function CollapsableThreadSection({
 
 function EmptyThreadList({
   queryFilters,
+  viewFilter,
 }: {
   queryFilters: ThreadListFilters;
+  viewFilter: ThreadViewFilter;
 }) {
   if (queryFilters.automationId) {
     return (
@@ -247,17 +262,33 @@ function EmptyThreadList({
       </div>
     );
   }
+
+  const getEmptyStateContent = () => {
+    if (viewFilter === "archived" || queryFilters.archived) {
+      return {
+        icon: <ArchiveX className="size-4 text-muted-foreground/70" />,
+        text: "No archived tasks",
+      };
+    }
+    if (viewFilter === "backlog" || queryFilters.isBacklog) {
+      return {
+        icon: <Clock className="size-4 text-muted-foreground/70" />,
+        text: "No tasks in backlog",
+      };
+    }
+    return {
+      icon: <List className="size-4 text-muted-foreground/70" />,
+      text: "No tasks",
+    };
+  };
+
+  const { icon, text } = getEmptyStateContent();
+
   return (
     <div className="bg-muted/20 rounded-md p-8 flex flex-col items-center justify-center gap-2">
       <div className="flex items-center gap-2">
-        {queryFilters.archived ? (
-          <ArchiveX className="size-4 text-muted-foreground/70" />
-        ) : (
-          <List className="size-4 text-muted-foreground/70" />
-        )}
-        <span className="text-sm text-muted-foreground/50">
-          {queryFilters.archived ? "No archived tasks" : "No tasks"}
-        </span>
+        {icon}
+        <span className="text-sm text-muted-foreground/50">{text}</span>
       </div>
     </div>
   );
@@ -276,7 +307,7 @@ function useThreadList({
   queryFilters,
   groupBy,
 }: {
-  viewFilter: "all" | "active" | "archived";
+  viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   groupBy: ThreadListGroupBy;
 }) {
@@ -300,9 +331,15 @@ function useThreadList({
   }>(() => {
     const seenThreadIds = new Set<string>();
     const filteredThreads = threads.filter((thread) => {
-      if (viewFilter === "active" && thread.archived) {
+      // Active (Inbox): not archived and not in backlog
+      if (viewFilter === "active" && (thread.archived || thread.isBacklog)) {
         return false;
       }
+      // Backlog: in backlog and not archived
+      if (viewFilter === "backlog" && (!thread.isBacklog || thread.archived)) {
+        return false;
+      }
+      // Archived: archived (regardless of backlog state)
       if (viewFilter === "archived" && !thread.archived) {
         return false;
       }
@@ -458,7 +495,7 @@ export const ThreadListContents = memo(function ThreadListContents({
   allowGroupBy,
   isSidebar,
 }: {
-  viewFilter: "all" | "active" | "archived";
+  viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   showSuggestedTasks: boolean;
   setPromptText: (promptText: string) => void;
@@ -520,7 +557,10 @@ export const ThreadListContents = memo(function ThreadListContents({
           ))}
         </div>
         {threads.length === 0 && (
-          <EmptyThreadList queryFilters={queryFilters} />
+          <EmptyThreadList
+            queryFilters={queryFilters}
+            viewFilter={viewFilter}
+          />
         )}
         {hasNextPage && threads.length > 0 && (
           <div
@@ -570,7 +610,7 @@ export const ThreadListMain = memo(function ThreadListMain({
   showSuggestedTasks = true,
   setPromptText,
 }: {
-  viewFilter: "all" | "active" | "archived";
+  viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   allowGroupBy: boolean;
   showSuggestedTasks?: boolean;
@@ -588,8 +628,11 @@ export const ThreadListMain = memo(function ThreadListMain({
           setViewFilter={(value) => {
             const params = new URLSearchParams(searchParams.toString());
             params.delete("archived");
+            params.delete("backlog");
             if (value === "archived") {
               params.set("archived", "true");
+            } else if (value === "backlog") {
+              params.set("backlog", "true");
             }
             router.push(`${pathname}?${params.toString()}`);
           }}

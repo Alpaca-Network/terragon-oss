@@ -49,6 +49,7 @@ type GetThreadsArgs = {
   where?: Partial<{
     status: ThreadStatus[];
     archived: boolean;
+    isBacklog: boolean;
     automationId: string;
     githubRepoFullName: string;
     githubPRNumber: number;
@@ -77,6 +78,9 @@ async function getThreadsInner({
   }
   if (where?.archived !== undefined) {
     whereConditions.push(eq(schema.thread.archived, where.archived));
+  }
+  if (where?.isBacklog !== undefined) {
+    whereConditions.push(eq(schema.thread.isBacklog, where.isBacklog));
   }
   if (where?.status?.length) {
     whereConditions.push(inArray(schema.thread.status, where.status));
@@ -141,6 +145,7 @@ async function getThreadsInner({
       repoBaseBranchName: schema.thread.repoBaseBranchName,
       branchName: schema.thread.branchName,
       archived: schema.thread.archived,
+      isBacklog: schema.thread.isBacklog,
       automationId: schema.thread.automationId,
       parentThreadId: schema.thread.parentThreadId,
       parentToolId: schema.thread.parentToolId,
@@ -244,6 +249,7 @@ export async function getThreads({
   limit = 20,
   offset = 0,
   archived,
+  isBacklog,
   githubRepoFullName,
   automationId,
   githubPRNumber,
@@ -253,6 +259,7 @@ export async function getThreads({
   limit?: number;
   offset?: number;
   archived?: boolean;
+  isBacklog?: boolean;
   githubRepoFullName?: string;
   automationId?: string;
   githubPRNumber?: number;
@@ -264,6 +271,7 @@ export async function getThreads({
     offset,
     where: {
       archived,
+      isBacklog,
       githubRepoFullName,
       automationId,
       githubPRNumber,
@@ -613,6 +621,7 @@ export async function getThread({
     sandboxSize: thread.sandboxSize,
     bootingSubstatus: thread.bootingSubstatus,
     archived: thread.archived,
+    isBacklog: thread.isBacklog,
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
     visibility: thread.visibility,
