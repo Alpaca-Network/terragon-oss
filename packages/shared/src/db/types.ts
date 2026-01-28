@@ -402,6 +402,11 @@ export type StripePromotionCode = {
   stripePromotionCodeId: string;
 };
 
+export type GatewayZTierInfo = {
+  tier: "free" | "pro" | "max";
+  mappedAccessTier: AccessTier;
+};
+
 export type BillingInfo = {
   hasActiveSubscription: boolean;
   subscription: SubscriptionInfo | null;
@@ -410,6 +415,8 @@ export type BillingInfo = {
   unusedPromotionCode: boolean;
   // If true, new subscriptions are blocked (shutdown mode)
   isShutdownMode?: boolean;
+  // GatewayZ subscription info (takes priority over Stripe)
+  gatewayZTier: GatewayZTierInfo | null;
 };
 
 export type ClaudeAgentProviderMetadata = {
