@@ -349,7 +349,7 @@ describe(`sandbox ${providerName}`, () => {
       const currentBranch = await sandbox.runCommand(
         "git branch --show-current",
       );
-      expect(currentBranch.trim()).toMatch(/^terragon\//);
+      expect(currentBranch.trim()).toMatch(/^gatewayz-code\//);
 
       // Check that we're on a new branch created from main
       const branchPoint = await sandbox.runCommand("git merge-base HEAD main");
