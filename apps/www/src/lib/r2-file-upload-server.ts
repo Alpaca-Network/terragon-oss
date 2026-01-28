@@ -13,9 +13,11 @@ async function base64ToBuffer(base64: string): Promise<ParsedFile> {
     const buffer = await blob.arrayBuffer();
     return { buffer, contentType };
   } catch (error) {
-    const base64Preview = base64.slice(0, 100);
+    // Extract mime type from data URL if possible (e.g., "data:image/png;base64,...")
+    const mimeMatch = base64.match(/^data:([^;,]+)/);
+    const mimeType = mimeMatch?.[1] ?? "unknown";
     throw new Error(
-      `Failed to convert base64 to buffer (preview: ${base64Preview}...): ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to convert base64 to buffer (mime: ${mimeType}, length: ${base64.length}): ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
