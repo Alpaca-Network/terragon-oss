@@ -161,7 +161,7 @@ describe(`sandbox ${providerName}`, () => {
     );
 
     const result2 = await sandbox.runCommand("git branch -a");
-    expect(result2).toContain("* terragon/");
+    expect(result2).toContain("* gatewayz-code/");
   });
 
   it("should respond to a daemon message", async () => {
