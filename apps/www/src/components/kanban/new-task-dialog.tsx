@@ -86,6 +86,9 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
 
   const handleUpdate = useCallback<HandleUpdate>(({ userMessage }) => {
     setMessage(userMessage);
+    // Clear selected template when user edits the message
+    // so template picker shows "No template" after user modifications
+    setSelectedTemplate(null);
   }, []);
 
   const handleSubmit = useCallback<HandleSubmit>(
@@ -141,14 +144,6 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
     ],
   );
 
-  // Reset message when template changes
-  const currentMessage = selectedTemplate
-    ? {
-        ...emptyMessage,
-        parts: [{ type: "text" as const, text: selectedTemplate.prompt }],
-      }
-    : message;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[650px] flex flex-col max-h-[90dvh]">
@@ -171,7 +166,7 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
           <GenericPromptBox
             className="min-h-[150px] max-h-[300px]"
             placeholder="Describe your task..."
-            message={currentMessage}
+            message={message}
             repoFullName={repoFullName ?? ""}
             branchName={branchName ?? ""}
             onSubmit={handleSubmit}
