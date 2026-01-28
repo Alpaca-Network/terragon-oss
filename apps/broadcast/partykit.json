@@ -5,6 +5,12 @@
   "parties": {
     "sandbox": "src/sandbox.ts"
   },
-  "compatibilityDate": "2025-05-24",
-  "port": 1999
+  "compatibilityDate": "2024-05-24",
+  "port": 1999,
+  "build": {
+    "alias": {
+      "@terragon/env/apps-broadcast": "../../packages/env/src/apps-broadcast.ts",
+      "@terragon/types/broadcast": "../../packages/types/src/broadcast.ts"
+    }
+  }
 }
