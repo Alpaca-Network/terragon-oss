@@ -36,6 +36,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePlatform } from "@/hooks/use-platform";
+import { KanbanBoardMobile } from "./kanban-board-mobile";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -72,10 +74,16 @@ export const KanbanBoard = memo(function KanbanBoard({
 }: {
   queryFilters: ThreadListFilters;
 }) {
+  const platform = usePlatform();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const containerRef = useRef<HTMLDivElement>(null);
   const setViewMode = useSetAtom(dashboardViewModeAtom);
+
+  // Render mobile version on mobile devices
+  if (platform === "mobile") {
+    return <KanbanBoardMobile queryFilters={queryFilters} />;
+  }
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
