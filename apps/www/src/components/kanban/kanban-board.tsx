@@ -46,10 +46,6 @@ export const KanbanBoard = memo(function KanbanBoard({
     };
 
     for (const thread of threads) {
-      // Skip archived threads in Kanban view
-      if (thread.archived) {
-        continue;
-      }
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
     }

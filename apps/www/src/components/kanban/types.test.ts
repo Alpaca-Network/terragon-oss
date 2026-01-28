@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getKanbanColumn, KANBAN_COLUMNS, KanbanColumn } from "./types";
+import { getKanbanColumn, KANBAN_COLUMNS } from "./types";
 import { ThreadInfo, ThreadStatus } from "@terragon/shared";
 
 // Helper to create a mock ThreadInfo with specific status and properties
@@ -34,8 +34,8 @@ function createMockThread(
     bootingSubstatus: null,
     gitDiffStats: null,
     archived: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
     automationId: null,
     parentThreadId: null,
     parentToolId: null,

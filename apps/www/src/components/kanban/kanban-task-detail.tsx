@@ -70,15 +70,15 @@ const TaskDetailContent = memo(function TaskDetailContent({
   const getColumnBadgeColor = (columnId: KanbanColumn) => {
     switch (columnId) {
       case "backlog":
-        return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300";
+        return "bg-muted text-muted-foreground";
       case "in_progress":
-        return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300";
+        return "bg-primary/10 text-primary border border-primary/20";
       case "in_review":
-        return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300";
+        return "bg-accent/10 text-accent-foreground border border-accent/20";
       case "done":
-        return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300";
+        return "bg-primary/10 text-primary border border-primary/20";
       case "cancelled":
-        return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300";
+        return "bg-destructive/10 text-destructive border border-destructive/20";
       default:
         return "bg-muted text-muted-foreground";
     }
