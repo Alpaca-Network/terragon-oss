@@ -156,3 +156,14 @@ export type KanbanThreadGroup = {
   column: KanbanColumn;
   threads: ThreadInfo[];
 };
+
+/**
+ * Checks if a thread is a draft (can be started)
+ */
+export function isDraftThread(thread: ThreadInfo): boolean {
+  if (thread.threadChats.length === 0) {
+    return false;
+  }
+  // A thread is a draft if all its chats have status "draft"
+  return thread.threadChats.every((chat) => chat.status === "draft");
+}

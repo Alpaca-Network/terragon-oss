@@ -273,3 +273,7 @@ export const dashboardViewModeAtom = atomWithStorage<DashboardViewMode>(
   stringCookieStorage as any,
   { getOnInit: true },
 );
+
+// Atom for controlling the new task dialog from Kanban view
+// This is a simple in-memory atom (not persisted) for UI state
+export const kanbanNewTaskDialogOpenAtom = atom<boolean>(false);

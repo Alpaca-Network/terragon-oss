@@ -10,13 +10,18 @@ import {
   KANBAN_COLUMNS,
   getKanbanColumn,
 } from "./types";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, SquarePen } from "lucide-react";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
 } from "@/queries/thread-queries";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
+import { Button } from "@/components/ui/button";
+import { NewTaskDialog } from "./new-task-dialog";
+import { QuickAddBacklogDialog } from "./quick-add-backlog";
+import { useAtom } from "jotai";
+import { kanbanNewTaskDialogOpenAtom } from "@/atoms/user-cookies";
 
 export const KanbanBoard = memo(function KanbanBoard({
   queryFilters,
@@ -24,6 +29,10 @@ export const KanbanBoard = memo(function KanbanBoard({
   queryFilters: ThreadListFilters;
 }) {
   const [selectedThread, setSelectedThread] = useState<ThreadInfo | null>(null);
+  const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useAtom(
+    kanbanNewTaskDialogOpenAtom,
+  );
+  const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
@@ -103,6 +112,14 @@ export const KanbanBoard = memo(function KanbanBoard({
     setSelectedThread(null);
   }, []);
 
+  const handleOpenNewTaskDialog = useCallback(() => {
+    setIsNewTaskDialogOpen(true);
+  }, []);
+
+  const handleOpenQuickAddBacklog = useCallback(() => {
+    setIsQuickAddBacklogOpen(true);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex flex-col h-full items-center justify-center">
@@ -124,27 +141,59 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   return (
     <>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full w-full">
-          <div className="flex gap-4 p-4 h-full min-h-[500px]">
-            {KANBAN_COLUMNS.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column.id}
-                threads={columnThreads[column.id]}
-                selectedThreadId={selectedThread?.id ?? null}
-                onThreadSelect={handleThreadSelect}
-              />
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+      <div className="flex flex-col h-full w-full">
+        {/* Board header with New Task button */}
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h2 className="font-semibold text-sm">Tasks</h2>
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleOpenNewTaskDialog}
+          >
+            <SquarePen className="h-4 w-4" />
+            New Task
+          </Button>
+        </div>
+
+        {/* Kanban columns */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full w-full">
+            <div className="flex gap-4 p-4 h-full min-h-[500px]">
+              {KANBAN_COLUMNS.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column.id}
+                  threads={columnThreads[column.id]}
+                  selectedThreadId={selectedThread?.id ?? null}
+                  onThreadSelect={handleThreadSelect}
+                  onAddToBacklog={
+                    column.id === "backlog"
+                      ? handleOpenQuickAddBacklog
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
       </div>
 
       <KanbanTaskDetail
         thread={selectedThread}
         open={selectedThread !== null}
         onClose={handleCloseDetail}
+      />
+
+      <NewTaskDialog
+        open={isNewTaskDialogOpen}
+        onOpenChange={setIsNewTaskDialogOpen}
+      />
+
+      <QuickAddBacklogDialog
+        open={isQuickAddBacklogOpen}
+        onOpenChange={setIsQuickAddBacklogOpen}
       />
     </>
   );

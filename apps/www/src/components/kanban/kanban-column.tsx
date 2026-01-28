@@ -6,17 +6,26 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const KanbanColumn = memo(function KanbanColumn({
   column,
   threads,
   selectedThreadId,
   onThreadSelect,
+  onAddToBacklog,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
+  onAddToBacklog?: () => void;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
 
@@ -51,9 +60,29 @@ export const KanbanColumn = memo(function KanbanColumn({
         )}
       >
         <span>{columnConfig.title}</span>
-        <span className="text-xs opacity-70 bg-white/30 dark:bg-black/20 px-1.5 py-0.5 rounded-full">
-          {threads.length}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs opacity-70 bg-white/30 dark:bg-black/20 px-1.5 py-0.5 rounded-full">
+            {threads.length}
+          </span>
+          {column === "backlog" && onAddToBacklog && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full hover:bg-white/30 dark:hover:bg-black/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddToBacklog();
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Add to backlog</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {/* Column content */}
