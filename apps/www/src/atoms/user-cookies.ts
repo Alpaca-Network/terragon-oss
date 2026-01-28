@@ -270,6 +270,6 @@ const stringCookieStorage = createJSONStorage<string>(() => ({
 export const dashboardViewModeAtom = atomWithStorage<DashboardViewMode>(
   dashboardViewModeKey,
   defaultDashboardViewMode,
-  stringCookieStorage as any,
+  cookieStorage,
   { getOnInit: true },
 );
