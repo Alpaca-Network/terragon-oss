@@ -66,7 +66,7 @@ const modeConfig = {
 } as const;
 
 const defaultLoopConfig: LoopConfigInput = {
-  maxIterations: 10,
+  maxIterations: 3,
   completionPromise: "DONE",
   useRegex: false,
   requireApproval: false,
@@ -95,14 +95,14 @@ function LoopConfigPanel({
             id="maxIterations"
             type="number"
             min={1}
-            max={100}
+            max={10}
             value={config.maxIterations}
             onChange={(e) =>
               onChange({
                 ...config,
                 maxIterations: Math.max(
                   1,
-                  Math.min(100, parseInt(e.target.value) || 10),
+                  Math.min(10, parseInt(e.target.value) || 3),
                 ),
               })
             }

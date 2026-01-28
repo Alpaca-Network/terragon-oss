@@ -254,7 +254,7 @@ export const allowedSignups = pgTable(
 /**
  * Configuration for loop mode execution.
  * Constraints:
- * - maxIterations: 1-100
+ * - maxIterations: 1-10 (limited due to 1 hour sandbox timeout)
  * - completionPromise: non-empty string
  * - currentIteration: >= 1, <= maxIterations
  */

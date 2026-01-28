@@ -15,7 +15,7 @@ export type FeatureFlags = {
 };
 
 export const LoopConfigSchema = z.object({
-  maxIterations: z.number().min(1).max(100),
+  maxIterations: z.number().min(1).max(10),
   completionPromise: z.string().min(1),
   useRegex: z.boolean(),
   requireApproval: z.boolean(),
