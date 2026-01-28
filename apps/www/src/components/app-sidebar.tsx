@@ -13,6 +13,8 @@ import {
   ChartColumnBig,
   SunIcon,
   MoonIcon,
+  LayoutList,
+  Kanban,
 } from "lucide-react";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
 import { Wordmark, WordmarkLogo } from "./shared/wordmark";
@@ -32,12 +34,13 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { FeedbackDialog } from "./system/feedback-dialog";
 import { useAtom, useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/user";
 import { lastSeenReleaseNotesVersionAtom } from "@/atoms/user-flags";
+import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { RELEASE_NOTES_VERSION } from "@/lib/constants";
 import { publicDocsUrl } from "@terragon/env/next-public";
 import {
@@ -124,6 +127,7 @@ export function AppSidebar() {
                   href="/dashboard"
                   icon={<Home className="h-5 w-5" />}
                 />
+                <ViewModeToggle />
                 <Item
                   title="Automations"
                   href="/automations"
@@ -359,5 +363,37 @@ function ThemeToggle() {
         <MoonIcon className="size-4 text-foreground/50" />
       )}
     </div>
+  );
+}
+
+function ViewModeToggle() {
+  const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
+  const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleToggle = useCallback(() => {
+    setViewMode(viewMode === "list" ? "kanban" : "list");
+    router.push("/dashboard");
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [viewMode, setViewMode, router, isMobile, setOpenMobile]);
+
+  const nextMode = viewMode === "list" ? "Kanban" : "List";
+
+  return (
+    <AppMenuItem>
+      <SidebarMenuButton
+        onClick={handleToggle}
+        tooltip={`Switch to ${nextMode} view`}
+      >
+        {viewMode === "list" ? (
+          <Kanban className="h-5 w-5" />
+        ) : (
+          <LayoutList className="h-5 w-5" />
+        )}
+        <span>{nextMode} View</span>
+      </SidebarMenuButton>
+    </AppMenuItem>
   );
 }
