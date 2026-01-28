@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { gatewayZUsageEvents } from "@terragon/shared/db/schema";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 
 type UsagePayload = {
   prompt_tokens?: number | null;
@@ -69,6 +70,24 @@ export async function logGatewayZUsage({
   }
 }
 
+export type GatewayZUsageSummary = {
+  userId: string;
+  startDate: Date | undefined;
+  endDate: Date | undefined;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  requestCount: number;
+  byProvider: Record<
+    string,
+    { inputTokens: number; outputTokens: number; requestCount: number }
+  >;
+  byModel: Record<
+    string,
+    { inputTokens: number; outputTokens: number; requestCount: number }
+  >;
+};
+
 /**
  * Get usage summary for a user within a time range
  */
@@ -80,8 +99,78 @@ export async function getGatewayZUsageSummary({
   userId: string;
   startDate?: Date;
   endDate?: Date;
-}) {
-  // This function can be implemented later for usage dashboard
-  // For now, we just track the raw events
-  return { userId, startDate, endDate };
+}): Promise<GatewayZUsageSummary> {
+  const conditions = [eq(gatewayZUsageEvents.userId, userId)];
+
+  if (startDate) {
+    conditions.push(gte(gatewayZUsageEvents.createdAt, startDate));
+  }
+  if (endDate) {
+    conditions.push(lte(gatewayZUsageEvents.createdAt, endDate));
+  }
+
+  // Get aggregated totals
+  const [totals] = await db
+    .select({
+      totalInputTokens: sql<number>`COALESCE(SUM(${gatewayZUsageEvents.inputTokens}), 0)::int`,
+      totalOutputTokens: sql<number>`COALESCE(SUM(${gatewayZUsageEvents.outputTokens}), 0)::int`,
+      requestCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(gatewayZUsageEvents)
+    .where(and(...conditions));
+
+  // Get breakdown by provider
+  const byProviderRows = await db
+    .select({
+      provider: gatewayZUsageEvents.provider,
+      inputTokens: sql<number>`COALESCE(SUM(${gatewayZUsageEvents.inputTokens}), 0)::int`,
+      outputTokens: sql<number>`COALESCE(SUM(${gatewayZUsageEvents.outputTokens}), 0)::int`,
+      requestCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(gatewayZUsageEvents)
+    .where(and(...conditions))
+    .groupBy(gatewayZUsageEvents.provider);
+
+  // Get breakdown by model
+  const byModelRows = await db
+    .select({
+      model: gatewayZUsageEvents.model,
+      inputTokens: sql<number>`COALESCE(SUM(${gatewayZUsageEvents.inputTokens}), 0)::int`,
+      outputTokens: sql<number>`COALESCE(SUM(${gatewayZUsageEvents.outputTokens}), 0)::int`,
+      requestCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(gatewayZUsageEvents)
+    .where(and(...conditions))
+    .groupBy(gatewayZUsageEvents.model);
+
+  const byProvider: GatewayZUsageSummary["byProvider"] = {};
+  for (const row of byProviderRows) {
+    byProvider[row.provider] = {
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      requestCount: row.requestCount,
+    };
+  }
+
+  const byModel: GatewayZUsageSummary["byModel"] = {};
+  for (const row of byModelRows) {
+    byModel[row.model] = {
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      requestCount: row.requestCount,
+    };
+  }
+
+  return {
+    userId,
+    startDate,
+    endDate,
+    totalInputTokens: totals?.totalInputTokens ?? 0,
+    totalOutputTokens: totals?.totalOutputTokens ?? 0,
+    totalTokens:
+      (totals?.totalInputTokens ?? 0) + (totals?.totalOutputTokens ?? 0),
+    requestCount: totals?.requestCount ?? 0,
+    byProvider,
+    byModel,
+  };
 }
