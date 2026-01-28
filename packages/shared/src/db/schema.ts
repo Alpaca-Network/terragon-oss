@@ -475,7 +475,9 @@ export const userSettings = pgTable(
     autoClosePRsOnArchive: boolean("auto_close_draft_prs_on_archive")
       .notNull()
       .default(false),
-    branchNamePrefix: text("branch_name_prefix").notNull().default("terragon/"),
+    branchNamePrefix: text("branch_name_prefix")
+      .notNull()
+      .default("gatewayz-code/"),
     prType: text("pr_type")
       .$type<"draft" | "ready">()
       .notNull()

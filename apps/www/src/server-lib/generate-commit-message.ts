@@ -11,10 +11,11 @@ const commitMessageSchema = z.object({
 });
 
 export async function generateCommitMessage(gitDiff: string): Promise<string> {
-  const result = await generateObject({
-    model: openai("gpt-4.1-mini"),
-    schema: commitMessageSchema,
-    prompt: `Based on the following git diff, generate a structured commit message that follows conventional commit format. Focus on the primary change being made.
+  try {
+    const result = await generateObject({
+      model: openai("gpt-4.1-mini"),
+      schema: commitMessageSchema,
+      prompt: `Based on the following git diff, generate a structured commit message that follows conventional commit format. Focus on the primary change being made.
 
     Git diff:
     <git-diff>
@@ -26,7 +27,24 @@ export async function generateCommitMessage(gitDiff: string): Promise<string> {
     - scope: optional area of change (e.g., auth, ui, api)
     - description: brief description under 72 characters
     - message: complete conventional commit message in format "type(scope): description"`,
-  });
-  console.log("[ai/generateObject] response_id:", result.response?.id);
-  return (result.object as z.infer<typeof commitMessageSchema>).message;
+    });
+    console.log("[ai/generateObject] response_id:", result.response?.id);
+    return (result.object as z.infer<typeof commitMessageSchema>).message;
+  } catch (error) {
+    // Check for quota/billing errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes("quota") ||
+      errorMessage.includes("insufficient_quota") ||
+      errorMessage.includes("billing")
+    ) {
+      console.error(
+        "OpenAI quota exceeded for commit message generation. Please check OpenAI billing.",
+        error,
+      );
+    } else {
+      console.error("Failed to generate commit message:", error);
+    }
+    throw error;
+  }
 }

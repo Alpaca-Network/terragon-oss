@@ -18,7 +18,7 @@ export const SUBSCRIPTION_PLAN_CONFIG: Record<
   core: {
     id: "core",
     name: "Pro", // Displayed as "Pro" (formerly "Core")
-    price: "$25",
+    price: "$8",
     period: "per month",
     description:
       "Ideal for individuals who want to orchestrate multiple agents.",
@@ -35,7 +35,7 @@ export const SUBSCRIPTION_PLAN_CONFIG: Record<
   pro: {
     id: "pro",
     name: "Max", // Displayed as "Max" (formerly "Pro")
-    price: "$50",
+    price: "$75",
     period: "per month",
     description:
       "Built for power users who need more throughput and larger sandboxes.",

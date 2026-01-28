@@ -3,6 +3,7 @@ import type {
   AccessInfo,
   AccessTier,
   BillingInfo,
+  GatewayZTierInfo,
 } from "@terragon/shared/db/types";
 import { getUserIdOrNull } from "./auth-server";
 import {
@@ -111,20 +112,38 @@ export async function getBillingInfoForUser({
 }: {
   userId: string;
 }): Promise<BillingInfo> {
-  const [subscription, signupTrial, featureFlags] = await Promise.all([
-    getSubscriptionInfoForUser({ db, userId }),
-    getSignupTrialInfoForUser({ db, userId }),
-    getFeatureFlagsGlobal({ db }),
-  ]);
+  const [subscription, signupTrial, featureFlags, userRecord] =
+    await Promise.all([
+      getSubscriptionInfoForUser({ db, userId }),
+      getSignupTrialInfoForUser({ db, userId }),
+      getFeatureFlagsGlobal({ db }),
+      db
+        .select({ gwTier: schema.user.gwTier })
+        .from(schema.user)
+        .where(eq(schema.user.id, userId))
+        .limit(1),
+    ]);
   const hasActiveSubscription = !!subscription?.isActive;
   const unusedPromotionCode = !hasActiveSubscription
     ? await getUnusedPromotionCodeForUser({ db, userId })
     : null;
+
+  // Get GatewayZ tier info if available
+  const gwTier = userRecord[0]?.gwTier as GatewayZTier | null | undefined;
+  const gatewayZTier: GatewayZTierInfo | null =
+    gwTier && gwTier !== "free"
+      ? {
+          tier: gwTier,
+          mappedAccessTier: mapGatewayZTierToAccessTier(gwTier),
+        }
+      : null;
+
   return {
     hasActiveSubscription,
     subscription,
     signupTrial,
     unusedPromotionCode: !!unusedPromotionCode,
     isShutdownMode: featureFlags.shutdownMode,
+    gatewayZTier,
   };
 }

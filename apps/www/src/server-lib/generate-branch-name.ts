@@ -51,7 +51,20 @@ Generate a name that clearly indicates what's being worked on in this branch.`,
     console.log("[ai/generateObject] response_id:", result.response?.id);
     return `${prefix}${(result.object as z.infer<typeof branchNameSchema>).name}`;
   } catch (error) {
-    console.error("Failed to generate branch name:", error);
+    // Check for quota/billing errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes("quota") ||
+      errorMessage.includes("insufficient_quota") ||
+      errorMessage.includes("billing")
+    ) {
+      console.error(
+        "OpenAI quota exceeded for branch name generation. Please check OpenAI billing.",
+        error,
+      );
+    } else {
+      console.error("Failed to generate branch name:", error);
+    }
     // Fallback to the default random branch name
     return generateRandomBranchName(prefix);
   }

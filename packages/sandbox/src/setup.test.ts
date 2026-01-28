@@ -54,10 +54,12 @@ describe("sandbox-setup", () => {
         { cwd: "." },
       );
 
-      // Should create new branch with generated name (terragon/[6-char-id]-[6-char-id] in test env)
+      // Should create new branch with generated name (gatewayz-code/[6-char-id]-[6-char-id] in test env)
       const runCommandCalls = runCommandSpy.mock.calls;
       const checkoutNewBranchCall = runCommandCalls.find((call) =>
-        call[0].match(/git checkout -b 'terragon\/[a-z0-9]{6}-[a-z0-9]{6}'/),
+        call[0].match(
+          /git checkout -b 'gatewayz-code\/[a-z0-9]{6}-[a-z0-9]{6}'/,
+        ),
       );
       expect(checkoutNewBranchCall).toBeDefined();
 
@@ -66,7 +68,9 @@ describe("sandbox-setup", () => {
         call[0].includes("git clone"),
       );
       const checkoutNewBranchIndex = runCommandCalls.findIndex((call) =>
-        call[0].match(/git checkout -b 'terragon\/[a-z0-9]{6}-[a-z0-9]{6}'/),
+        call[0].match(
+          /git checkout -b 'gatewayz-code\/[a-z0-9]{6}-[a-z0-9]{6}'/,
+        ),
       );
       expect(checkoutNewBranchIndex).toBeGreaterThan(cloneIndex);
     });
@@ -90,7 +94,9 @@ describe("sandbox-setup", () => {
       // But should still create new branch with hash
       expect(
         runCommandCalls.find((call) =>
-          call[0].match(/git checkout -b 'terragon\/[a-z0-9]{6}-[a-z0-9]{6}'/),
+          call[0].match(
+            /git checkout -b 'gatewayz-code\/[a-z0-9]{6}-[a-z0-9]{6}'/,
+          ),
         ),
       ).toBeDefined();
     });
@@ -115,7 +121,7 @@ describe("sandbox-setup", () => {
       // Should not create new branch
       expect(
         runCommandCalls.find((call) =>
-          call[0].includes("git checkout -b 'terragon/"),
+          call[0].includes("git checkout -b 'gatewayz-code/"),
         ),
       ).toBeUndefined();
     });

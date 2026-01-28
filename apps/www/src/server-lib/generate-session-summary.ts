@@ -43,12 +43,30 @@ export async function generateSessionSummary({
       ? ["- Any information relevant to the next task described above"]
       : []),
   ];
-  const result = await generateObject({
-    model: openai("gpt-4.1-mini"),
-    schema: compactSchema,
-    maxOutputTokens: 32768,
-    prompt: promptParts.join("\n"),
-  });
-  console.log("[ai/generateObject] response_id:", result.response?.id);
-  return (result.object as z.infer<typeof compactSchema>).summary;
+  try {
+    const result = await generateObject({
+      model: openai("gpt-4.1-mini"),
+      schema: compactSchema,
+      maxOutputTokens: 32768,
+      prompt: promptParts.join("\n"),
+    });
+    console.log("[ai/generateObject] response_id:", result.response?.id);
+    return (result.object as z.infer<typeof compactSchema>).summary;
+  } catch (error) {
+    // Check for quota/billing errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes("quota") ||
+      errorMessage.includes("insufficient_quota") ||
+      errorMessage.includes("billing")
+    ) {
+      console.error(
+        "OpenAI quota exceeded for session summary generation. Please check OpenAI billing.",
+        error,
+      );
+    } else {
+      console.error("Failed to generate session summary:", error);
+    }
+    throw error;
+  }
 }

@@ -57,8 +57,23 @@ Generate a name that someone could easily understand at a glance.`;
     console.log("[ai/generateObject] response_id:", result.response?.id);
     return (result.object as z.infer<typeof threadNameSchema>).name;
   } catch (error) {
-    console.error("Failed to generate thread name:", error);
-    // Fallback to the original prompt
-    return prompt;
+    // Check for quota/billing errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes("quota") ||
+      errorMessage.includes("insufficient_quota") ||
+      errorMessage.includes("billing")
+    ) {
+      console.error(
+        "OpenAI quota exceeded for thread name generation. Please check OpenAI billing.",
+        error,
+      );
+    } else {
+      console.error("Failed to generate thread name:", error);
+    }
+    // Fallback to a truncated version of the original prompt
+    // Normalize whitespace (collapse multiple spaces/newlines into single space)
+    const fallbackName = prompt.replace(/\s+/g, " ").trim().slice(0, 50);
+    return fallbackName || "New thread";
   }
 }

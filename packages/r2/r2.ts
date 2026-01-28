@@ -46,6 +46,12 @@ class R2Client {
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
       },
+      // Disable automatic checksum calculation for presigned URLs.
+      // AWS SDK v3.729.0+ enables checksums by default, but browsers don't
+      // compute/send these checksums when using presigned URLs, causing uploads to fail.
+      // See: https://github.com/aws/aws-sdk-js-v3/issues/6810
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
 
