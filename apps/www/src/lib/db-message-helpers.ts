@@ -114,7 +114,7 @@ export function getUserMessageToSend({
       // If we have multiple messages, add separators between them for clarity
       const allParts: DBUserMessage["parts"] = [];
       let lastMessageType: string | null = null;
-      let lastPermissionMode: "allowAll" | "plan" | null = null;
+      let lastPermissionMode: "allowAll" | "plan" | "loop" | null = null;
       for (let i = 0; i < userMessagesToSend.length; i++) {
         let msg = userMessagesToSend[i];
         if (!msg) continue;
