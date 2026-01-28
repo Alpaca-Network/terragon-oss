@@ -62,22 +62,29 @@ export function Hero() {
   }, [displayText, isDeleting, currentIndex]);
 
   return (
-    <section className="flex items-center justify-center pt-8">
+    <section className="flex items-center justify-center pt-8 bg-background">
       {/* Content */}
       <div className="z-10 w-full text-center">
         <div className="space-y-4 sm:space-y-6 py-8 sm:py-14">
           {/* Headline */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight px-2">
-            Code while you{" "}
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight px-2 leading-tight">
+            <span className="text-foreground">
+              Your{" "}
+              <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                Gateway
+              </span>
+              <br />
+              To Coding While You{" "}
+            </span>
             <span className="inline-block">
-              <span className="bg-foreground bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
                 {displayText}
               </span>
               <span className="animate-blink bg-primary inline-block w-[3px] h-[0.9em] mb-1 ml-1 align-middle" />
             </span>
           </h1>
           {/* Subheadline */}
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground px-4 sm:px-6">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground px-4 sm:px-6 max-w-4xl mx-auto text-balance leading-relaxed">
             Delegate to AI, so you can focus on the work that matters
           </p>
           {/* CTA Buttons */}
@@ -86,13 +93,13 @@ export function Hero() {
               variant="default"
               asChild
               size="lg"
-              className="text-sm sm:text-md p-4 sm:p-6 w-full sm:w-auto"
+              className="text-sm sm:text-md p-4 sm:p-6 w-full sm:w-auto bg-primary hover:bg-primary/90"
             >
               <Link href="/login">Get started for free</Link>
             </Button>
             <Button
               size="lg"
-              className="text-sm sm:text-md p-4 sm:p-6 w-full sm:w-auto"
+              className="text-sm sm:text-md p-4 sm:p-6 w-full sm:w-auto border-border"
               variant="outline"
               asChild
             >
@@ -104,7 +111,7 @@ export function Hero() {
         </div>
         <div className="relative mt-8 sm:mt-12">
           <div className="absolute inset-0 bg-primary/30 blur-3xl rounded-lg" />
-          <div className="relative w-full rounded-lg bg-white border overflow-hidden">
+          <div className="relative w-full rounded-lg bg-card border border-border overflow-hidden shadow-lg">
             <video
               src="https://cdn.terragonlabs.com/sawyerui-Vxci.webm"
               className="w-full h-auto"

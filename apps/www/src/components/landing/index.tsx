@@ -28,7 +28,7 @@ function EmbedLoading() {
   const [timedOut, setTimedOut] = useState(false);
   const gatewayZInboxUrl = new URL(
     "/inbox",
-    process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai"
+    process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai",
   ).toString();
 
   useEffect(() => {
@@ -45,7 +45,8 @@ function EmbedLoading() {
         <div className="text-center p-8 max-w-md">
           <h1 className="text-2xl font-semibold mb-4">Session Setup Failed</h1>
           <p className="text-muted-foreground mb-6">
-            Unable to establish a session. This page should be accessed through the GatewayZ app.
+            Unable to establish a session. This page should be accessed through
+            the GatewayZ app.
           </p>
           <a
             href={gatewayZInboxUrl}

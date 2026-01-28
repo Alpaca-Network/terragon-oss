@@ -1,8 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import plantLight from "./shared/plant-light.png";
-import plantDark from "./shared/plant-dark.png";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -28,33 +26,33 @@ export function InvitedWaitlist() {
     }
   }, [authError]);
 
+  const isDarkMode =
+    mounted &&
+    (theme === "dark" || (theme === "system" && resolvedTheme === "dark"));
+
   return (
     <div className="flex flex-col min-h-[100dvh] w-full">
       <div className="flex-1 flex flex-col gap-12 items-center justify-center px-4 py-16">
         <div className="w-full max-w-[95%] max-w-md flex flex-col gap-6">
-          <div className="flex justify-center gap-1.5">
+          <div className="flex justify-center items-center gap-2">
             <Image
               src={
-                mounted &&
-                (theme === "dark" ||
-                  (theme === "system" && resolvedTheme === "dark"))
-                  ? plantDark
-                  : plantLight
+                isDarkMode
+                  ? "/gatewayz-logo-white.png"
+                  : "/gatewayz-logo-black.png"
               }
-              alt="Terragon Logo"
+              alt="Gatewayz Logo"
               width={40}
               height={40}
               className="opacity-90"
               priority
             />
-            <h1 className="text-4xl font-bold tracking-tight font-[Cabin]">
-              Terragon
-            </h1>
+            <h1 className="text-4xl font-bold tracking-tight">Gatewayz</h1>
           </div>
           {/* Hero Content */}
           <div className="text-center space-y-4">
             <h2 className="text-lg text-muted-foreground">
-              You've been invited! Welcome to Terragon.
+              You've been invited! Welcome to Gatewayz.
             </h2>
           </div>
 
@@ -103,7 +101,7 @@ export function InvitedWaitlist() {
               loop
               muted
               playsInline
-              aria-label="Terragon platform demonstration"
+              aria-label="Gatewayz platform demonstration"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -131,7 +129,9 @@ export function InvitedWaitlist() {
       {/* Footer */}
       <footer className="p-4">
         <div className="text-center text-sm text-muted-foreground">
-          <div>© {new Date().getFullYear()} Terragon</div>
+          <div>
+            © {new Date().getFullYear()} Augmented Intelligence Humans Inc.
+          </div>
         </div>
       </footer>
 
