@@ -127,10 +127,15 @@ function useBillingInfo() {
   const hasSubscription = !!data?.subscription;
   const hasUnusedCoupon = !!data?.unusedPromotionCode;
   const signupTrialDaysRemaining = data?.signupTrial?.daysRemaining ?? 0;
-  const isSignupTrialActive = !hasSubscription && signupTrialDaysRemaining > 0;
 
   // Check if user has an active GatewayZ subscription (takes priority)
   const hasGatewayZSubscription = !!data?.gatewayZTier;
+
+  // Signup trial is only active if no subscription AND no GatewayZ subscription AND within trial period
+  const isSignupTrialActive =
+    !hasSubscription &&
+    !hasGatewayZSubscription &&
+    signupTrialDaysRemaining > 0;
 
   let activePlanOrNull: "core" | "pro" | null = null;
 
