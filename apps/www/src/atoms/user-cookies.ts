@@ -4,8 +4,10 @@ import {
   UserCookies,
   CollapsedSections,
   ThreadListGroupBy,
+  DashboardViewMode,
   defaultCollapsedSections,
   defaultThreadListGroupBy,
+  defaultDashboardViewMode,
   defaultTimeZone,
   timeZoneKey,
   threadListCollapsedSectionsKey,
@@ -15,6 +17,7 @@ import {
   threadListGroupByKey,
   threadListCollapsedKey,
   secondaryPaneClosedKey,
+  dashboardViewModeKey,
 } from "@/lib/cookies";
 import { getCookieOrNull, setCookie } from "@/lib/cookies-client";
 
@@ -68,6 +71,12 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
         case secondaryPaneClosedKey: {
           if (typeof userCookies[key] === "boolean") {
             set(secondaryPaneClosedAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
+        case dashboardViewModeKey: {
+          if (userCookies[key]) {
+            set(dashboardViewModeAtom, userCookies[key]);
           }
           break;
         }
@@ -224,5 +233,43 @@ export const secondaryPaneClosedAtom = atomWithStorage<boolean>(
   secondaryPaneClosedKey,
   false,
   booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Create a string-based cookie storage for dashboard view mode
+const stringCookieStorage = createJSONStorage<string>(() => ({
+  getItem: (key: string) => {
+    const value = getCookieOrNull(key);
+    return value !== null ? JSON.stringify(value) : null;
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(value);
+      setCookie({
+        key,
+        value: String(parsed),
+        maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
+      });
+    } catch (e) {
+      console.error("Failed to set cookie:", e);
+    }
+  },
+  removeItem: (key: string) => {
+    setCookie({
+      key,
+      value: "",
+      maxAgeSecs: 0, // Expire immediately
+    });
+  },
+}));
+
+// Persist the dashboard view mode (list or kanban)
+export const dashboardViewModeAtom = atomWithStorage<DashboardViewMode>(
+  dashboardViewModeKey,
+  defaultDashboardViewMode,
+  stringCookieStorage as any,
   { getOnInit: true },
 );
