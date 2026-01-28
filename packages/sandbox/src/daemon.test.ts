@@ -2,11 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { installDaemon } from "./daemon";
 import type { ISandboxSession } from "./types";
 
-// Mock the bundled imports
-vi.mock("@terragon/bundled", () => ({
-  daemonAsStr: "mock-daemon-content",
-  mcpServerAsStr: "mock-mcp-server-content",
-}));
+// Note: @terragon/bundled is mocked via vitest.config.ts alias
 
 describe("daemon installation", () => {
   let mockSession: ISandboxSession;

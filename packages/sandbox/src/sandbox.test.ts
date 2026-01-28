@@ -161,7 +161,7 @@ describe(`sandbox ${providerName}`, () => {
     );
 
     const result2 = await sandbox.runCommand("git branch -a");
-    expect(result2).toContain("* terragon/");
+    expect(result2).toContain("* gatewayz-code/");
   });
 
   it("should respond to a daemon message", async () => {
@@ -349,7 +349,7 @@ describe(`sandbox ${providerName}`, () => {
       const currentBranch = await sandbox.runCommand(
         "git branch --show-current",
       );
-      expect(currentBranch.trim()).toMatch(/^terragon\//);
+      expect(currentBranch.trim()).toMatch(/^gatewayz-code\//);
 
       // Check that we're on a new branch created from main
       const branchPoint = await sandbox.runCommand("git merge-base HEAD main");

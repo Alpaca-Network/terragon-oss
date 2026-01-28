@@ -470,6 +470,106 @@ export async function handleDaemonEvent({
     }
   }
 
+  // Check for loop mode completion and handle iteration
+  if (
+    isDone &&
+    !isError &&
+    !isStop &&
+    threadChat.permissionMode === "loop" &&
+    threadChat.loopConfig?.isLoopActive
+  ) {
+    const loopConfig = threadChat.loopConfig;
+    const allMessages = [...(threadChat.messages ?? []), ...dbMessages];
+
+    // Extract last agent output to check for completion promise
+    const lastAgentOutput = getLastAgentOutput(allMessages);
+
+    // Check if completion promise is found in the output
+    let isComplete = false;
+    if (loopConfig.useRegex) {
+      try {
+        isComplete = lastAgentOutput
+          ? new RegExp(loopConfig.completionPromise).test(lastAgentOutput)
+          : false;
+      } catch (e) {
+        console.error("Invalid regex in loop completion promise", {
+          threadId,
+          completionPromise: loopConfig.completionPromise,
+          error: e,
+        });
+        // Fall back to exact string match if regex is invalid
+        isComplete =
+          lastAgentOutput?.includes(loopConfig.completionPromise) ?? false;
+      }
+    } else {
+      isComplete =
+        lastAgentOutput?.includes(loopConfig.completionPromise) ?? false;
+    }
+
+    if (isComplete) {
+      // Loop completed successfully
+      threadChatUpdates.loopConfig = {
+        ...loopConfig,
+        isLoopActive: false,
+      };
+      console.log("Loop completed: completion promise found", {
+        threadId,
+        completionPromise: loopConfig.completionPromise,
+        iteration: loopConfig.currentIteration,
+      });
+    } else if (loopConfig.currentIteration >= loopConfig.maxIterations) {
+      // Max iterations reached
+      threadChatUpdates.loopConfig = {
+        ...loopConfig,
+        isLoopActive: false,
+      };
+      console.log("Loop completed: max iterations reached", {
+        threadId,
+        maxIterations: loopConfig.maxIterations,
+      });
+    } else if (loopConfig.requireApproval) {
+      // Approval mode - wait for user to approve next iteration
+      threadChatUpdates.loopConfig = {
+        ...loopConfig,
+        awaitingApproval: true,
+      };
+      console.log("Loop awaiting approval for next iteration", {
+        threadId,
+        currentIteration: loopConfig.currentIteration,
+      });
+    } else {
+      // YOLO mode - auto-continue to next iteration
+      threadChatUpdates.loopConfig = {
+        ...loopConfig,
+        currentIteration: loopConfig.currentIteration + 1,
+      };
+
+      // Queue continuation message
+      const continueMessage: DBUserMessage = {
+        type: "user",
+        model: null,
+        parts: [
+          {
+            type: "text",
+            text: `Continue iteration ${loopConfig.currentIteration + 1}/${loopConfig.maxIterations}. Output "${loopConfig.completionPromise}" when the task is complete.`,
+          },
+        ],
+        timestamp: new Date().toISOString(),
+        permissionMode: "loop",
+      };
+      threadChatUpdates.appendQueuedMessages = [
+        ...(threadChatUpdates.appendQueuedMessages ?? []),
+        continueMessage,
+      ];
+
+      console.log("Loop continuing to next iteration", {
+        threadId,
+        nextIteration: loopConfig.currentIteration + 1,
+        maxIterations: loopConfig.maxIterations,
+      });
+    }
+  }
+
   // Check if we should skip checkpoint when done
   let shouldSkipCheckpoint = false;
   if (isDone && !isError) {
@@ -512,6 +612,22 @@ export async function handleDaemonEvent({
     );
   }
   return { success: true };
+}
+
+/**
+ * Extract the last agent output text from messages
+ */
+function getLastAgentOutput(messages: DBMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg?.type === "agent") {
+      const textParts = msg.parts.filter(
+        (p): p is { type: "text"; text: string } => p.type === "text",
+      );
+      return textParts.map((p) => p.text).join("\n");
+    }
+  }
+  return null;
 }
 
 async function handleThreadFinish({

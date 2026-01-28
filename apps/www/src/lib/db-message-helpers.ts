@@ -114,7 +114,8 @@ export function getUserMessageToSend({
       // If we have multiple messages, add separators between them for clarity
       const allParts: DBUserMessage["parts"] = [];
       let lastMessageType: string | null = null;
-      let lastPermissionMode: "allowAll" | "plan" | null = null;
+      let lastPermissionMode: "allowAll" | "plan" | "loop" | null = null;
+      let lastLoopConfig: DBUserMessage["loopConfig"] = undefined;
       for (let i = 0; i < userMessagesToSend.length; i++) {
         let msg = userMessagesToSend[i];
         if (!msg) continue;
@@ -139,6 +140,9 @@ export function getUserMessageToSend({
         if ("permissionMode" in msg && msg.permissionMode) {
           lastPermissionMode = msg.permissionMode;
         }
+        if ("loopConfig" in msg && msg.loopConfig) {
+          lastLoopConfig = msg.loopConfig;
+        }
       }
 
       return {
@@ -146,6 +150,7 @@ export function getUserMessageToSend({
         model: getLastUserMessageModel(messages),
         timestamp: userMessagesToSend[userMessagesToSend.length - 1]!.timestamp,
         permissionMode: lastPermissionMode || "allowAll",
+        loopConfig: lastLoopConfig,
         parts: allParts,
       };
     }

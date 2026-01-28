@@ -1,18 +1,25 @@
 import { generateFileUploadUrlForUser } from "@/server-lib/r2-file-upload";
 import { DBUserMessage } from "@terragon/shared";
 
-async function base64ToFile(base64: string): Promise<File> {
-  const blob = await fetch(base64).then((res) => res.blob());
-  const mime = blob.type;
-  const ext = mime.split("/")[1] || "bin";
-  const binary = await blob.arrayBuffer();
-  const bytes = new Uint8Array(binary);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return new File([bytes], `${hashHex}.${ext}`, { type: mime });
+interface ParsedFile {
+  buffer: ArrayBuffer;
+  contentType: string;
+}
+
+async function base64ToBuffer(base64: string): Promise<ParsedFile> {
+  try {
+    const blob = await fetch(base64).then((res) => res.blob());
+    const contentType = blob.type;
+    const buffer = await blob.arrayBuffer();
+    return { buffer, contentType };
+  } catch (error) {
+    // Extract mime type from data URL if possible (e.g., "data:image/png;base64,...")
+    const mimeMatch = base64.match(/^data:([^;,]+)/);
+    const mimeType = mimeMatch?.[1] ?? "unknown";
+    throw new Error(
+      `Failed to convert base64 to buffer (mime: ${mimeType}, length: ${base64.length}): ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 async function uploadImageForUser({
@@ -22,23 +29,29 @@ async function uploadImageForUser({
   userId: string;
   base64Image: string;
 }): Promise<string> {
-  const file = await base64ToFile(base64Image);
+  const { buffer, contentType } = await base64ToBuffer(base64Image);
   const { presignedUrl, publicUrl } = await generateFileUploadUrlForUser({
     userId,
     fileType: "image",
-    contentType: file.type,
-    sizeInBytes: file.size,
+    contentType,
+    sizeInBytes: buffer.byteLength,
   });
   const uploadResponse = await fetch(presignedUrl, {
     method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Length": String(buffer.byteLength),
+    },
+    body: buffer,
   });
   if (!uploadResponse.ok) {
-    throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    const responseText = await uploadResponse.text();
+    throw new Error(
+      `Image upload failed (status: ${uploadResponse.status}, size: ${buffer.byteLength}): ${responseText}`,
+    );
   }
   if (!publicUrl) {
-    throw new Error("No public URL found");
+    throw new Error("No public URL found for image");
   }
   return publicUrl;
 }
@@ -50,23 +63,29 @@ async function uploadPdfForUser({
   userId: string;
   base64Pdf: string;
 }): Promise<string> {
-  const file = await base64ToFile(base64Pdf);
+  const { buffer, contentType } = await base64ToBuffer(base64Pdf);
   const { presignedUrl, publicUrl } = await generateFileUploadUrlForUser({
     userId,
     fileType: "pdf",
-    contentType: file.type,
-    sizeInBytes: file.size,
+    contentType,
+    sizeInBytes: buffer.byteLength,
   });
   const uploadResponse = await fetch(presignedUrl, {
     method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Length": String(buffer.byteLength),
+    },
+    body: buffer,
   });
   if (!uploadResponse.ok) {
-    throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    const responseText = await uploadResponse.text();
+    throw new Error(
+      `PDF upload failed (status: ${uploadResponse.status}, size: ${buffer.byteLength}): ${responseText}`,
+    );
   }
   if (!publicUrl) {
-    throw new Error("No public URL found");
+    throw new Error("No public URL found for PDF");
   }
   return publicUrl;
 }
@@ -78,23 +97,29 @@ async function uploadTextFileForUser({
   userId: string;
   base64TextFile: string;
 }): Promise<string> {
-  const file = await base64ToFile(base64TextFile);
+  const { buffer, contentType } = await base64ToBuffer(base64TextFile);
   const { presignedUrl, publicUrl } = await generateFileUploadUrlForUser({
     userId,
     fileType: "text-file",
-    contentType: file.type,
-    sizeInBytes: file.size,
+    contentType,
+    sizeInBytes: buffer.byteLength,
   });
   const uploadResponse = await fetch(presignedUrl, {
     method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Length": String(buffer.byteLength),
+    },
+    body: buffer,
   });
   if (!uploadResponse.ok) {
-    throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    const responseText = await uploadResponse.text();
+    throw new Error(
+      `Text file upload failed (status: ${uploadResponse.status}, size: ${buffer.byteLength}): ${responseText}`,
+    );
   }
   if (!publicUrl) {
-    throw new Error("No public URL found");
+    throw new Error("No public URL found for text file");
   }
   return publicUrl;
 }
@@ -135,8 +160,16 @@ export async function uploadUserMessageImages({
       }
     }),
   );
-  if (results.some((result) => result.status === "rejected")) {
-    throw new Error("Failed to upload files");
+  const rejectedResults = results.filter(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (rejectedResults.length > 0) {
+    const errorMessages = rejectedResults.map((result) =>
+      result.reason instanceof Error
+        ? result.reason.message
+        : String(result.reason),
+    );
+    throw new Error(`Failed to upload files: ${errorMessages.join("; ")}`);
   }
   return {
     ...message,
@@ -186,7 +219,10 @@ export async function uploadClaudeSessionToR2({
     body: contents,
   });
   if (!uploadResponse.ok) {
-    throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    const responseText = await uploadResponse.text();
+    throw new Error(
+      `Claude session upload failed (status: ${uploadResponse.status}, size: ${Buffer.byteLength(contents)}): ${responseText}`,
+    );
   }
   return r2Key;
 }

@@ -508,7 +508,7 @@ export function ScheduleTriggerForm({
           </div>
         ) : error === "pro-only" ? (
           <div className="text-sm text-destructive">
-            This schedule is only supported on the Pro tier. Upgrade to the Pro
+            This schedule is only supported on the Max tier. Upgrade to the Max
             tier to enable this feature.
           </div>
         ) : null}

@@ -1,8 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import plantLight from "./plant-light.png";
-import plantDark from "./plant-dark.png";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -20,16 +18,16 @@ export function Wordmark({
   size?: IconSize;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-1 select-none">
+    <Link href={href} className="flex items-center gap-2 select-none group">
       {showLogo && <WordmarkLogo size={size} />}
       {showText && (
         <span
           className={cn(
-            "text-xl font-extrabold font-[Cabin]",
-            size === "sm" ? "text-lg" : size === "md" ? "text-xl" : "text-2xl",
+            "font-semibold text-foreground",
+            size === "sm" ? "text-lg" : size === "md" ? "text-lg" : "text-xl",
           )}
         >
-          Terragon
+          Gatewayz
         </span>
       )}
     </Link>
@@ -37,21 +35,22 @@ export function Wordmark({
 }
 
 export function WordmarkLogo({ size = "sm" }: { size?: IconSize }) {
+  const dimensions = size === "sm" ? 24 : size === "md" ? 32 : 40;
   return (
     <>
       <Image
-        className="block dark:hidden"
-        src={plantLight}
-        alt="Plant"
-        width={size === "sm" ? 18 : size === "md" ? 24 : 32}
-        height={size === "sm" ? 18 : size === "md" ? 24 : 32}
+        className="block dark:hidden transition-transform group-hover:scale-105"
+        src="/gatewayz-logo-black.png"
+        alt="Gatewayz"
+        width={dimensions}
+        height={dimensions}
       />
       <Image
-        className="hidden dark:block"
-        src={plantDark}
-        alt="Plant"
-        width={size === "sm" ? 18 : size === "md" ? 24 : 32}
-        height={size === "sm" ? 18 : size === "md" ? 24 : 32}
+        className="hidden dark:block transition-transform group-hover:scale-105"
+        src="/gatewayz-logo-white.png"
+        alt="Gatewayz"
+        width={dimensions}
+        height={dimensions}
       />
     </>
   );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getUserIdOrNull,
   getUserIdOrNullFromDaemonToken,
+  getUserIdOrNullFromBearerToken,
 } from "@/lib/auth-server";
 import { getThread } from "@terragon/shared/model/threads";
 import { db } from "@/lib/db";
@@ -17,8 +18,13 @@ import { isSandboxTerminalSupported } from "@/lib/sandbox-terminal";
 import { getPrimaryThreadChat } from "@terragon/shared/utils/thread-utils";
 
 export async function POST(request: Request) {
+  // Try multiple authentication methods:
+  // 1. X-Daemon-Token header (for daemon/sandbox requests)
+  // 2. Authorization: Bearer header (for PartyKit broadcast validation)
+  // 3. Session cookies (for direct browser requests)
   const userId =
     (await getUserIdOrNullFromDaemonToken(request)) ??
+    (await getUserIdOrNullFromBearerToken(request)) ??
     (await getUserIdOrNull());
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

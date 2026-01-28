@@ -21,7 +21,11 @@ import {
   type SubscriptionPlanConfig,
 } from "@/lib/subscription-plan-config";
 import { SubscriptionStatus } from "@terragon/shared/db/schema";
-import { SignupTrialInfo, SubscriptionInfo } from "@terragon/shared/db/types";
+import {
+  GatewayZTierInfo,
+  SignupTrialInfo,
+  SubscriptionInfo,
+} from "@terragon/shared/db/types";
 import { useUserCreditBalanceQuery } from "@/queries/user-credit-balance-queries";
 import { CreditsSection } from "../credits";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
@@ -125,8 +129,15 @@ function useBillingInfo() {
   const signupTrialDaysRemaining = data?.signupTrial?.daysRemaining ?? 0;
   const isSignupTrialActive = !hasSubscription && signupTrialDaysRemaining > 0;
 
+  // Check if user has an active GatewayZ subscription (takes priority)
+  const hasGatewayZSubscription = !!data?.gatewayZTier;
+
   let activePlanOrNull: "core" | "pro" | null = null;
-  if (isSignupTrialActive) {
+
+  // GatewayZ subscription takes priority
+  if (hasGatewayZSubscription) {
+    activePlanOrNull = data.gatewayZTier!.mappedAccessTier as "core" | "pro";
+  } else if (isSignupTrialActive) {
     if (
       data?.signupTrial?.plan === "core" ||
       data?.signupTrial?.plan === "pro"
@@ -171,6 +182,13 @@ function useBillingInfo() {
     mutationFn: setSignupTrialPlan,
   });
   const selectPlan = async (plan: "core" | "pro") => {
+    // GatewayZ users cannot change plans here - their subscription is managed externally
+    if (hasGatewayZSubscription) {
+      toast.error(
+        "Your subscription is managed through GatewayZ. Please update your plan there.",
+      );
+      return;
+    }
     if (isSignupTrialActive) {
       await selectSignupTrialPlanMutation.mutateAsync(plan);
       toast.success(`Plan updated`);
@@ -188,6 +206,7 @@ function useBillingInfo() {
     refetch,
     isFetching,
     hasSubscription,
+    hasGatewayZSubscription,
     activePlanOrNull,
     hasUnusedCoupon,
     isShutdownMode: !!data?.isShutdownMode,
@@ -203,10 +222,35 @@ function useBillingInfo() {
 function SubscriptionPlanStatus({
   subscriptionInfo,
   signupTrialInfo,
+  gatewayZTierInfo,
 }: {
   subscriptionInfo: SubscriptionInfo | null;
   signupTrialInfo: SignupTrialInfo | null;
+  gatewayZTierInfo: GatewayZTierInfo | null;
 }) {
+  // GatewayZ subscription takes priority
+  if (gatewayZTierInfo) {
+    const tierDisplayName =
+      gatewayZTierInfo.tier === "pro"
+        ? "Pro"
+        : gatewayZTierInfo.tier === "max"
+          ? "Max"
+          : "Free";
+    return (
+      <span className="text-muted-foreground inline-flex items-center flex-wrap gap-y-1 gap-x-2">
+        <div className="inline-flex items-center gap-1">
+          <span>{tierDisplayName.toUpperCase()}</span>
+          <Badge variant="default" className="align-middle">
+            via GatewayZ
+          </Badge>
+        </div>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-muted-foreground">
+          Managed through your GatewayZ account
+        </span>
+      </span>
+    );
+  }
   if (subscriptionInfo) {
     const parts: React.ReactNode[] = [];
     const status = subscriptionInfo.status;
@@ -322,17 +366,29 @@ function SubscriptionPlans({
   activePlan,
   selectPlan,
   selectPlanPending,
+  hasGatewayZSubscription,
 }: {
   activePlan: "core" | "pro" | null;
   selectPlan: (plan: "core" | "pro") => void;
   selectPlanPending: boolean;
+  hasGatewayZSubscription: boolean;
 }) {
   return (
     <Card className="mx-auto w-full max-w-2xl gap-2">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
-          {!activePlan ? "Choose your plan" : "Subscription Plans"}
+          {hasGatewayZSubscription
+            ? "Your Plan"
+            : !activePlan
+              ? "Choose your plan"
+              : "Subscription Plans"}
         </CardTitle>
+        {hasGatewayZSubscription && (
+          <p className="text-sm text-muted-foreground">
+            Your subscription is managed through GatewayZ. To change your plan,
+            please update it in your GatewayZ account.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="pt-0">
         <div className="grid gap-6 sm:grid-cols-2">
@@ -370,7 +426,8 @@ function SubscriptionPlans({
                     </li>
                   ))}
                 </ul>
-                {isActive ? null : (
+                {/* Hide select button for GatewayZ users (managed externally) or if already active */}
+                {isActive || hasGatewayZSubscription ? null : (
                   <Button
                     className="w-full"
                     onClick={() => selectPlan(option.id)}
@@ -428,7 +485,7 @@ function SubscriptionPlanAction({
       >
         {startCheckoutPending
           ? "Redirecting…"
-          : `Upgrade to ${targetPlan === "pro" ? "Pro" : "Core"}`}
+          : `Upgrade to ${targetPlan === "pro" ? "Max" : "Pro"}`}
       </Button>
     );
   }
@@ -466,6 +523,7 @@ export function BillingSettings({
     refetch: refetchBillingInfo,
     isFetching,
     hasUnusedCoupon,
+    hasGatewayZSubscription,
     isShutdownMode,
     activePlanOrNull,
     openBillingPortal,
@@ -514,6 +572,7 @@ export function BillingSettings({
                   <SubscriptionPlanStatus
                     subscriptionInfo={data?.subscription ?? null}
                     signupTrialInfo={data?.signupTrial ?? null}
+                    gatewayZTierInfo={data?.gatewayZTier ?? null}
                   />
                 )
               }
@@ -540,6 +599,7 @@ export function BillingSettings({
             activePlan={activePlanOrNull}
             selectPlan={selectPlan}
             selectPlanPending={selectPlanPending}
+            hasGatewayZSubscription={hasGatewayZSubscription}
           />
         )}
 

@@ -10,6 +10,7 @@ import {
   getBroadcastChannelStr,
 } from "@terragon/types/broadcast";
 import PartySocket from "partysocket";
+import { type CloseEvent as PartyCloseEvent } from "partysocket/ws";
 import { useCallback, useEffect, useState } from "react";
 import { publicBroadcastHost } from "@terragon/env/next-public";
 import { SandboxProvider } from "@terragon/types/sandbox";
@@ -25,10 +26,15 @@ function getOrCreatePartySocket({
   party: string;
   channel: string;
   authToken: string;
-}) {
+}): PartySocket | null {
+  const host = publicBroadcastHost();
+  if (!host) {
+    // Broadcast host not configured - realtime features disabled
+    return null;
+  }
   if (!partykitByChannel[channel]) {
     const socket = new PartySocket({
-      host: publicBroadcastHost(),
+      host,
       party,
       room: channel,
       maxRetries: 10,
@@ -41,11 +47,38 @@ function getOrCreatePartySocket({
     socket.addEventListener("open", () => {
       console.log(`[broadcast] connected to channel: ${channel}`);
     });
-    socket.addEventListener("close", () => {
-      console.log(`[broadcast] disconnected from channel: ${channel}`);
+    socket.addEventListener("close", (event) => {
+      // PartySocket's CloseEvent may not properly propagate code/reason in browser
+      // due to cloneEventBrowser implementation, so we safely extract the values
+      const closeEvent = event as PartyCloseEvent;
+      const code =
+        typeof closeEvent.code === "number" ? closeEvent.code : undefined;
+      const reason =
+        typeof closeEvent.reason === "string" ? closeEvent.reason : undefined;
+      const wasClean = closeEvent.wasClean ?? false;
+
+      // 1000 = Normal Closure, 1001 = Going Away (e.g., user navigating away)
+      // undefined code typically means connection failed before WebSocket handshake
+      if (code === 1000 || code === 1001) {
+        console.log(`[broadcast] disconnected from channel: ${channel}`);
+      } else if (code === undefined) {
+        // Connection failed - likely auth error, network issue, or server unavailable
+        console.warn(
+          `[broadcast] connection failed on channel ${channel} (no close code - check network/auth)`,
+        );
+      } else {
+        console.warn(
+          `[broadcast] connection closed on channel ${channel}: code=${code}, reason=${reason || "unknown"}, wasClean=${wasClean}`,
+        );
+      }
     });
-    socket.addEventListener("error", (error) => {
-      console.error(`[broadcast] socket error on channel ${channel}:`, error);
+    socket.addEventListener("error", () => {
+      // WebSocket error events don't contain useful information about what went wrong.
+      // The actual error details come from the close event that follows.
+      // We log at debug level to avoid console spam during normal reconnection cycles.
+      console.debug(
+        `[broadcast] connection error on channel ${channel} (check close event for details)`,
+      );
     });
     partykitByChannel[channel] = socket;
   }
@@ -137,8 +170,12 @@ function useRealtimeBase({
     [debouncedOnMessage, matches, debounceMs, onMessage],
   );
 
+  // Set socketReadyState to CLOSED when socket is null (broadcast disabled)
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      setSocketReadyState(WebSocket.CLOSED);
+      return;
+    }
     const onReadyStateChange = () => {
       setSocketReadyState(socket.readyState);
     };

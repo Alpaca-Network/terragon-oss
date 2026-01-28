@@ -139,6 +139,16 @@ export const auth = betterAuth({
       signupTrialPlan: {
         type: "string",
       },
+      // GatewayZ integration fields
+      gwUserId: {
+        type: "string",
+      },
+      gwTier: {
+        type: "string",
+      },
+      gwTierUpdatedAt: {
+        type: "date",
+      },
     },
   },
   session: {
@@ -317,6 +327,10 @@ export const auth = betterAuth({
   trustedOrigins: [
     "www.terragonlabs.com",
     "terragonlabs.com",
+    "inbox.gatewayz.ai",
+    "https://inbox.gatewayz.ai",
+    "terragon-www-production.up.railway.app",
+    "https://terragon-www-production.up.railway.app",
     process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL &&
       `https://${process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL}`,
     process.env.NODE_ENV === "development" && publicAppUrl(),

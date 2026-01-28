@@ -47,6 +47,13 @@ export type HandleSubmit = (args: HandleSubmitArgs) => Promise<void>;
 export type HandleUpdate = (args: HandleUpdateArgs) => void;
 export type HandleStop = () => Promise<void>;
 
+export type LoopConfigInput = {
+  maxIterations: number;
+  completionPromise: string;
+  useRegex: boolean;
+  requireApproval: boolean;
+};
+
 interface UsePromptBoxProps {
   threadId: string | null;
   placeholderText: string;
@@ -70,7 +77,7 @@ interface UsePromptBoxProps {
   isQueueingEnabled?: boolean;
   initialFiles?: Attachment[];
   isRecording?: boolean;
-  initialPermissionMode?: "allowAll" | "plan";
+  initialPermissionMode?: "allowAll" | "plan" | "loop";
   supportsMultiAgentPromptSubmission: boolean;
   disableLocalStorage?: boolean;
 }
@@ -112,9 +119,15 @@ export function usePromptBox({
       disableLocalStorage,
     });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [permissionMode, setPermissionMode] = useState<"allowAll" | "plan">(
-    initialPermissionMode,
-  );
+  const [permissionMode, setPermissionMode] = useState<
+    "allowAll" | "plan" | "loop"
+  >(initialPermissionMode);
+  const [loopConfig, setLoopConfig] = useState<LoopConfigInput>({
+    maxIterations: 10,
+    completionPromise: "DONE",
+    useRegex: false,
+    requireApproval: false,
+  });
 
   // Store the query string for the current results so that we can display a
   // different message when the query string changes and the previous query
@@ -391,7 +404,11 @@ export function usePromptBox({
             const lines = textContent.split("\n");
             for (let i = 0; i < lines.length; i++) {
               const line = lines[i]!;
-              editor.commands.insertContent({ type: "text", text: line });
+              // Only insert text content if the line is non-empty
+              // TipTap doesn't allow empty text nodes
+              if (line.length > 0) {
+                editor.commands.insertContent({ type: "text", text: line });
+              }
               if (i < lines.length - 1) {
                 editor.commands.setHardBreak();
               }
@@ -458,9 +475,10 @@ export function usePromptBox({
         parts,
         timestamp: new Date().toISOString(),
         permissionMode: permissionMode,
+        ...(permissionMode === "loop" ? { loopConfig } : {}),
       };
     },
-    [permissionMode],
+    [permissionMode, loopConfig],
   );
 
   const editorText = editor?.getText();
@@ -753,6 +771,8 @@ export function usePromptBox({
     submitForm,
     permissionMode,
     setPermissionMode,
+    loopConfig,
+    setLoopConfig,
     selectedModel,
     selectedModels,
     setSelectedModel,

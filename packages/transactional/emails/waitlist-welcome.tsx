@@ -79,7 +79,7 @@ export const WaitlistWelcomeEmail = ({
                 <ul className="list-disc pl-6 mb-4">
                   <li className="text-base text-gray-700 mb-1">
                     <Link
-                      href="https://docs.terragonlabs.com/docs/"
+                      href="https://beta.gatewayz.ai/inbox/docs/"
                       className="text-green-600 underline"
                     >
                       Documentation & release notes
