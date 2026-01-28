@@ -1,13 +1,16 @@
 "use client";
 
 import React from "react";
+import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { ThreadInfoFull } from "@terragon/shared";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { GitDiffView } from "./git-diff-view";
+import { CodeReviewView } from "./code-review-view";
 import { usePlatform } from "@/hooks/use-platform";
 import { useSecondaryPanel } from "./hooks";
+import { secondaryPanelViewAtom } from "@/atoms/user-cookies";
 
 const SECONDARY_PANEL_MIN_WIDTH = 300;
 const SECONDARY_PANEL_MAX_WIDTH_PERCENTAGE = 0.7;
@@ -63,9 +66,66 @@ export function SecondaryPanel({
   );
 }
 
+function ViewTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+        active
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
+  const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
+
   if (!thread) {
     return null;
   }
-  return <GitDiffView thread={thread} />;
+
+  // Only show view toggle if thread has a PR
+  const hasPR =
+    thread.githubPRNumber !== null && thread.githubPRNumber !== undefined;
+
+  return (
+    <div className="flex flex-col h-full">
+      {hasPR && (
+        <div className="flex items-center gap-1 p-2 border-b bg-muted/30">
+          <ViewTab
+            active={activeView === "files-changed"}
+            onClick={() => setActiveView("files-changed")}
+          >
+            Files Changed
+          </ViewTab>
+          <ViewTab
+            active={activeView === "code-review"}
+            onClick={() => setActiveView("code-review")}
+          >
+            Code Review
+          </ViewTab>
+        </div>
+      )}
+      <div className="flex-1 overflow-hidden">
+        {activeView === "code-review" && hasPR ? (
+          <CodeReviewView thread={thread} />
+        ) : (
+          <GitDiffView thread={thread} />
+        )}
+      </div>
+    </div>
+  );
 }
