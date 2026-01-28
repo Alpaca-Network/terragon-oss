@@ -173,7 +173,7 @@ const booleanCookieStorage = createJSONStorage<boolean>(() => ({
       const parsed = JSON.parse(value);
       setCookie({
         key,
-        value: String(parsed),
+        value: JSON.stringify(parsed),
         maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
       });
     } catch (e) {
@@ -250,7 +250,7 @@ const stringCookieStorage = createJSONStorage<string>(() => ({
       const parsed = JSON.parse(value);
       setCookie({
         key,
-        value: String(parsed),
+        value: JSON.stringify(parsed),
         maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
       });
     } catch (e) {
