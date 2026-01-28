@@ -369,15 +369,18 @@ function ThemeToggle() {
 function ViewModeToggle() {
   const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
   const router = useRouter();
+  const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleToggle = useCallback(() => {
     setViewMode(viewMode === "list" ? "kanban" : "list");
-    router.push("/dashboard");
+    if (pathname !== "/dashboard") {
+      router.push("/dashboard");
+    }
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [viewMode, setViewMode, router, isMobile, setOpenMobile]);
+  }, [viewMode, setViewMode, router, pathname, isMobile, setOpenMobile]);
 
   const nextMode = viewMode === "list" ? "Kanban" : "List";
 
