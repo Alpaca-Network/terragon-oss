@@ -4,6 +4,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Fumadocs UI styles */
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -58,6 +62,17 @@
   --shadow-xl:
     0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+
+  /* Fumadocs customization */
+  --fd-page-header-margin-bottom: 1.5rem;
+  --fd-title-margin-bottom: 0.5rem;
+  --fd-separator-margin: 0.75rem;
+  --fd-step-margin-bottom: 0.5em;
+  --fd-step-min-height: 2.5rem;
+  --fd-step-content-gap: 0.5rem;
+  --fd-page-width: 1250px;
+  --color-fd-primary: hsl(142, 71%, 25%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
 }
 
 .dark {
@@ -113,6 +128,10 @@
   --shadow-xl:
     0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+
+  /* Fumadocs dark mode customization */
+  --color-fd-primary: hsl(142, 50%, 40%);
+  --color-fd-primary-foreground: hsl(150, 43%, 6%);
 }
 
 @theme inline {
