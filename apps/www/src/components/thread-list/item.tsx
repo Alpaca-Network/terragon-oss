@@ -14,6 +14,9 @@ import { useUpdateThreadNameMutation } from "@/queries/thread-mutations";
 import { DraftTaskDialog } from "../chat/draft-task-dialog";
 import { useRouter } from "next/navigation";
 import { ThreadAgentIcon } from "../thread-agent-icon";
+import { PRCommentCountBadge } from "../kanban/pr-comment-count-badge";
+import { useSetAtom } from "jotai";
+import { secondaryPanelViewAtom } from "@/atoms/user-cookies";
 
 export const ThreadListItem = memo(function ThreadListItem({
   thread,
@@ -26,6 +29,7 @@ export const ThreadListItem = memo(function ThreadListItem({
   className?: string;
   hideRepository: boolean;
 }) {
+  const router = useRouter();
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const relativeTime = useMemo(
@@ -37,6 +41,7 @@ export const ThreadListItem = memo(function ThreadListItem({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const updateNameMutation = useUpdateThreadNameMutation();
+  const setSecondaryPanelView = useSetAtom(secondaryPanelViewAtom);
 
   useEffect(() => {
     if (isEditingName && inputRef.current) {
@@ -162,6 +167,20 @@ export const ThreadListItem = memo(function ThreadListItem({
                 {thread.automationId && (
                   <SmallAutomationIndicator
                     automationId={thread.automationId}
+                  />
+                )}
+                {thread.githubPRNumber && (
+                  <PRCommentCountBadge
+                    threadId={thread.id}
+                    repoFullName={thread.githubRepoFullName}
+                    prNumber={thread.githubPRNumber}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Set the secondary panel to comments view and navigate to task
+                      setSecondaryPanelView("comments");
+                      router.push(`/task/${thread.id}`);
+                    }}
                   />
                 )}
                 {thread.githubPRNumber && thread.prStatus && (
