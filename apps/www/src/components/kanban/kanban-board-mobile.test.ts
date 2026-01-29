@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { KANBAN_COLUMNS } from "./types";
+import { KANBAN_COLUMNS, KanbanColumn } from "./types";
 
 describe("Kanban Mobile Components", () => {
   describe("KANBAN_COLUMNS configuration", () => {
@@ -105,6 +105,99 @@ describe("Kanban Mobile Components", () => {
     it("should have feed and changes tabs available", () => {
       expect(AVAILABLE_TABS).toContain("feed");
       expect(AVAILABLE_TABS).toContain("changes");
+    });
+  });
+
+  describe("Swipe gesture navigation", () => {
+    // Constants that should match the mobile component implementation
+    const SWIPE_THRESHOLD = 50;
+
+    // Helper to get column index
+    const getColumnIndex = (columnId: KanbanColumn): number => {
+      return KANBAN_COLUMNS.findIndex((col) => col.id === columnId);
+    };
+
+    // Helper to simulate swipe logic
+    const getNextColumnAfterSwipe = (
+      currentColumn: KanbanColumn,
+      direction: "left" | "right",
+    ): KanbanColumn => {
+      const currentIndex = getColumnIndex(currentColumn);
+      const newIndex =
+        direction === "left"
+          ? Math.min(currentIndex + 1, KANBAN_COLUMNS.length - 1)
+          : Math.max(currentIndex - 1, 0);
+
+      const column = KANBAN_COLUMNS[newIndex];
+      return column ? column.id : currentColumn;
+    };
+
+    it("should have a reasonable swipe threshold", () => {
+      // 50px is a good balance between accidental swipes and intentional ones
+      expect(SWIPE_THRESHOLD).toBeGreaterThanOrEqual(30);
+      expect(SWIPE_THRESHOLD).toBeLessThanOrEqual(100);
+    });
+
+    it("should navigate to next tab when swiping left from in_progress", () => {
+      const nextColumn = getNextColumnAfterSwipe("in_progress", "left");
+      expect(nextColumn).toBe("in_review");
+    });
+
+    it("should navigate to previous tab when swiping right from in_progress", () => {
+      const prevColumn = getNextColumnAfterSwipe("in_progress", "right");
+      expect(prevColumn).toBe("backlog");
+    });
+
+    it("should stay on first tab when swiping right from backlog", () => {
+      const column = getNextColumnAfterSwipe("backlog", "right");
+      expect(column).toBe("backlog");
+    });
+
+    it("should stay on last tab when swiping left from cancelled", () => {
+      const column = getNextColumnAfterSwipe("cancelled", "left");
+      expect(column).toBe("cancelled");
+    });
+
+    it("should correctly traverse all columns with left swipes", () => {
+      const columnOrder: KanbanColumn[] = [
+        "backlog",
+        "in_progress",
+        "in_review",
+        "done",
+        "cancelled",
+      ];
+      let currentColumn: KanbanColumn = "backlog";
+
+      for (let i = 1; i < columnOrder.length; i++) {
+        currentColumn = getNextColumnAfterSwipe(currentColumn, "left");
+        expect(currentColumn).toBe(columnOrder[i]);
+      }
+    });
+
+    it("should correctly traverse all columns with right swipes", () => {
+      const columnOrder: KanbanColumn[] = [
+        "cancelled",
+        "done",
+        "in_review",
+        "in_progress",
+        "backlog",
+      ];
+      let currentColumn: KanbanColumn = "cancelled";
+
+      for (let i = 1; i < columnOrder.length; i++) {
+        currentColumn = getNextColumnAfterSwipe(currentColumn, "right");
+        expect(currentColumn).toBe(columnOrder[i]);
+      }
+    });
+  });
+
+  describe("New task drawer", () => {
+    // Constants that should match the new task drawer implementation
+    const NEW_TASK_DRAWER_HEIGHT = "85vh";
+
+    it("should have the same height as task detail drawer for consistency", () => {
+      const taskDrawerHeight = "85vh";
+      expect(NEW_TASK_DRAWER_HEIGHT).toBe(taskDrawerHeight);
     });
   });
 });

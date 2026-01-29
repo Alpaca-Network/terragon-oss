@@ -1,13 +1,14 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, useCallback } from "react";
-import { LoaderCircle, RefreshCw } from "lucide-react";
+import { memo, useMemo, useState, useCallback, useRef } from "react";
+import { LoaderCircle, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { KanbanCard } from "./kanban-card";
 import { KanbanTaskDrawer } from "./kanban-task-drawer";
+import { KanbanNewTaskDrawer } from "./kanban-new-task-drawer";
 import {
   KanbanColumn as KanbanColumnType,
   KANBAN_COLUMNS,
@@ -38,6 +39,9 @@ const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   }
 };
 
+// Minimum swipe distance required to trigger tab change
+const SWIPE_THRESHOLD = 50;
+
 export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters,
 }: {
@@ -46,6 +50,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeColumn, setActiveColumn] =
     useState<KanbanColumnType>("in_progress");
+  const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
+
+  // Swipe gesture tracking
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const isSwiping = useRef(false);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -125,6 +135,90 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     setSelectedThreadId(null);
   }, []);
 
+  const handleOpenNewTaskDrawer = useCallback(() => {
+    setNewTaskDrawerOpen(true);
+  }, []);
+
+  const handleCloseNewTaskDrawer = useCallback(() => {
+    setNewTaskDrawerOpen(false);
+  }, []);
+
+  // Get the column index for the given column ID
+  const getColumnIndex = useCallback((columnId: KanbanColumnType): number => {
+    return KANBAN_COLUMNS.findIndex((col) => col.id === columnId);
+  }, []);
+
+  // Swipe to adjacent tab
+  const swipeToAdjacentTab = useCallback(
+    (direction: "left" | "right") => {
+      const currentIndex = getColumnIndex(activeColumn);
+      const newIndex =
+        direction === "left"
+          ? Math.min(currentIndex + 1, KANBAN_COLUMNS.length - 1)
+          : Math.max(currentIndex - 1, 0);
+
+      if (newIndex !== currentIndex && KANBAN_COLUMNS[newIndex]) {
+        setActiveColumn(KANBAN_COLUMNS[newIndex].id);
+      }
+    },
+    [activeColumn, getColumnIndex],
+  );
+
+  // Touch event handlers for swipe gestures
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+    isSwiping.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const deltaX = touch.clientX - touchStartX.current;
+    const deltaY = touch.clientY - touchStartY.current;
+
+    // Determine if this is a horizontal swipe (vs vertical scroll)
+    // Only consider it a swipe if horizontal movement is greater than vertical
+    if (
+      !isSwiping.current &&
+      Math.abs(deltaX) > Math.abs(deltaY) &&
+      Math.abs(deltaX) > 10
+    ) {
+      isSwiping.current = true;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (touchStartX.current === null) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+
+      const deltaX = touch.clientX - touchStartX.current;
+
+      // Only trigger if it was a horizontal swipe and exceeds threshold
+      if (isSwiping.current && Math.abs(deltaX) >= SWIPE_THRESHOLD) {
+        if (deltaX < 0) {
+          // Swiped left -> go to next tab
+          swipeToAdjacentTab("left");
+        } else {
+          // Swiped right -> go to previous tab
+          swipeToAdjacentTab("right");
+        }
+      }
+
+      // Reset tracking
+      touchStartX.current = null;
+      touchStartY.current = null;
+      isSwiping.current = false;
+    },
+    [swipeToAdjacentTab],
+  );
+
   if (isLoading) {
     return (
       <div className="flex flex-col h-full items-center justify-center">
@@ -160,33 +254,47 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
-        {/* Column tabs - horizontally scrollable */}
-        <div className="flex-shrink-0 overflow-x-auto">
-          <TabsList className="w-max min-w-full px-2 gap-1">
-            {KANBAN_COLUMNS.map((col) => (
-              <TabsTrigger
-                key={col.id}
-                value={col.id}
-                className={cn(
-                  "flex-shrink-0 gap-1.5 px-2.5 rounded-md",
-                  getColumnHeaderColor(col.id),
-                )}
-              >
-                <span className="text-xs">{col.title}</span>
-                <span className="text-xs opacity-60 bg-muted px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-                  {columnThreads[col.id].length}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        {/* Column tabs - horizontally scrollable with new task button */}
+        <div className="flex-shrink-0 flex items-center gap-2 px-2">
+          <div className="flex-1 overflow-x-auto">
+            <TabsList className="w-max min-w-full gap-1">
+              {KANBAN_COLUMNS.map((col) => (
+                <TabsTrigger
+                  key={col.id}
+                  value={col.id}
+                  className={cn(
+                    "flex-shrink-0 gap-1.5 px-2.5 rounded-md",
+                    getColumnHeaderColor(col.id),
+                  )}
+                >
+                  <span className="text-xs">{col.title}</span>
+                  <span className="text-xs opacity-60 bg-muted px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                    {columnThreads[col.id].length}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-shrink-0 h-8 px-2.5 gap-1"
+            onClick={handleOpenNewTaskDrawer}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="text-xs">New</span>
+          </Button>
         </div>
 
-        {/* Column content */}
+        {/* Column content with swipe support */}
         {KANBAN_COLUMNS.map((col) => (
           <TabsContent
             key={col.id}
             value={col.id}
             className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <ScrollArea className="h-full">
               <div className="p-3 space-y-3">
@@ -215,6 +323,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         threadId={selectedThreadId}
         open={!!selectedThreadId}
         onClose={handleCloseDrawer}
+      />
+
+      {/* New task drawer */}
+      <KanbanNewTaskDrawer
+        open={newTaskDrawerOpen}
+        onClose={handleCloseNewTaskDrawer}
       />
     </div>
   );
