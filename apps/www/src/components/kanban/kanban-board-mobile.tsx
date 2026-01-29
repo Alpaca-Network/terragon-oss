@@ -8,6 +8,8 @@ import {
   Plus,
   Archive,
   ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -336,8 +338,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
-        {/* Column tabs - horizontally scrollable with new task button */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-2 border-b">
+        {/* Column tabs - horizontally scrollable with arrows and new task button */}
+        <div className="flex-shrink-0 flex items-center gap-1 px-2 border-b">
+          {/* Left arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-8 w-8"
+            onClick={() => swipeToAdjacentTab("right")}
+            disabled={getColumnIndex(activeColumn) === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
           <div
             ref={tabsListRef}
             className="flex-1 overflow-x-auto scrollbar-hide"
@@ -360,6 +372,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
               ))}
             </TabsList>
           </div>
+          {/* Right arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-8 w-8"
+            onClick={() => swipeToAdjacentTab("left")}
+            disabled={
+              getColumnIndex(activeColumn) === KANBAN_COLUMNS.length - 1
+            }
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
           <Button
             variant="default"
             size="sm"
@@ -382,7 +406,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             onTouchEnd={handleTouchEnd}
           >
             <ScrollArea className="h-full">
-              <div className="p-3 space-y-3">
+              <div className="p-2 space-y-2">
                 {/* Show archived toggle for Done column */}
                 {col.id === "done" && !queryFilters.archived && (
                   <div className="flex items-center justify-end">
