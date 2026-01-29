@@ -4,11 +4,13 @@ import {
   UserCookies,
   CollapsedSections,
   ThreadListGroupBy,
+  SecondaryPanelView,
   DashboardViewMode,
   defaultCollapsedSections,
   defaultThreadListGroupBy,
   defaultDashboardViewMode,
   defaultTimeZone,
+  defaultSecondaryPanelView,
   timeZoneKey,
   threadListCollapsedSectionsKey,
   disableGitCheckpointingKey,
@@ -17,6 +19,7 @@ import {
   threadListGroupByKey,
   threadListCollapsedKey,
   secondaryPaneClosedKey,
+  secondaryPanelViewKey,
   dashboardViewModeKey,
 } from "@/lib/cookies";
 import { getCookieOrNull, setCookie } from "@/lib/cookies-client";
@@ -71,6 +74,12 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
         case secondaryPaneClosedKey: {
           if (typeof userCookies[key] === "boolean") {
             set(secondaryPaneClosedAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
+        case secondaryPanelViewKey: {
+          if (userCookies[key]) {
+            set(secondaryPanelViewAtom, userCookies[key]);
           }
           break;
         }
@@ -233,6 +242,14 @@ export const secondaryPaneClosedAtom = atomWithStorage<boolean>(
   secondaryPaneClosedKey,
   false,
   booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Persist the active view in the secondary panel (files-changed or code-review)
+export const secondaryPanelViewAtom = atomWithStorage<SecondaryPanelView>(
+  secondaryPanelViewKey,
+  defaultSecondaryPanelView,
+  cookieStorage,
   { getOnInit: true },
 );
 

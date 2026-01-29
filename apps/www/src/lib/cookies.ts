@@ -7,12 +7,16 @@ export const threadListGroupByKey = "thread-list-group-by";
 export const repositoryCollapsedSectionsKey = "repository-collapsed-sections";
 export const threadListCollapsedKey = "thread-list-collapsed";
 export const secondaryPaneClosedKey = "secondary-panel-closed";
+export const secondaryPanelViewKey = "secondary-panel-view";
 export const dashboardViewModeKey = "dashboard-view-mode";
 
 export type ThreadListGroupBy = "lastUpdated" | "repository" | "createdAt";
 export type DashboardViewMode = "list" | "kanban";
 
 export const defaultDashboardViewMode: DashboardViewMode = "list";
+
+export type SecondaryPanelView = "files-changed" | "code-review";
+export const defaultSecondaryPanelView: SecondaryPanelView = "files-changed";
 
 export type CollapsedSections = {
   [key: string]: boolean;
@@ -32,6 +36,7 @@ export type UserCookies = {
   [createNewBranchKey]?: boolean;
   [threadListCollapsedKey]?: boolean;
   [secondaryPaneClosedKey]?: boolean;
+  [secondaryPanelViewKey]?: SecondaryPanelView;
   [dashboardViewModeKey]?: DashboardViewMode;
 };
 
@@ -47,6 +52,7 @@ export const getDefaultUserCookies = (): UserCookies => {
     [threadListGroupByKey]: defaultThreadListGroupBy,
     [threadListCollapsedKey]: false,
     [secondaryPaneClosedKey]: false,
+    [secondaryPanelViewKey]: defaultSecondaryPanelView,
     [dashboardViewModeKey]: defaultDashboardViewMode,
   };
 };
