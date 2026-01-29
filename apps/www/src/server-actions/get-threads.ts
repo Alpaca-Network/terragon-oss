@@ -10,6 +10,7 @@ export const getThreadsAction = userOnlyAction(
     userId: string,
     filters: {
       archived?: boolean;
+      isBacklog?: boolean;
       automationId?: string;
       limit?: number;
       offset?: number;
@@ -21,6 +22,7 @@ export const getThreadsAction = userOnlyAction(
       limit: filters.limit ?? 100,
       offset: filters.offset ?? 0,
       archived: filters.archived,
+      isBacklog: filters.isBacklog,
       automationId: filters.automationId,
     });
     return threads;

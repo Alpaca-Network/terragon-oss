@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
 import { SquarePen, PanelLeftClose } from "lucide-react";
-import { ThreadListHeader, ThreadListContents } from "./main";
+import { ThreadListHeader, ThreadListContents, ThreadViewFilter } from "./main";
 import { Button } from "@/components/ui/button";
 import { useCollapsibleThreadList } from "./use-collapsible-thread-list";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
@@ -21,7 +21,7 @@ export function ThreadListSidebar() {
     setThreadListCollapsed,
   } = useCollapsibleThreadList();
 
-  const [viewFilter, setViewFilter] = useState<"active" | "archived">("active");
+  const [viewFilter, setViewFilter] = useState<ThreadViewFilter>("active");
 
   const { width, isResizing, handleMouseDown } = useResizablePanel({
     minWidth: TASK_PANEL_MIN_WIDTH,
@@ -77,7 +77,13 @@ export function ThreadListSidebar() {
         >
           <ThreadListContents
             viewFilter={viewFilter}
-            queryFilters={{ archived: viewFilter === "archived" }}
+            queryFilters={
+              viewFilter === "archived"
+                ? { archived: true }
+                : viewFilter === "backlog"
+                  ? { isBacklog: true }
+                  : { archived: false, isBacklog: false }
+            }
             allowGroupBy={true}
             showSuggestedTasks={false}
             setPromptText={() => {}}
