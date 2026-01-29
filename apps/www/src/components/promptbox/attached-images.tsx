@@ -53,7 +53,7 @@ export function AttachedImages({
               {image.uploadStatus === "pending" ||
               image.uploadStatus === "uploading" ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 dark:bg-black/40 rounded">
-                  <Loader2 className="size-4 text-white dark:text-white animate-spin" />
+                  <Loader2 className="size-4 text-white animate-spin" />
                 </div>
               ) : null}
             </button>

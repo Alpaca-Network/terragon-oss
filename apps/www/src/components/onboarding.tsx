@@ -174,8 +174,8 @@ function GithubStep({
     <OnboardingDialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
       <DialogHeader className="relative z-10">
         <div className="flex items-center justify-center mb-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 dark:from-gray-900 dark:to-gray-700 flex items-center justify-center shadow-lg">
-            <GithubIcon className="p-2 text-gray-900 dark:text-white" />
+          <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center shadow-lg">
+            <GithubIcon className="p-2 text-secondary-foreground" />
           </div>
         </div>
         <DialogTitle className="text-center">
