@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, MouseEvent } from "react";
 import { getThreadTitle } from "@/agent/thread-utils";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -9,7 +9,9 @@ import { ThreadStatusIndicator } from "../thread-status";
 import { PRStatusPill } from "../pr-status-pill";
 import { ThreadAgentIcon } from "../thread-agent-icon";
 import { PRCommentCountBadge } from "./pr-comment-count-badge";
-import { GitBranch } from "lucide-react";
+import { ThreadMenuDropdown } from "../thread-menu-dropdown";
+import { Button } from "@/components/ui/button";
+import { GitBranch, EllipsisVertical } from "lucide-react";
 
 export const KanbanCard = memo(function KanbanCard({
   thread,
@@ -22,23 +24,52 @@ export const KanbanCard = memo(function KanbanCard({
   onClick: () => void;
   onCommentsClick?: () => void;
 }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const relativeTime = useMemo(
     () => formatRelativeTime(thread.updatedAt),
     [thread.updatedAt],
   );
 
+  const handleMenuClick = (e: MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       onClick={onClick}
       className={cn(
-        "bg-card border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
+        "group relative bg-card border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
         isSelected && "ring-2 ring-primary border-primary",
       )}
     >
+      {/* Three dots menu */}
+      <div
+        className={cn(
+          "absolute right-2 top-2 transition-opacity",
+          isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        )}
+        onClick={handleMenuClick}
+      >
+        <ThreadMenuDropdown
+          thread={thread}
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-muted"
+            >
+              <EllipsisVertical className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          }
+          showReadUnreadActions
+          onMenuOpenChange={setIsMenuOpen}
+        />
+      </div>
+
       <div className="flex flex-col gap-2">
         {/* Header with status and title */}
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 pr-6">
           <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center mt-0.5">
             <ThreadStatusIndicator thread={thread} />
           </div>

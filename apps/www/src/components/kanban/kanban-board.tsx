@@ -97,18 +97,39 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const setViewMode = useSetAtom(dashboardViewModeAtom);
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
 
+  // Fetch archived threads when showing archived in Done column
+  const archivedFilters = useMemo(
+    () => ({
+      ...queryFilters,
+      archived: true,
+    }),
+    [queryFilters],
+  );
+  const { data: archivedData, refetch: refetchArchived } =
+    useInfiniteThreadList(archivedFilters);
+
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
   );
 
+  const archivedThreads = useMemo(
+    () => archivedData?.pages.flatMap((page) => page) ?? [],
+    [archivedData],
+  );
+
   const threadIds = useMemo(() => new Set(threads.map((t) => t.id)), [threads]);
+  const archivedThreadIds = useMemo(
+    () => new Set(archivedThreads.map((t) => t.id)),
+    [archivedThreads],
+  );
 
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
@@ -125,6 +146,17 @@ export const KanbanBoard = memo(function KanbanBoard({
       groups[column].push(thread);
     }
 
+    // Add archived threads to Done column if toggle is enabled
+    if (showArchivedInDone) {
+      for (const thread of archivedThreads) {
+        const column = getKanbanColumn(thread);
+        // Only add archived threads that would be in the Done column
+        if (column === "done") {
+          groups.done.push(thread);
+        }
+      }
+    }
+
     // Sort each column by updatedAt (most recent first)
     for (const column of Object.keys(groups) as KanbanColumnType[]) {
       groups[column].sort(
@@ -134,14 +166,14 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     return groups;
-  }, [threads]);
+  }, [threads, archivedThreads, showArchivedInDone]);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      if (threadIds.has(threadId) || archivedThreadIds.has(threadId)) {
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
@@ -154,19 +186,32 @@ export const KanbanBoard = memo(function KanbanBoard({
         if (showArchived === data.isThreadArchived) {
           return true;
         }
+        // Also match archived threads when showArchivedInDone is enabled
+        if (showArchivedInDone && data.isThreadArchived) {
+          return true;
+        }
       }
       if (data.isThreadCreated) {
         return true;
       }
       return false;
     },
-    [threadIds, showArchived, automationId],
+    [
+      threadIds,
+      archivedThreadIds,
+      showArchived,
+      showArchivedInDone,
+      automationId,
+    ],
   );
 
   useRealtimeThreadMatch({
     matchThread,
     onThreadChange: () => {
       refetch();
+      if (showArchivedInDone) {
+        refetchArchived();
+      }
     },
   });
 
@@ -296,6 +341,13 @@ export const KanbanBoard = memo(function KanbanBoard({
                   selectedThreadId={selectedThreadId}
                   onThreadSelect={handleThreadSelect}
                   onThreadCommentsClick={handleThreadCommentsClick}
+                  showArchivedToggle={
+                    column.id === "done" && !queryFilters.archived
+                  }
+                  showArchived={showArchivedInDone}
+                  onToggleArchived={() =>
+                    setShowArchivedInDone(!showArchivedInDone)
+                  }
                 />
               ))}
             </div>

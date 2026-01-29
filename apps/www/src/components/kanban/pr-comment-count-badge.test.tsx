@@ -97,15 +97,17 @@ describe("PRCommentCountBadge component logic", () => {
     });
 
     it("should stop propagation even when onClick is not provided", () => {
-      const onClick = undefined;
       const stopPropagation = vi.fn();
 
-      const handleClick = (e: { stopPropagation: () => void }) => {
+      const handleClick = (
+        e: { stopPropagation: () => void },
+        callback?: () => void,
+      ) => {
         e.stopPropagation();
-        onClick?.();
+        callback?.();
       };
 
-      handleClick({ stopPropagation });
+      handleClick({ stopPropagation }, undefined);
 
       expect(stopPropagation).toHaveBeenCalled();
     });

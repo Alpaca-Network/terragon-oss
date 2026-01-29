@@ -45,8 +45,8 @@ export function PRCommentCountBadge({
       onClick={onClick}
       className={cn(
         "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs",
-        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
-        "hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors",
+        "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
+        "hover:bg-yellow-500/20 transition-colors",
         "cursor-pointer",
       )}
       title={`${commentCount} unresolved PR comment${commentCount !== 1 ? "s" : ""}`}
