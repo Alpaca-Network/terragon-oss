@@ -33,6 +33,7 @@ jobs:
         run: pnpm install
 
       - name: Run Drizzle migrations
-        run: pnpm exec drizzle-kit push --config packages/shared/drizzle.config.ts
+        working-directory: packages/shared
+        run: pnpm exec drizzle-kit push --config drizzle.config.ts
         env:
           DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
