@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, useCallback, useRef } from "react";
+import { memo, useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { LoaderCircle, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -56,6 +56,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
+
+  // Refs for tab triggers to enable scroll into view
+  const tabTriggerRefs = useRef<
+    Map<KanbanColumnType, HTMLButtonElement | null>
+  >(new Map());
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -142,6 +147,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const handleCloseNewTaskDrawer = useCallback(() => {
     setNewTaskDrawerOpen(false);
   }, []);
+
+  // Scroll the active tab into view when it changes
+  useEffect(() => {
+    const tabTrigger = tabTriggerRefs.current.get(activeColumn);
+    if (tabTrigger) {
+      tabTrigger.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [activeColumn]);
 
   // Get the column index for the given column ID
   const getColumnIndex = useCallback((columnId: KanbanColumnType): number => {
@@ -254,14 +271,17 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
-        {/* Column tabs - horizontally scrollable with new task button */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-2">
-          <div className="flex-1 overflow-x-auto">
+        {/* Column tabs - horizontally scrollable */}
+        <div className="flex-shrink-0 px-2">
+          <ScrollArea className="w-full" type="scroll">
             <TabsList className="w-max min-w-full gap-1">
               {KANBAN_COLUMNS.map((col) => (
                 <TabsTrigger
                   key={col.id}
                   value={col.id}
+                  ref={(el) => {
+                    tabTriggerRefs.current.set(col.id, el);
+                  }}
                   className={cn(
                     "flex-shrink-0 gap-1.5 px-2.5 rounded-md",
                     getColumnHeaderColor(col.id),
@@ -274,16 +294,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                 </TabsTrigger>
               ))}
             </TabsList>
-          </div>
-          <Button
-            variant="default"
-            size="sm"
-            className="flex-shrink-0 h-8 px-2.5 gap-1"
-            onClick={handleOpenNewTaskDrawer}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="text-xs">New</span>
-          </Button>
+          </ScrollArea>
         </div>
 
         {/* Column content with swipe support */}
@@ -331,6 +342,17 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onClose={handleCloseNewTaskDrawer}
         queryFilters={queryFilters}
       />
+
+      {/* Floating action button - bottom right */}
+      <Button
+        variant="default"
+        size="icon"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        onClick={handleOpenNewTaskDrawer}
+      >
+        <Plus className="h-6 w-6" />
+        <span className="sr-only">New Task</span>
+      </Button>
     </div>
   );
 });
