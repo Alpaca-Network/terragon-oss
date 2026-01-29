@@ -45,8 +45,6 @@ import {
   AutomationTriggerConfig,
 } from "../automations";
 
-export type GatewayZTier = "free" | "pro" | "max";
-
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -1188,6 +1186,40 @@ export const agentProviderCredentials = pgTable(
     index("agent_provider_credentials_user_agent_index").on(
       table.userId,
       table.agent,
+    ),
+  ],
+);
+
+/**
+ * Gatewayz usage events table for tracking API usage through the Gatewayz proxy.
+ * This data is used for:
+ * 1. Displaying usage to users in the UI
+ * 2. Cross-referencing with Gatewayz billing data for reconciliation
+ * 3. Analytics and monitoring
+ */
+export const gatewayZUsageEvents = pgTable(
+  "gatewayz_usage_events",
+  {
+    id: text("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gwRequestId: text("gw_request_id"), // Gatewayz request ID for correlation
+    provider: text("provider").notNull(), // 'anthropic' | 'google' | 'openai' | 'zai' | 'other'
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    costUsd: numeric("cost_usd"), // Cost in USD (populated during reconciliation with Gatewayz)
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("gatewayz_usage_events_user_id_idx").on(table.userId),
+    index("gatewayz_usage_events_created_at_idx").on(table.createdAt),
+    index("gatewayz_usage_events_user_provider_idx").on(
+      table.userId,
+      table.provider,
     ),
   ],
 );

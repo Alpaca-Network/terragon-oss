@@ -78,6 +78,9 @@ export function modelToAgent(model: AIModel | null): AIAgent {
     case "opencode/qwen3-coder":
     case "opencode/kimi-k2":
     case "opencode/glm-4.6":
+    case "opencode/glm-4.7":
+    case "opencode/glm-4.7-flash":
+    case "opencode/glm-4.7-lite":
     case "opencode/gemini-2.5-pro":
     case "opencode/gemini-3-pro":
     case "opencode-oai/gpt-5":
@@ -154,6 +157,9 @@ export function agentToModels(
     }
     case "opencode": {
       const models: AIModel[] = [
+        "opencode/glm-4.7",
+        "opencode/glm-4.7-flash",
+        "opencode/glm-4.7-lite",
         "opencode/glm-4.6",
         "opencode/kimi-k2",
         "opencode/grok-code",
@@ -523,6 +529,24 @@ export function getModelDisplayName(model: AIModel): ModelDisplayName {
         mainName: "GLM",
         subName: "4.6",
       };
+    case "opencode/glm-4.7":
+      return {
+        fullName: "GLM 4.7",
+        mainName: "GLM",
+        subName: "4.7",
+      };
+    case "opencode/glm-4.7-flash":
+      return {
+        fullName: "GLM 4.7 Flash",
+        mainName: "GLM",
+        subName: "4.7 Flash",
+      };
+    case "opencode/glm-4.7-lite":
+      return {
+        fullName: "GLM 4.7 Lite",
+        mainName: "GLM",
+        subName: "4.7 Lite",
+      };
     case "opencode/gemini-2.5-pro":
       return {
         fullName: "Gemini 2.5 Pro",
@@ -728,6 +752,9 @@ export function isModelEnabledByDefault({
       return true;
     case "opencode/kimi-k2":
     case "opencode/glm-4.6":
+    case "opencode/glm-4.7":
+    case "opencode/glm-4.7-flash":
+    case "opencode/glm-4.7-lite":
       return true;
     default:
       const _exhaustiveCheck: never = model;
@@ -806,6 +833,12 @@ export function parseModelOrNull({
       return "opencode/kimi-k2";
     case "glm-4.6":
       return "opencode/glm-4.6";
+    case "glm-4.7":
+      return "opencode/glm-4.7";
+    case "glm-4.7-flash":
+      return "opencode/glm-4.7-flash";
+    case "glm-4.7-lite":
+      return "opencode/glm-4.7-lite";
     case "opencode/gpt-5":
       return "opencode-oai/gpt-5";
     case "opencode/gpt-5-codex":

@@ -633,12 +633,18 @@ export class TerragonDaemon {
       env: {
         ANTHROPIC_API_KEY: getAnthropicApiKeyOrNull(this.runtime),
         BASH_MAX_TIMEOUT_MS: (60 * 1000).toString(),
-        ...(!!input.useCredits
+        // Gatewayz takes priority over built-in credits
+        ...(!!input.useGatewayz
           ? {
-              ANTHROPIC_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/anthropic`,
+              ANTHROPIC_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/gatewayz`,
               ANTHROPIC_AUTH_TOKEN: input.token,
             }
-          : {}),
+          : !!input.useCredits
+            ? {
+                ANTHROPIC_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/anthropic`,
+                ANTHROPIC_AUTH_TOKEN: input.token,
+              }
+            : {}),
       },
       onStdoutLine: (line) => {
         try {
@@ -780,6 +786,7 @@ export class TerragonDaemon {
         model: input.model,
         sessionId: input.sessionId,
         useCredits: !!input.useCredits,
+        useGatewayz: !!input.useGatewayz,
       }),
       getMockSuccessResult: () => "Codex successfully completed",
       onStdoutLine: (line) => {
@@ -835,7 +842,10 @@ export class TerragonDaemon {
         sessionId: input.sessionId,
       }),
       env: {
-        GOOGLE_GEMINI_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/google`,
+        // Use Gatewayz proxy if enabled, otherwise use Google proxy
+        GOOGLE_GEMINI_BASE_URL: input.useGatewayz
+          ? `${this.runtime.normalizedUrl}/api/proxy/gatewayz`
+          : `${this.runtime.normalizedUrl}/api/proxy/google`,
         GEMINI_API_KEY: input.token,
       },
       input,

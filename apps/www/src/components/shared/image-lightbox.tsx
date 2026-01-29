@@ -122,13 +122,13 @@ export function ImageLightbox({
           </div>
         </DialogContent>
         <DialogClose
-          className="fixed top-4 right-4 text-white rounded-full p-3 transition-colors z-[60] cursor-pointer"
+          className="fixed top-4 right-4 text-foreground rounded-full p-3 transition-colors z-[60] cursor-pointer"
           asChild
         >
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:text-white hover:bg-transparent cursor-pointer"
+            className="text-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
           >
             <X className="size-6" />
           </Button>

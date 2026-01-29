@@ -8,6 +8,7 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 import { ThreadStatusIndicator } from "../thread-status";
 import { PRStatusPill } from "../pr-status-pill";
 import { ThreadAgentIcon } from "../thread-agent-icon";
+import { PRCommentCountBadge } from "./pr-comment-count-badge";
 import { ThreadMenuDropdown } from "../thread-menu-dropdown";
 import { Button } from "@/components/ui/button";
 import { GitBranch, EllipsisVertical } from "lucide-react";
@@ -16,10 +17,12 @@ export const KanbanCard = memo(function KanbanCard({
   thread,
   isSelected,
   onClick,
+  onCommentsClick,
 }: {
   thread: ThreadInfo;
   isSelected: boolean;
   onClick: () => void;
+  onCommentsClick?: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const title = useMemo(() => getThreadTitle(thread), [thread]);
@@ -36,8 +39,12 @@ export const KanbanCard = memo(function KanbanCard({
     <div
       onClick={onClick}
       className={cn(
-        "group relative bg-card border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
-        isSelected && "ring-2 ring-primary border-primary",
+        "group relative bg-card border rounded-xl p-3.5 cursor-pointer",
+        "transition-all duration-200 ease-out",
+        "tap-highlight card-float-hover",
+        "hover:border-primary/40 active:scale-[0.98]",
+        isSelected &&
+          "ring-2 ring-primary border-primary shadow-[0_0_20px_rgba(99,102,241,0.15)]",
       )}
     >
       {/* Three dots menu */}
@@ -94,6 +101,17 @@ export const KanbanCard = memo(function KanbanCard({
             {relativeTime}
           </span>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {thread.githubPRNumber && (
+              <PRCommentCountBadge
+                threadId={thread.id}
+                repoFullName={thread.githubRepoFullName}
+                prNumber={thread.githubPRNumber}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCommentsClick?.();
+                }}
+              />
+            )}
             {thread.githubPRNumber && thread.prStatus && (
               <PRStatusPill
                 status={thread.prStatus}
