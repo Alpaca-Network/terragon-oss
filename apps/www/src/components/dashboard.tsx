@@ -177,16 +177,20 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Mobile: Always show list view */}
+      {/* Mobile: Show Kanban or List based on viewMode */}
       {mounted && (
-        <div className="lg:hidden">
-          <ThreadListMain
-            queryFilters={queryFilters}
-            viewFilter={viewFilter}
-            allowGroupBy={true}
-            showSuggestedTasks={showRecommendedTasks}
-            setPromptText={setPromptText}
-          />
+        <div className="lg:hidden flex flex-col flex-1 min-h-0">
+          {showKanbanView ? (
+            <KanbanBoard queryFilters={queryFilters} />
+          ) : (
+            <ThreadListMain
+              queryFilters={queryFilters}
+              viewFilter={viewFilter}
+              allowGroupBy={true}
+              showSuggestedTasks={showRecommendedTasks}
+              setPromptText={setPromptText}
+            />
+          )}
         </div>
       )}
     </div>
