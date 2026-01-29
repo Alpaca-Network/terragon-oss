@@ -20,9 +20,9 @@ export function GlowCard({
   ...props
 }: GlowCardProps) {
   const intensityClasses = {
-    subtle: "hover:shadow-[0_0_15px_rgba(99,102,241,0.15)]",
-    medium: "hover:shadow-[0_0_25px_rgba(99,102,241,0.25)]",
-    strong: "hover:shadow-[0_0_35px_rgba(99,102,241,0.35)]",
+    subtle: "hover:shadow-[0_0_15px_hsl(var(--primary)/0.15)]",
+    medium: "hover:shadow-[0_0_25px_hsl(var(--primary)/0.25)]",
+    strong: "hover:shadow-[0_0_35px_hsl(var(--primary)/0.35)]",
   };
 
   return (
@@ -59,7 +59,7 @@ export function NeonBorder({
     primary: "before:bg-primary/50",
     accent: "before:bg-accent/50",
     gradient:
-      "before:bg-gradient-to-r before:from-primary/50 before:via-purple-500/50 before:to-blue-500/50",
+      "before:bg-gradient-to-r before:from-primary/50 before:via-accent/30 before:to-primary/50",
   };
 
   return (
@@ -95,9 +95,9 @@ export function PulseIndicator({
 }: PulseIndicatorProps) {
   const statusColors = {
     active: "bg-primary",
-    pending: "bg-yellow-500",
-    success: "bg-green-500",
-    error: "bg-red-500",
+    pending: "bg-accent",
+    success: "bg-primary",
+    error: "bg-destructive",
   };
 
   const sizeClasses = {
@@ -108,9 +108,9 @@ export function PulseIndicator({
 
   const pulseColors = {
     active: "bg-primary/50",
-    pending: "bg-yellow-500/50",
-    success: "bg-green-500/50",
-    error: "bg-red-500/50",
+    pending: "bg-accent/50",
+    success: "bg-primary/50",
+    error: "bg-destructive/50",
   };
 
   return (
