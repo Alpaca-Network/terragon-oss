@@ -59,7 +59,7 @@ export function SecondaryPanel({
   if (platform === "mobile") {
     return (
       <Drawer open={isOpen} onOpenChange={onOpenChange}>
-        <DrawerContent className="h-[80vh]">
+        <DrawerContent className="h-[85dvh] rounded-t-2xl bg-background/95 backdrop-blur-md">
           <SecondaryPanelContent thread={thread} />
         </DrawerContent>
       </Drawer>
@@ -108,10 +108,10 @@ function ViewTab({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap",
+        "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 whitespace-nowrap tap-highlight",
         active
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+          ? "bg-primary/10 text-primary shadow-[0_0_10px_rgba(99,102,241,0.1)]"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95",
       )}
     >
       {children}
@@ -220,20 +220,32 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
     // PR-related tabs require loading state handling
     if (isLoading) {
       return (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 gradient-shift-bg">
+          <div className="relative">
+            <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+            <Loader2 className="size-8 animate-spin text-primary relative z-10" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Loading PR feedback...
+          </p>
         </div>
       );
     }
 
     if (error || !feedback) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-4">
-          <AlertCircle className="size-8 mb-2 text-destructive" />
-          <p className="text-sm text-center">Failed to load PR feedback</p>
-          <p className="text-xs text-center mt-1">
-            {error instanceof Error ? error.message : "Unknown error"}
-          </p>
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 gap-3">
+          <div className="rounded-full bg-destructive/10 p-4">
+            <AlertCircle className="size-6 text-destructive" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              Failed to load PR feedback
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {error instanceof Error ? error.message : "Unknown error"}
+            </p>
+          </div>
         </div>
       );
     }
@@ -314,7 +326,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
       )}
 
       {/* Tab navigation */}
-      <div className="flex items-center gap-1 p-2 border-b bg-muted/30 overflow-x-auto">
+      <div className="flex items-center gap-1.5 p-2 border-b border-border/50 bg-background/50 backdrop-blur-sm overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <ViewTab
             key={tab.value}
@@ -329,7 +341,9 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden">{renderTabContent()}</div>
+      <div className="flex-1 overflow-hidden animate-page-enter futuristic-scrollbar">
+        {renderTabContent()}
+      </div>
     </div>
   );
 }

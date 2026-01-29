@@ -76,8 +76,12 @@ export const KanbanCard = memo(function KanbanCard({
     <div
       onClick={onClick}
       className={cn(
-        "group relative bg-card border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
-        isSelected && "ring-2 ring-primary border-primary",
+        "group relative bg-card border rounded-xl p-3.5 cursor-pointer",
+        "transition-all duration-200 ease-out",
+        "tap-highlight card-float-hover",
+        "hover:border-primary/40 active:scale-[0.98]",
+        isSelected &&
+          "ring-2 ring-primary border-primary shadow-[0_0_20px_rgba(99,102,241,0.15)]",
       )}
     >
       {/* Three dots menu - show when not a draft or when menu is open */}
