@@ -121,7 +121,7 @@ export function Dashboard({
     ? { archived: true }
     : showBacklog
       ? { isBacklog: true }
-      : { archived: false };
+      : { archived: false, isBacklog: false };
 
   return (
     <div

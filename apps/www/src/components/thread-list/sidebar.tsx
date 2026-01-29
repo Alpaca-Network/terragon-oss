@@ -82,7 +82,7 @@ export function ThreadListSidebar() {
                 ? { archived: true }
                 : viewFilter === "backlog"
                   ? { isBacklog: true }
-                  : { archived: false }
+                  : { archived: false, isBacklog: false }
             }
             allowGroupBy={true}
             showSuggestedTasks={false}
