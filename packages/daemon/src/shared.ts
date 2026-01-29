@@ -14,6 +14,18 @@ export type FeatureFlags = {
   mcpPermissionPrompt?: boolean;
 };
 
+export const LoopConfigSchema = z.object({
+  maxIterations: z.number().min(1).max(100),
+  completionPromise: z.string().min(1),
+  useRegex: z.boolean(),
+  requireApproval: z.boolean(),
+  currentIteration: z.number().min(1),
+  isLoopActive: z.boolean(),
+  awaitingApproval: z.boolean(),
+});
+
+export type LoopConfig = z.infer<typeof LoopConfigSchema>;
+
 export const DaemonMessageClaudeSchema = z.object({
   type: z.literal("claude"),
   token: z.string(),
@@ -27,7 +39,8 @@ export const DaemonMessageClaudeSchema = z.object({
   featureFlags: z.record(z.string(), z.boolean()).optional() as z.ZodOptional<
     z.ZodType<FeatureFlags>
   >,
-  permissionMode: z.enum(["allowAll", "plan"]).optional(),
+  permissionMode: z.enum(["allowAll", "plan", "loop"]).optional(),
+  loopConfig: LoopConfigSchema.optional(),
   useCredits: z.boolean().optional(),
   // When true, route API calls through Gatewayz proxy instead of direct provider APIs
   // This is used when user has an active Gatewayz subscription (pro/max tier)

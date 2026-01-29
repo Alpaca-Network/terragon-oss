@@ -384,7 +384,23 @@ export async function startAgentMessage({
           const newPermissionMode =
             userMessageToSend.permissionMode || "allowAll";
           const currentPermissionMode = threadChat.permissionMode || "allowAll";
-          if (newPermissionMode !== currentPermissionMode) {
+
+          // Initialize loop config if entering loop mode
+          const loopConfigUpdate =
+            newPermissionMode === "loop" && userMessageToSend.loopConfig
+              ? {
+                  maxIterations: userMessageToSend.loopConfig.maxIterations,
+                  completionPromise:
+                    userMessageToSend.loopConfig.completionPromise,
+                  useRegex: userMessageToSend.loopConfig.useRegex,
+                  requireApproval: userMessageToSend.loopConfig.requireApproval,
+                  currentIteration: 1,
+                  isLoopActive: true,
+                  awaitingApproval: false,
+                }
+              : undefined;
+
+          if (newPermissionMode !== currentPermissionMode || loopConfigUpdate) {
             await updateThreadChat({
               db,
               userId,
@@ -392,6 +408,7 @@ export async function startAgentMessage({
               threadChatId,
               updates: {
                 permissionMode: newPermissionMode,
+                ...(loopConfigUpdate ? { loopConfig: loopConfigUpdate } : {}),
               },
             });
             threadChat = (await getThreadChat({
@@ -444,10 +461,19 @@ export async function startAgentMessage({
             session,
           });
 
-          const finalFinalPrompt = finalPrompt.replace(
-            /(?:^|\s)\/compact(?=\s|$)/g,
-            "",
-          );
+          // Add loop mode instruction to prompt if in loop mode
+          let loopPromptPrefix = "";
+          if (
+            threadChat.permissionMode === "loop" &&
+            threadChat.loopConfig?.isLoopActive
+          ) {
+            const lc = threadChat.loopConfig;
+            loopPromptPrefix = `[Loop Mode - Iteration ${lc.currentIteration}/${lc.maxIterations}] When your task is complete, output exactly "${lc.completionPromise}" to signal completion.\n\n`;
+          }
+
+          const finalFinalPrompt =
+            loopPromptPrefix +
+            finalPrompt.replace(/(?:^|\s)\/compact(?=\s|$)/g, "");
 
           if (!finalFinalPrompt.trim()) {
             throw new ThreadError("no-user-message", "", null);

@@ -86,6 +86,7 @@ export type ThreadSource =
   | "www-fork"
   | "www-multi-agent"
   | "www-suggested-followup-task"
+  | "www-address-pr-feedback"
   | "webhook" // Deprecated
   | "automation"
   | "slack-mention"
@@ -220,6 +221,7 @@ export type ThreadInfo = Omit<
   | "errorMessage"
   | "errorMessageInfo"
   | "permissionMode"
+  | "loopConfig"
   | "reattemptQueueAt"
   | "scheduleAt"
   | "contextLength"
@@ -266,6 +268,8 @@ export type SubscriptionInsert = typeof schema.subscription.$inferInsert;
 export type ThreadInsertRaw = typeof schema.thread.$inferInsert;
 export type ThreadChatInsertRaw = typeof schema.threadChat.$inferInsert;
 
+export type { LoopConfig } from "./schema";
+
 export type ThreadChatInsert = Partial<
   Omit<
     ThreadChatInsertRaw,
@@ -274,6 +278,7 @@ export type ThreadChatInsert = Partial<
     | "errorMessage"
     | "errorMessageInfo"
     | "status"
+    | "loopConfig"
   > &
     Partial<{
       // Only allow inserting one of our known types.
@@ -290,6 +295,8 @@ export type ThreadChatInsert = Partial<
       appendAndResetQueuedMessages?: boolean;
       // Exclude deprecated statuses.
       status?: Exclude<ThreadStatus, ThreadStatusDeprecated>;
+      // Loop configuration updates
+      loopConfig?: ThreadChatInsertRaw["loopConfig"];
     }>
 >;
 
@@ -408,6 +415,11 @@ export type StripePromotionCode = {
   stripePromotionCodeId: string;
 };
 
+export type GatewayZTierInfo = {
+  tier: "free" | "pro" | "max";
+  mappedAccessTier: AccessTier;
+};
+
 export type BillingInfo = {
   hasActiveSubscription: boolean;
   subscription: SubscriptionInfo | null;
@@ -416,6 +428,8 @@ export type BillingInfo = {
   unusedPromotionCode: boolean;
   // If true, new subscriptions are blocked (shutdown mode)
   isShutdownMode?: boolean;
+  // GatewayZ subscription info (takes priority over Stripe)
+  gatewayZTier: GatewayZTierInfo | null;
 };
 
 export type ClaudeAgentProviderMetadata = {
@@ -455,3 +469,81 @@ export type AgentProviderMetadata =
   | ClaudeAgentProviderMetadata
   | OpenAIProviderMetadata
   | GeminiAgentProviderMetadata;
+
+// =============================================================================
+// PR Feedback Types (for Code Review integration)
+// =============================================================================
+
+export type PRComment = {
+  id: number;
+  body: string;
+  path: string;
+  line: number | null;
+  originalLine: number | null;
+  side: "LEFT" | "RIGHT";
+  author: {
+    login: string;
+    avatarUrl: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  inReplyToId?: number;
+  htmlUrl: string;
+};
+
+export type PRReviewThread = {
+  id: string;
+  isResolved: boolean;
+  comments: PRComment[];
+};
+
+export type PRCheckRun = {
+  id: number;
+  name: string;
+  status: GithubCheckRunStatus;
+  conclusion: GithubCheckRunConclusion | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  detailsUrl: string | null;
+  output?: {
+    title: string | null;
+    summary: string | null;
+  };
+};
+
+export type PRFeedback = {
+  prNumber: number;
+  repoFullName: string;
+  prUrl: string;
+  prTitle: string;
+  prState: GithubPRStatus;
+  baseBranch: string;
+  headBranch: string;
+  headSha: string;
+  comments: {
+    unresolved: PRReviewThread[];
+    resolved: PRReviewThread[];
+  };
+  checks: PRCheckRun[];
+  coverageCheck: PRCheckRun | null;
+  mergeableState: GithubPRMergeableState;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRFeedbackSummary = {
+  unresolvedCommentCount: number;
+  resolvedCommentCount: number;
+  failingCheckCount: number;
+  pendingCheckCount: number;
+  passingCheckCount: number;
+  hasCoverageCheck: boolean;
+  coverageCheckPassed: boolean | null;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRReference = {
+  repoFullName: string;
+  prNumber: number;
+};

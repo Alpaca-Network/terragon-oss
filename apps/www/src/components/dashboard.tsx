@@ -4,7 +4,7 @@ import {
   DashboardPromptBoxHandleSubmit,
   DashboardPromptBox,
 } from "./promptbox/dashboard-promptbox";
-import { ThreadListMain } from "./thread-list/main";
+import { ThreadListMain, ThreadViewFilter } from "./thread-list/main";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
@@ -18,25 +18,25 @@ import { convertToPlainText } from "@/lib/db-message-helpers";
 import { HandleUpdate } from "./promptbox/use-promptbox";
 import { cn } from "@/lib/utils";
 import { RecommendedTasks } from "./recommended-tasks";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
-import { Button } from "@/components/ui/button";
-import { LayoutList, Kanban } from "lucide-react";
 
 export function Dashboard({
   showArchived = false,
+  showBacklog = false,
 }: {
   showArchived?: boolean;
+  showBacklog?: boolean;
 }) {
   const [typewriterEffectEnabled, setTypewriterEffectEnabled] = useState(true);
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
-  const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
+  const viewMode = useAtomValue(dashboardViewModeAtom);
 
   useEffect(() => {
     setMounted(true);
@@ -111,6 +111,18 @@ export function Dashboard({
   // Show Kanban view on larger screens when viewMode is 'kanban'
   const showKanbanView = viewMode === "kanban" && mounted;
 
+  // Determine view filter and query filters
+  const viewFilter: ThreadViewFilter = showArchived
+    ? "archived"
+    : showBacklog
+      ? "backlog"
+      : "active";
+  const queryFilters = showArchived
+    ? { archived: true }
+    : showBacklog
+      ? { isBacklog: true }
+      : { archived: false, isBacklog: false };
+
   return (
     <div
       className={cn(
@@ -146,43 +158,16 @@ export function Dashboard({
         </>
       )}
 
-      {/* View toggle header for desktop */}
-      {mounted && (
-        <div className="hidden lg:flex items-center justify-between px-0">
-          <h2 className="font-semibold text-sm">Tasks</h2>
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2.5 gap-1.5"
-              onClick={() => setViewMode("list")}
-            >
-              <LayoutList className="h-3.5 w-3.5" />
-              <span className="text-xs">List</span>
-            </Button>
-            <Button
-              variant={viewMode === "kanban" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2.5 gap-1.5"
-              onClick={() => setViewMode("kanban")}
-            >
-              <Kanban className="h-3.5 w-3.5" />
-              <span className="text-xs">Kanban</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Desktop: Show Kanban or List based on viewMode */}
       {mounted && (
         <div className="hidden lg:flex flex-1 min-h-0">
           {showKanbanView ? (
-            <KanbanBoard queryFilters={{ archived: showArchived }} />
+            <KanbanBoard queryFilters={queryFilters} />
           ) : (
             <div className="w-full">
               <ThreadListMain
-                queryFilters={{ archived: showArchived }}
-                viewFilter={showArchived ? "archived" : "active"}
+                queryFilters={queryFilters}
+                viewFilter={viewFilter}
                 allowGroupBy={true}
                 showSuggestedTasks={false}
                 setPromptText={setPromptText}
@@ -192,16 +177,20 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Mobile: Always show list view */}
+      {/* Mobile: Show Kanban or List based on viewMode */}
       {mounted && (
-        <div className="lg:hidden">
-          <ThreadListMain
-            queryFilters={{ archived: showArchived }}
-            viewFilter={showArchived ? "archived" : "active"}
-            allowGroupBy={true}
-            showSuggestedTasks={showRecommendedTasks}
-            setPromptText={setPromptText}
-          />
+        <div className="lg:hidden flex flex-col flex-1 min-h-0">
+          {showKanbanView ? (
+            <KanbanBoard queryFilters={queryFilters} />
+          ) : (
+            <ThreadListMain
+              queryFilters={queryFilters}
+              viewFilter={viewFilter}
+              allowGroupBy={true}
+              showSuggestedTasks={showRecommendedTasks}
+              setPromptText={setPromptText}
+            />
+          )}
         </div>
       )}
     </div>

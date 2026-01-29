@@ -68,7 +68,11 @@ export function publicBroadcastHost(): string | undefined {
 
 export function publicDocsUrl() {
   if (process.env.NODE_ENV === "development") {
-    return process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:3001";
+    return (
+      process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:3000/inbox/docs"
+    );
   }
-  return process.env.NEXT_PUBLIC_DOCS_URL ?? "https://docs.terragonlabs.com";
+  return (
+    process.env.NEXT_PUBLIC_DOCS_URL ?? "https://beta.gatewayz.ai/inbox/docs"
+  );
 }

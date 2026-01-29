@@ -5,6 +5,7 @@ import { ThreadInfo } from "@terragon/shared";
 import { SheetOrMenu, SheetOrMenuItem } from "./ui/sheet-or-menu";
 import {
   useArchiveMutation,
+  useBacklogMutation,
   useDeleteThreadMutation,
   useReadThreadMutation,
   useUnreadThreadMutation,
@@ -31,6 +32,8 @@ import {
   Users,
   ChevronRight,
   Terminal,
+  Clock,
+  Inbox,
 } from "lucide-react";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { useThread } from "./chat/thread-context";
@@ -72,6 +75,7 @@ export function ThreadMenuDropdown({
   const [showDeleteDialogState, setShowDeleteDialogState] = useState(false);
   const [showRedoTaskDialog, setShowRedoTaskDialog] = useState(false);
   const archiveMutation = useArchiveMutation();
+  const backlogMutation = useBacklogMutation();
   const deleteMutation = useDeleteThreadMutation();
   const readMutation = useReadThreadMutation();
   const unreadMutation = useUnreadThreadMutation();
@@ -199,6 +203,21 @@ export function ThreadMenuDropdown({
       });
     }
 
+    // Send to Backlog / Move to Inbox (only for non-archived threads)
+    if (!thread.archived) {
+      items.push({
+        type: "button" as const,
+        label: thread.isBacklog ? "Move to Inbox" : "Send to Backlog",
+        icon: thread.isBacklog ? Inbox : Clock,
+        onSelect: async () => {
+          await backlogMutation.mutateAsync({
+            threadId: thread.id,
+            isBacklog: !thread.isBacklog,
+          });
+        },
+      });
+    }
+
     // Archive/Unarchive
     items.push({
       type: "button" as const,
@@ -294,6 +313,7 @@ export function ThreadMenuDropdown({
     userFlags,
     user,
     archiveMutation,
+    backlogMutation,
     readMutation,
     unreadMutation,
     isReadOnly,

@@ -12,6 +12,7 @@ import { unwrapResult } from "@/lib/server-actions";
 
 export type ThreadListFilters = {
   archived?: boolean;
+  isBacklog?: boolean;
   automationId?: string;
   limit?: number;
 };
@@ -24,6 +25,7 @@ export function isValidThreadListFilter(
     filter !== null &&
     typeof filter === "object" &&
     (filter.archived === undefined || typeof filter.archived === "boolean") &&
+    (filter.isBacklog === undefined || typeof filter.isBacklog === "boolean") &&
     (filter.automationId === undefined ||
       typeof filter.automationId === "string")
   );
@@ -34,6 +36,12 @@ export function isMatchingThreadForFilter(
   filters: ThreadListFilters,
 ): boolean {
   if (filters.archived !== undefined && filters.archived !== thread.archived) {
+    return false;
+  }
+  if (
+    filters.isBacklog !== undefined &&
+    filters.isBacklog !== thread.isBacklog
+  ) {
     return false;
   }
   if (
@@ -68,7 +76,12 @@ export function threadQueryOptions(threadId: string) {
 const THREADS_PER_PAGE = 100;
 
 export function threadListQueryOptions(filters: ThreadListFilters = {}) {
-  const { archived, automationId, limit = THREADS_PER_PAGE } = filters;
+  const {
+    archived,
+    isBacklog,
+    automationId,
+    limit = THREADS_PER_PAGE,
+  } = filters;
   const options: UseInfiniteQueryOptions<
     ThreadInfo[],
     unknown,
@@ -81,7 +94,13 @@ export function threadListQueryOptions(filters: ThreadListFilters = {}) {
     queryFn: async ({ pageParam }) => {
       const offset = pageParam * limit;
       return unwrapResult(
-        await getThreadsAction({ archived, automationId, limit, offset }),
+        await getThreadsAction({
+          archived,
+          isBacklog,
+          automationId,
+          limit,
+          offset,
+        }),
       );
     },
     initialPageParam: 0,

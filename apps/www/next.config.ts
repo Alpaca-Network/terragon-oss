@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { createMDX } from "fumadocs-mdx/next";
+
+const withMDX = createMDX();
 
 const nextConfig: NextConfig = {
   images: {
@@ -24,7 +27,9 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Access-Control-Allow-Origin",
-            value: process.env.GATEWAYZ_ALLOWED_ORIGINS || "https://gatewayz.ai,https://beta.gatewayz.ai,https://www.gatewayz.ai",
+            value:
+              process.env.GATEWAYZ_ALLOWED_ORIGINS ||
+              "https://gatewayz.ai,https://beta.gatewayz.ai,https://www.gatewayz.ai",
           },
           {
             key: "Access-Control-Allow-Methods",
@@ -59,12 +64,23 @@ const nextConfig: NextConfig = {
     ];
   },
   async redirects() {
-    // Backward compatibility: redirect /chat/:id to /task/:id
     return [
+      // Backward compatibility: redirect /chat/:id to /task/:id
       {
         source: "/chat/:id",
         destination: "/task/:id",
         permanent: false,
+      },
+      // Docs redirects for legacy paths
+      {
+        source: "/inbox/docs/release-notes",
+        destination: "/inbox/docs/resources/release-notes",
+        permanent: true,
+      },
+      {
+        source: "/inbox/docs/tasks/automations",
+        destination: "/inbox/docs/automations",
+        permanent: true,
       },
     ];
   },
@@ -72,4 +88,4 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-export default nextConfig;
+export default withMDX(nextConfig);
