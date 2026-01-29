@@ -15,7 +15,12 @@ export type DashboardViewMode = "list" | "kanban";
 
 export const defaultDashboardViewMode: DashboardViewMode = "list";
 
-export type SecondaryPanelView = "files-changed" | "code-review";
+export type SecondaryPanelView =
+  | "files-changed"
+  | "comments"
+  | "checks"
+  | "coverage"
+  | "merge";
 export const defaultSecondaryPanelView: SecondaryPanelView = "files-changed";
 
 export type CollapsedSections = {
