@@ -240,7 +240,7 @@ function ChatUI({
 
   if (isLoading || !thread || !threadChat) {
     return (
-      <div className="flex flex-col h-[100dvh] w-full items-center justify-center">
+      <div className="flex flex-col h-full w-full items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
       </div>
     );
@@ -253,7 +253,7 @@ function ChatUI({
       promptBoxRef={promptBoxRef}
       isReadOnly={isReadOnly}
     >
-      <div className="flex flex-col h-[100dvh] w-full">
+      <div className="flex flex-col h-full w-full">
         <ChatHeader
           thread={thread}
           isReadOnly={isReadOnly}

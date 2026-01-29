@@ -88,15 +88,30 @@ describe("Kanban Mobile Components", () => {
 
   describe("Mobile drawer configuration", () => {
     // Constants that should match the drawer implementation
-    const DRAWER_HEIGHT = "85vh";
+    const SNAP_POINTS = [0.75, 1] as const;
+    const DEFAULT_SNAP_POINT = 0.75;
     const DEFAULT_TAB = "feed";
     const AVAILABLE_TABS = ["feed", "changes"];
 
-    it("should have a reasonable drawer height for mobile", () => {
-      // 85vh gives enough room to see content while allowing swipe-to-dismiss
-      const heightValue = parseInt(DRAWER_HEIGHT);
-      expect(heightValue).toBeGreaterThanOrEqual(80);
-      expect(heightValue).toBeLessThanOrEqual(95);
+    it("should have snap points at 75% and 100% for mobile", () => {
+      expect(SNAP_POINTS).toContain(0.75);
+      expect(SNAP_POINTS).toContain(1);
+      expect(SNAP_POINTS.length).toBe(2);
+    });
+
+    it("should default to 75% snap point (not maximized)", () => {
+      expect(DEFAULT_SNAP_POINT).toBe(0.75);
+    });
+
+    it("should have snap points in ascending order", () => {
+      // Vaul requires snap points to be in ascending order
+      for (let i = 1; i < SNAP_POINTS.length; i++) {
+        expect(SNAP_POINTS[i]).toBeGreaterThan(SNAP_POINTS[i - 1]!);
+      }
+    });
+
+    it("should allow maximizing to 100% viewport height", () => {
+      expect(SNAP_POINTS).toContain(1);
     });
 
     it("should default to feed tab", () => {
@@ -106,6 +121,54 @@ describe("Kanban Mobile Components", () => {
     it("should have feed and changes tabs available", () => {
       expect(AVAILABLE_TABS).toContain("feed");
       expect(AVAILABLE_TABS).toContain("changes");
+    });
+  });
+
+  describe("Mobile drawer maximize/minimize", () => {
+    const DEFAULT_SNAP_POINT = 0.75;
+    const MAXIMIZED_SNAP_POINT = 1;
+
+    // Helper to simulate toggle maximize logic
+    const toggleMaximize = (currentSnap: number): number => {
+      return currentSnap === MAXIMIZED_SNAP_POINT
+        ? DEFAULT_SNAP_POINT
+        : MAXIMIZED_SNAP_POINT;
+    };
+
+    // Helper to get height class based on snap point
+    const getHeightClass = (currentSnap: number): string => {
+      if (currentSnap === MAXIMIZED_SNAP_POINT) {
+        return "h-[100dvh] max-h-[100dvh]";
+      }
+      return "h-[75dvh] max-h-[75dvh]";
+    };
+
+    it("should toggle from default (75%) to maximized (100%)", () => {
+      const newSnap = toggleMaximize(DEFAULT_SNAP_POINT);
+      expect(newSnap).toBe(MAXIMIZED_SNAP_POINT);
+    });
+
+    it("should toggle from maximized (100%) back to default (75%)", () => {
+      const newSnap = toggleMaximize(MAXIMIZED_SNAP_POINT);
+      expect(newSnap).toBe(DEFAULT_SNAP_POINT);
+    });
+
+    it("should return 75dvh height class for default snap point", () => {
+      const heightClass = getHeightClass(DEFAULT_SNAP_POINT);
+      expect(heightClass).toContain("75dvh");
+    });
+
+    it("should return 100dvh height class for maximized snap point", () => {
+      const heightClass = getHeightClass(MAXIMIZED_SNAP_POINT);
+      expect(heightClass).toContain("100dvh");
+    });
+
+    it("should use dvh units for dynamic viewport height support", () => {
+      // dvh accounts for mobile browser chrome (address bar, etc.)
+      const defaultClass = getHeightClass(DEFAULT_SNAP_POINT);
+      const maximizedClass = getHeightClass(MAXIMIZED_SNAP_POINT);
+      expect(defaultClass).toContain("dvh");
+      expect(maximizedClass).toContain("dvh");
     });
   });
 
@@ -193,12 +256,13 @@ describe("Kanban Mobile Components", () => {
   });
 
   describe("New task drawer", () => {
-    // Constants that should match the new task drawer implementation
+    // New task drawer uses fixed height (doesn't need snap points for maximize)
     const NEW_TASK_DRAWER_HEIGHT = "85vh";
 
-    it("should have the same height as task detail drawer for consistency", () => {
-      const taskDrawerHeight = "85vh";
-      expect(NEW_TASK_DRAWER_HEIGHT).toBe(taskDrawerHeight);
+    it("should have a reasonable height for mobile", () => {
+      const heightValue = parseInt(NEW_TASK_DRAWER_HEIGHT);
+      expect(heightValue).toBeGreaterThanOrEqual(80);
+      expect(heightValue).toBeLessThanOrEqual(90);
     });
   });
 
