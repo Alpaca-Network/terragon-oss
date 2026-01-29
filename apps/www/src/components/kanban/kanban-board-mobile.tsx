@@ -337,7 +337,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         className="flex flex-col h-full"
       >
         {/* Column tabs - horizontally scrollable with new task button */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-2">
+        <div className="flex-shrink-0 flex items-center gap-2 px-2 border-b">
           <div
             ref={tabsListRef}
             className="flex-1 overflow-x-auto scrollbar-hide"
