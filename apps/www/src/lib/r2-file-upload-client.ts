@@ -26,12 +26,15 @@ export async function uploadFileToR2({
     }),
   );
   // Upload directly to R2
+  // Convert File to ArrayBuffer for more reliable uploads
+  const buffer = await file.arrayBuffer();
   const uploadResponse = await fetch(presignedUrl, {
     method: "PUT",
     headers: {
       "Content-Type": file.type,
+      "Content-Length": String(buffer.byteLength),
     },
-    body: file,
+    body: buffer,
   });
   if (!uploadResponse.ok) {
     throw new Error(`Upload failed: ${await uploadResponse.text()}`);
