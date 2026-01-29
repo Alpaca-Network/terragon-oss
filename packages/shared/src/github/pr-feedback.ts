@@ -347,17 +347,16 @@ export async function aggregatePRFeedback(
   repo: string,
   prNumber: number,
 ): Promise<PRFeedback> {
-  // Fetch all data in parallel
-  const [prDetails, rawComments, rawChecks, resolutionStatus] =
-    await Promise.all([
-      fetchPRDetails(octokit, owner, repo, prNumber),
-      fetchPRComments(octokit, owner, repo, prNumber),
-      fetchPRDetails(octokit, owner, repo, prNumber).then((pr) =>
-        fetchPRChecks(octokit, owner, repo, pr.head.sha),
-      ),
-      // Fetch actual resolution status from GraphQL API
-      fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
-    ]);
+  // Fetch PR details first to get head SHA
+  const prDetails = await fetchPRDetails(octokit, owner, repo, prNumber);
+
+  // Fetch remaining data in parallel
+  const [rawComments, rawChecks, resolutionStatus] = await Promise.all([
+    fetchPRComments(octokit, owner, repo, prNumber),
+    fetchPRChecks(octokit, owner, repo, prDetails.head.sha),
+    // Fetch actual resolution status from GraphQL API
+    fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
+  ]);
 
   // Pass resolution status to thread grouping for accurate resolved/unresolved classification
   const comments = groupCommentsIntoThreads(rawComments, resolutionStatus);
