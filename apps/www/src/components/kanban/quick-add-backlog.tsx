@@ -131,7 +131,13 @@ function QuickAddBacklogDialogInner({
               placeholder="Describe your idea or task..."
               className="min-h-[150px] resize-none"
               value={taskDescription}
-              onChange={(e) => setTaskDescription(e.target.value)}
+              onChange={(e) => {
+                setTaskDescription(e.target.value);
+                // Clear template selection when user manually edits
+                if (selectedTemplate) {
+                  setSelectedTemplate(null);
+                }
+              }}
               autoFocus
             />
           </div>

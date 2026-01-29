@@ -32,8 +32,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
-import { useSetAtom } from "jotai";
-import { dashboardViewModeAtom } from "@/atoms/user-cookies";
+import { useAtom, useSetAtom } from "jotai";
+import {
+  dashboardViewModeAtom,
+  kanbanQuickAddBacklogOpenAtom,
+} from "@/atoms/user-cookies";
 import {
   Tooltip,
   TooltipContent,
@@ -83,7 +86,9 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
-  const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useState(false);
+  const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useAtom(
+    kanbanQuickAddBacklogOpenAtom,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const setViewMode = useSetAtom(dashboardViewModeAtom);
 
@@ -247,7 +252,7 @@ export const KanbanBoard = memo(function KanbanBoard({
       className="flex flex-col h-full w-full overflow-hidden"
     >
       {/* Header with view toggle and new task button */}
-      <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-muted-foreground">
             Kanban Board
@@ -311,7 +316,7 @@ export const KanbanBoard = memo(function KanbanBoard({
         {/* Task detail panel */}
         {selectedThreadId && (
           <div
-            className="relative flex-shrink-0 border-l bg-background flex flex-col"
+            className="relative flex-shrink-0 border-l border-border bg-background flex flex-col"
             style={{ width: `${panelWidth}px` }}
           >
             {/* Resize handle */}
@@ -324,7 +329,7 @@ export const KanbanBoard = memo(function KanbanBoard({
             />
 
             {/* Panel header with tabs and view toggle */}
-            <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2 flex-shrink-0">
               {/* Tabs */}
               <div className="flex items-center gap-1">
                 <Button
