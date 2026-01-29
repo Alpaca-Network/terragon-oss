@@ -8,16 +8,19 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 import { ThreadStatusIndicator } from "../thread-status";
 import { PRStatusPill } from "../pr-status-pill";
 import { ThreadAgentIcon } from "../thread-agent-icon";
+import { PRCommentCountBadge } from "./pr-comment-count-badge";
 import { GitBranch } from "lucide-react";
 
 export const KanbanCard = memo(function KanbanCard({
   thread,
   isSelected,
   onClick,
+  onCommentsClick,
 }: {
   thread: ThreadInfo;
   isSelected: boolean;
   onClick: () => void;
+  onCommentsClick?: () => void;
 }) {
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const relativeTime = useMemo(
@@ -63,6 +66,17 @@ export const KanbanCard = memo(function KanbanCard({
             {relativeTime}
           </span>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {thread.githubPRNumber && (
+              <PRCommentCountBadge
+                threadId={thread.id}
+                repoFullName={thread.githubRepoFullName}
+                prNumber={thread.githubPRNumber}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCommentsClick?.();
+                }}
+              />
+            )}
             {thread.githubPRNumber && thread.prStatus && (
               <PRStatusPill
                 status={thread.prStatus}

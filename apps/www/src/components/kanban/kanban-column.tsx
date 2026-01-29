@@ -12,11 +12,13 @@ export const KanbanColumn = memo(function KanbanColumn({
   threads,
   selectedThreadId,
   onThreadSelect,
+  onThreadCommentsClick,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
+  onThreadCommentsClick?: (thread: ThreadInfo) => void;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
 
@@ -71,6 +73,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                   thread={thread}
                   isSelected={selectedThreadId === thread.id}
                   onClick={() => onThreadSelect(thread)}
+                  onCommentsClick={() => onThreadCommentsClick?.(thread)}
                 />
               ))
             )}

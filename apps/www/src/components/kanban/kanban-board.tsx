@@ -65,6 +65,22 @@ const GitDiffView = dynamic(
   },
 );
 
+// Dynamically import CodeReviewView for the Comments tab
+const CodeReviewView = dynamic(
+  () =>
+    import("@/components/chat/code-review-view").then(
+      (mod) => mod.CodeReviewView,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
 type TaskPanelTab = "feed" | "changes" | "comments";
 
 const TASK_PANEL_MIN_WIDTH = 500;
@@ -163,6 +179,11 @@ export const KanbanBoard = memo(function KanbanBoard({
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
     setActiveTab("feed"); // Reset to feed tab when selecting a new thread
+  }, []);
+
+  const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
+    setSelectedThreadId(thread.id);
+    setActiveTab("comments"); // Open the comments tab directly
   }, []);
 
   const handleCloseDetail = useCallback(() => {
@@ -274,6 +295,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   threads={columnThreads[column.id]}
                   selectedThreadId={selectedThreadId}
                   onThreadSelect={handleThreadSelect}
+                  onThreadCommentsClick={handleThreadCommentsClick}
                 />
               ))}
             </div>
@@ -324,8 +346,12 @@ export const KanbanBoard = memo(function KanbanBoard({
                   size="sm"
                   className="h-8 px-3 gap-1.5"
                   onClick={() => setActiveTab("comments")}
-                  disabled
-                  title="Coming soon"
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
                   <span className="text-xs">Comments</span>
@@ -371,9 +397,9 @@ export const KanbanBoard = memo(function KanbanBoard({
                   <GitDiffView thread={selectedThread} />
                 </div>
               )}
-              {activeTab === "comments" && (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <p className="text-sm">Comments coming soon</p>
+              {activeTab === "comments" && selectedThread && (
+                <div className="h-full overflow-auto">
+                  <CodeReviewView thread={selectedThread} />
                 </div>
               )}
             </div>
