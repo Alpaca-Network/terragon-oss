@@ -74,16 +74,12 @@ export const KanbanBoard = memo(function KanbanBoard({
 }: {
   queryFilters: ThreadListFilters;
 }) {
+  // All hooks must be called unconditionally at the top (React Rules of Hooks)
   const platform = usePlatform();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const containerRef = useRef<HTMLDivElement>(null);
   const setViewMode = useSetAtom(dashboardViewModeAtom);
-
-  // Render mobile version on mobile devices
-  if (platform === "mobile") {
-    return <KanbanBoardMobile queryFilters={queryFilters} />;
-  }
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
@@ -201,6 +197,11 @@ export const KanbanBoard = memo(function KanbanBoard({
     mode: "fixed",
     direction: "rtl",
   });
+
+  // Render mobile version on mobile devices (after all hooks are called)
+  if (platform === "mobile") {
+    return <KanbanBoardMobile queryFilters={queryFilters} />;
+  }
 
   if (isLoading) {
     return (
