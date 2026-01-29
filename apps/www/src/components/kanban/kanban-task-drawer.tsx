@@ -14,14 +14,22 @@ import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { threadQueryOptions } from "@/queries/thread-queries";
+import { cn } from "@/lib/utils";
+import { DataStreamLoader } from "@/components/ui/futuristic-effects";
+
+const FuturisticLoader = () => (
+  <div className="flex flex-col items-center justify-center h-full gap-4 gradient-shift-bg">
+    <div className="relative">
+      <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+      <LoaderCircle className="size-8 animate-spin text-primary relative z-10" />
+    </div>
+    <DataStreamLoader size="md" />
+  </div>
+);
 
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
   ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full">
-      <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
-    </div>
-  ),
+  loading: FuturisticLoader,
 });
 
 const GitDiffView = dynamic(
@@ -29,11 +37,7 @@ const GitDiffView = dynamic(
     import("@/components/chat/git-diff-view").then((mod) => mod.GitDiffView),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center h-full">
-        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    ),
+    loading: FuturisticLoader,
   },
 );
 
@@ -117,27 +121,48 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
       setActiveSnapPoint={setCurrentSnap}
       fadeFromIndex={0}
     >
-      <DrawerContent className={getHeightClass()}>
-        <DrawerHeader className="flex flex-row items-center justify-between border-b py-2 px-3 flex-shrink-0">
-          <div className="flex items-center gap-1">
+      <DrawerContent
+        className={cn(
+          getHeightClass(),
+          "rounded-t-2xl border-t-0",
+          "bg-background/95 backdrop-blur-md",
+          "shadow-[0_-10px_40px_rgba(0,0,0,0.1)]",
+          "dark:shadow-[0_-10px_40px_rgba(0,0,0,0.3)]",
+        )}
+      >
+        {/* Futuristic drawer handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-12 h-1 rounded-full bg-gradient-to-r from-primary/30 via-primary/60 to-primary/30" />
+        </div>
+
+        <DrawerHeader className="flex flex-row items-center justify-between border-b border-border/50 py-2 px-3 flex-shrink-0 bg-background/50">
+          <div className="flex items-center gap-1.5">
             <Button
               variant={activeTab === "feed" ? "secondary" : "ghost"}
               size="sm"
-              className="h-8 px-3 gap-1.5"
+              className={cn(
+                "h-9 px-3.5 gap-2 rounded-lg tap-highlight transition-all duration-200",
+                activeTab === "feed" &&
+                  "shadow-[0_0_12px_rgba(99,102,241,0.15)]",
+              )}
               onClick={() => setActiveTab("feed")}
             >
               <MessageSquare className="h-4 w-4" />
-              <span className="text-xs">Feed</span>
+              <span className="text-xs font-medium">Feed</span>
             </Button>
             <Button
               variant={activeTab === "changes" ? "secondary" : "ghost"}
               size="sm"
-              className="h-8 px-3 gap-1.5"
+              className={cn(
+                "h-9 px-3.5 gap-2 rounded-lg tap-highlight transition-all duration-200",
+                activeTab === "changes" &&
+                  "shadow-[0_0_12px_rgba(99,102,241,0.15)]",
+              )}
               onClick={() => setActiveTab("changes")}
               disabled={!thread?.gitDiff}
             >
               <GitCommit className="h-4 w-4" />
-              <span className="text-xs">Changes</span>
+              <span className="text-xs font-medium">Changes</span>
             </Button>
           </div>
           <div className="flex items-center gap-1">
@@ -145,7 +170,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               variant="ghost"
               size="icon"
               onClick={toggleMaximize}
-              className="h-8 w-8"
+              className="h-9 w-9 rounded-lg tap-highlight hover:bg-primary/10 transition-colors"
               aria-label={isMaximized ? "Minimize" : "Maximize"}
             >
               {isMaximized ? (
@@ -158,7 +183,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="h-8 w-8"
+              className="h-9 w-9 rounded-lg tap-highlight hover:bg-destructive/10 hover:text-destructive transition-colors"
               aria-label="Close task details"
             >
               <X className="h-4 w-4" />
@@ -166,12 +191,14 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
           </div>
         </DrawerHeader>
 
-        <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
+        <div className="flex-1 overflow-hidden min-h-0 flex flex-col gradient-shift-bg">
           {threadId && activeTab === "feed" && (
-            <ChatUI threadId={threadId} isReadOnly={false} />
+            <div className="animate-page-enter flex-1 flex flex-col min-h-0">
+              <ChatUI threadId={threadId} isReadOnly={false} />
+            </div>
           )}
           {thread && activeTab === "changes" && (
-            <div className="h-full overflow-auto">
+            <div className="h-full overflow-auto animate-page-enter futuristic-scrollbar">
               <GitDiffView thread={thread} />
             </div>
           )}
