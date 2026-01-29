@@ -86,6 +86,7 @@ export type ThreadSource =
   | "www-fork"
   | "www-multi-agent"
   | "www-suggested-followup-task"
+  | "www-address-pr-feedback"
   | "webhook" // Deprecated
   | "automation"
   | "slack-mention"
@@ -450,3 +451,81 @@ export type OpenAIProviderMetadata = {
 export type AgentProviderMetadata =
   | ClaudeAgentProviderMetadata
   | OpenAIProviderMetadata;
+
+// =============================================================================
+// PR Feedback Types (for Code Review integration)
+// =============================================================================
+
+export type PRComment = {
+  id: number;
+  body: string;
+  path: string;
+  line: number | null;
+  originalLine: number | null;
+  side: "LEFT" | "RIGHT";
+  author: {
+    login: string;
+    avatarUrl: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  inReplyToId?: number;
+  htmlUrl: string;
+};
+
+export type PRReviewThread = {
+  id: string;
+  isResolved: boolean;
+  comments: PRComment[];
+};
+
+export type PRCheckRun = {
+  id: number;
+  name: string;
+  status: GithubCheckRunStatus;
+  conclusion: GithubCheckRunConclusion | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  detailsUrl: string | null;
+  output?: {
+    title: string | null;
+    summary: string | null;
+  };
+};
+
+export type PRFeedback = {
+  prNumber: number;
+  repoFullName: string;
+  prUrl: string;
+  prTitle: string;
+  prState: GithubPRStatus;
+  baseBranch: string;
+  headBranch: string;
+  headSha: string;
+  comments: {
+    unresolved: PRReviewThread[];
+    resolved: PRReviewThread[];
+  };
+  checks: PRCheckRun[];
+  coverageCheck: PRCheckRun | null;
+  mergeableState: GithubPRMergeableState;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRFeedbackSummary = {
+  unresolvedCommentCount: number;
+  resolvedCommentCount: number;
+  failingCheckCount: number;
+  pendingCheckCount: number;
+  passingCheckCount: number;
+  hasCoverageCheck: boolean;
+  coverageCheckPassed: boolean | null;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRReference = {
+  repoFullName: string;
+  prNumber: number;
+};
