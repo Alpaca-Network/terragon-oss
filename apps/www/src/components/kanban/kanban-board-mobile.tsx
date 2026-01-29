@@ -272,7 +272,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         className="flex flex-col h-full"
       >
         {/* Column tabs - horizontally scrollable */}
-        <div className="flex-shrink-0 px-2">
+        <div className="flex-shrink-0 px-2 border-b">
           <ScrollArea className="w-full" type="scroll">
             <TabsList className="w-max min-w-full gap-1">
               {KANBAN_COLUMNS.map((col) => (
