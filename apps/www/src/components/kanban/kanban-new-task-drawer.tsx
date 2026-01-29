@@ -13,7 +13,7 @@ import { DashboardPromptBox } from "../promptbox/dashboard-promptbox";
 import { newThread } from "@/server-actions/new-thread";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { threadQueryKeys } from "@/queries/thread-queries";
+import { threadQueryKeys, ThreadListFilters } from "@/queries/thread-queries";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { DashboardPromptBoxHandleSubmit } from "../promptbox/dashboard-promptbox";
 import { HandleUpdate } from "../promptbox/use-promptbox";
@@ -23,9 +23,11 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
   open,
   onClose,
+  queryFilters,
 }: {
   open: boolean;
   onClose: () => void;
+  queryFilters: ThreadListFilters;
 }) {
   const queryClient = useQueryClient();
   const [placeholder, setPlaceholder] = useState(
@@ -59,7 +61,7 @@ export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
           }),
         );
         queryClient.refetchQueries({
-          queryKey: threadQueryKeys.list({ archived: false }),
+          queryKey: threadQueryKeys.list(queryFilters),
         });
         if (saveAsDraft) {
           toast.success("Task saved as draft successfully.");
@@ -73,7 +75,7 @@ export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
         throw error;
       }
     },
-    [queryClient, onClose],
+    [queryClient, onClose, queryFilters],
   );
 
   const handleStop = useCallback(async () => {

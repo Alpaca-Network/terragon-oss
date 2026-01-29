@@ -385,6 +385,7 @@ export const KanbanBoard = memo(function KanbanBoard({
       <KanbanNewTaskDialog
         open={newTaskDialogOpen}
         onOpenChange={setNewTaskDialogOpen}
+        queryFilters={queryFilters}
       />
     </div>
   );

@@ -329,6 +329,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       <KanbanNewTaskDrawer
         open={newTaskDrawerOpen}
         onClose={handleCloseNewTaskDrawer}
+        queryFilters={queryFilters}
       />
     </div>
   );
