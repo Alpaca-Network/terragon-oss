@@ -435,7 +435,7 @@ describe("aggregatePRFeedback", () => {
 
     // Thread should be marked as resolved because last comment says "Done"
     expect(feedback.comments.resolved.length).toBe(1);
-    expect(feedback.comments.resolved[0].comments.length).toBe(2);
+    expect(feedback.comments.resolved[0]!.comments.length).toBe(2);
     expect(feedback.comments.unresolved.length).toBe(0);
   });
 
