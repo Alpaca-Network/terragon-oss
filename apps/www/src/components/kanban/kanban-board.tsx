@@ -203,6 +203,15 @@ export const KanbanBoard = memo(function KanbanBoard({
     return <KanbanBoardMobile queryFilters={queryFilters} />;
   }
 
+  // Show loading state while platform is being determined to avoid flash
+  if (platform === "unknown") {
+    return (
+      <div className="flex flex-col h-full items-center justify-center">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col h-full items-center justify-center">

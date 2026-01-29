@@ -48,11 +48,12 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
     enabled: !!threadId,
   });
 
-  // Reset tab when drawer closes
+  // Reset tab when drawer closes (delayed to avoid flash during close animation)
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
-      setActiveTab("feed");
+      // Delay tab reset until after drawer close animation (~300ms)
+      setTimeout(() => setActiveTab("feed"), 300);
     }
   };
 

@@ -173,7 +173,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                 )}
               >
                 <span className="text-xs">{col.title}</span>
-                <span className="text-xs opacity-60 bg-background/50 px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                <span className="text-xs opacity-60 bg-muted px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
                   {columnThreads[col.id].length}
                 </span>
               </TabsTrigger>
