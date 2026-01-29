@@ -168,7 +168,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
         icon: <MessageSquare className="size-3.5" />,
         badge:
           commentCount > 0 ? (
-            <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+            <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
               {commentCount}
             </span>
           ) : undefined,
@@ -180,7 +180,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
         icon: <CheckCircle2 className="size-3.5" />,
         badge:
           failingCheckCount > 0 ? (
-            <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+            <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20">
               {failingCheckCount}
             </span>
           ) : undefined,
@@ -192,7 +192,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
         icon: <BarChart3 className="size-3.5" />,
         badge:
           hasCoverage && !coverageCheckPassed ? (
-            <span className="size-2 rounded-full bg-red-500" />
+            <span className="size-2 rounded-full bg-destructive" />
           ) : undefined,
         requiresPR: true,
       },
@@ -201,7 +201,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
         label: "Merge",
         icon: <GitMerge className="size-3.5" />,
         badge: hasConflicts ? (
-          <span className="size-2 rounded-full bg-red-500" />
+          <span className="size-2 rounded-full bg-destructive" />
         ) : undefined,
         requiresPR: true,
       },
