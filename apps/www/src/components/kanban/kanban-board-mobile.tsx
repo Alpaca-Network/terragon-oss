@@ -33,7 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const getColumnHeaderColor = (columnId: KanbanColumnType) => {
+export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
     case "backlog":
       return "data-[state=active]:bg-muted";
@@ -51,7 +51,34 @@ const getColumnHeaderColor = (columnId: KanbanColumnType) => {
 };
 
 // Minimum swipe distance required to trigger tab change
-const SWIPE_THRESHOLD = 50;
+export const SWIPE_THRESHOLD = 50;
+
+// FAB (Floating Action Button) configuration - exported for testing
+export const FAB_CLASSES = {
+  position: "fixed bottom-6 right-6",
+  size: "h-14 w-14",
+  style: "rounded-full shadow-lg z-50",
+} as const;
+
+// Content padding to account for FAB height
+export const CONTENT_BOTTOM_PADDING = "pb-20";
+
+// Calculate scroll position to center a tab
+export const calculateScrollToCenter = (
+  tabsListWidth: number,
+  tabOffsetLeft: number,
+  tabWidth: number,
+): number => {
+  return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
+};
+
+// Determine if archive toggle should be shown
+export const shouldShowArchiveToggle = (
+  columnId: KanbanColumnType,
+  isArchivedView: boolean,
+): boolean => {
+  return columnId === "done" && !isArchivedView;
+};
 
 export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters,
@@ -71,11 +98,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
-
-  // Refs for tab triggers to enable scroll into view
-  const tabTriggerRefs = useRef<
-    Map<KanbanColumnType, HTMLButtonElement | null>
-  >(new Map());
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -218,10 +240,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       if (activeTab) {
         const tabsListRect = tabsList.getBoundingClientRect();
         const activeTabRect = activeTab.getBoundingClientRect();
-        const scrollLeft =
-          activeTab.offsetLeft -
-          tabsListRect.width / 2 +
-          activeTabRect.width / 2;
+        const scrollLeft = calculateScrollToCenter(
+          tabsListRect.width,
+          activeTab.offsetLeft,
+          activeTabRect.width,
+        );
         tabsList.scrollTo({
           left: scrollLeft,
           behavior: "smooth",
@@ -349,9 +372,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                 <TabsTrigger
                   key={col.id}
                   value={col.id}
-                  ref={(el) => {
-                    tabTriggerRefs.current.set(col.id, el);
-                  }}
                   className={cn(
                     "flex-shrink-0 gap-1.5 px-2.5 rounded-md",
                     getColumnHeaderColor(col.id),
@@ -378,9 +398,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             onTouchEnd={handleTouchEnd}
           >
             <ScrollArea className="h-full">
-              <div className="p-3 space-y-3">
+              <div className={cn("p-3 space-y-3", CONTENT_BOTTOM_PADDING)}>
                 {/* Show archived toggle for Done column */}
-                {col.id === "done" && !queryFilters.archived && (
+                {shouldShowArchiveToggle(
+                  col.id,
+                  queryFilters.archived ?? false,
+                ) && (
                   <div className="flex items-center justify-end">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -448,7 +471,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       <Button
         variant="default"
         size="icon"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        className={cn(
+          FAB_CLASSES.position,
+          FAB_CLASSES.size,
+          FAB_CLASSES.style,
+        )}
         onClick={handleOpenNewTaskDrawer}
       >
         <Plus className="h-6 w-6" />
