@@ -479,10 +479,27 @@ export async function startAgentMessage({
             throw new ThreadError("no-user-message", "", null);
           }
 
+          // Determine if user has own credentials for this agent
+          const hasOwnCredentials =
+            (agentForModel === "codex" && userCredentials.hasOpenAI) ||
+            (agentForModel === "claudeCode" && userCredentials.hasClaude) ||
+            (agentForModel === "amp" && userCredentials.hasAmp);
+
+          // Gatewayz is the default provider when:
+          // 1. User has an active Gatewayz subscription (pro/max)
+          // 2. User doesn't have their own credentials for this agent
+          const shouldUseGatewayz =
+            userCredentials.hasGatewayz && !hasOwnCredentials;
+
+          // Fall back to built-in credits only when:
+          // 1. User doesn't have Gatewayz subscription
+          // 2. User doesn't have their own credentials
+          // 3. Agent doesn't support connected credentials
           const shouldUseCredits =
-            (agentForModel === "codex" && !userCredentials.hasOpenAI) ||
-            (agentForModel === "claudeCode" && !userCredentials.hasClaude) ||
-            !isConnectedCredentialsSupported(agentForModel);
+            !shouldUseGatewayz &&
+            ((agentForModel === "codex" && !userCredentials.hasOpenAI) ||
+              (agentForModel === "claudeCode" && !userCredentials.hasClaude) ||
+              !isConnectedCredentialsSupported(agentForModel));
 
           await sendDaemonMessage({
             message: {
@@ -493,6 +510,7 @@ export async function startAgentMessage({
               prompt: finalFinalPrompt,
               sessionId,
               permissionMode: threadChat.permissionMode || "allowAll",
+              ...(shouldUseGatewayz ? { useGatewayz: true } : {}),
               ...(shouldUseCredits ? { useCredits: true } : {}),
             },
             userId,
