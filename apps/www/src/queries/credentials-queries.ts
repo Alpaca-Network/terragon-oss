@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { saveCodexAuthJson } from "@/server-actions/codex-auth";
 import { exchangeCode } from "@/server-actions/claude-oauth";
+import { exchangeGoogleCode } from "@/server-actions/google-oauth";
 import { AIAgent } from "@terragon/agent/types";
 
 export const credentialsQueryKeys = {
@@ -171,6 +172,19 @@ export function useExchangeClaudeAuthorizationCodeMutation() {
     mutationFn: exchangeCode,
     onSuccess: () => {
       toast.success("Claude credentials saved");
+      queryClient.invalidateQueries({
+        queryKey: credentialsQueryKeys.list(),
+      });
+    },
+  });
+}
+
+export function useExchangeGoogleAuthorizationCodeMutation() {
+  const queryClient = useQueryClient();
+  return useServerActionMutation({
+    mutationFn: exchangeGoogleCode,
+    onSuccess: () => {
+      toast.success("Gemini credentials saved");
       queryClient.invalidateQueries({
         queryKey: credentialsQueryKeys.list(),
       });

@@ -171,6 +171,7 @@ export const ThreadListHeader = memo(function ThreadListHeader({
               className="h-8 w-8 hover:bg-sidebar-accent/50"
               onClick={() => setViewMode("kanban")}
               title="Switch to Kanban view"
+              aria-label="Switch to Kanban view"
             >
               <Kanban className="h-3.5 w-3.5" />
             </Button>

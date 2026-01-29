@@ -167,12 +167,10 @@ describe("Backlog Templates", () => {
       expect(template.id).toMatch(/^custom-\d+$/);
     });
 
-    it("should generate different IDs for multiple templates", () => {
+    it("should generate IDs with correct format for multiple templates", () => {
       const template1 = createCustomTemplate("Test 1", "Desc", "Prompt");
-      // Small delay to ensure different timestamps
       const template2 = createCustomTemplate("Test 2", "Desc", "Prompt");
-      // IDs might be the same if created in the same millisecond,
-      // so we just verify the format is correct
+      // Verify the ID format is correct (custom-{timestamp})
       expect(template1.id).toMatch(/^custom-\d+$/);
       expect(template2.id).toMatch(/^custom-\d+$/);
     });

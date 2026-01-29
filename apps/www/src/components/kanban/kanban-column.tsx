@@ -20,6 +20,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   selectedThreadId,
   onThreadSelect,
   onAddToBacklog,
+  onThreadCommentsClick,
   showArchivedToggle,
   showArchived,
   onToggleArchived,
@@ -29,6 +30,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
   onAddToBacklog?: () => void;
+  onThreadCommentsClick?: (thread: ThreadInfo) => void;
   showArchivedToggle?: boolean;
   showArchived?: boolean;
   onToggleArchived?: () => void;
@@ -132,6 +134,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                   thread={thread}
                   isSelected={selectedThreadId === thread.id}
                   onClick={() => onThreadSelect(thread)}
+                  onCommentsClick={() => onThreadCommentsClick?.(thread)}
                 />
               ))
             )}
