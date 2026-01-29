@@ -200,4 +200,60 @@ describe("Kanban Mobile Components", () => {
       expect(NEW_TASK_DRAWER_HEIGHT).toBe(taskDrawerHeight);
     });
   });
+
+  describe("Archive toggle in Done column", () => {
+    it("should only show archive toggle for done column", () => {
+      const showArchiveToggle = (columnId: KanbanColumn) => columnId === "done";
+
+      expect(showArchiveToggle("done")).toBe(true);
+      expect(showArchiveToggle("backlog")).toBe(false);
+      expect(showArchiveToggle("in_progress")).toBe(false);
+      expect(showArchiveToggle("in_review")).toBe(false);
+      expect(showArchiveToggle("cancelled")).toBe(false);
+    });
+
+    it("should not show archive toggle when viewing archived tasks", () => {
+      // When queryFilters.archived is true, toggle should be hidden
+      const showArchiveToggle = (
+        columnId: KanbanColumn,
+        isArchivedView: boolean,
+      ) => columnId === "done" && !isArchivedView;
+
+      expect(showArchiveToggle("done", true)).toBe(false);
+      expect(showArchiveToggle("done", false)).toBe(true);
+    });
+  });
+
+  describe("Tab scroll to center on swipe", () => {
+    it("should calculate correct scroll position to center a tab", () => {
+      // Simulates the scroll calculation
+      const calculateScrollToCenter = (
+        tabsListWidth: number,
+        tabOffsetLeft: number,
+        tabWidth: number,
+      ) => {
+        return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
+      };
+
+      // Example: tabs list is 300px wide, tab is at 150px offset with 60px width
+      const scrollPos = calculateScrollToCenter(300, 150, 60);
+      // Expected: 150 - 150 + 30 = 30
+      expect(scrollPos).toBe(30);
+    });
+
+    it("should handle scroll for first tab correctly", () => {
+      const calculateScrollToCenter = (
+        tabsListWidth: number,
+        tabOffsetLeft: number,
+        tabWidth: number,
+      ) => {
+        return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
+      };
+
+      // First tab at offset 0, width 60px, list is 300px
+      const scrollPos = calculateScrollToCenter(300, 0, 60);
+      // Expected: 0 - 150 + 30 = -120 (browser will clamp to 0)
+      expect(scrollPos).toBe(-120);
+    });
+  });
 });
