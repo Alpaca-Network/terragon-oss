@@ -17,6 +17,7 @@ import {
   MessageCircle,
   LayoutList,
   SquarePen,
+  List,
 } from "lucide-react";
 import {
   ThreadListFilters,
@@ -239,18 +240,33 @@ export const KanbanBoard = memo(function KanbanBoard({
         ref={containerRef}
         className="flex flex-col h-full w-full overflow-hidden"
       >
-        {/* Board header with New Task button */}
+        {/* Board header with view toggle and New Task button */}
         <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
           <h2 className="font-semibold text-sm">Tasks</h2>
-          <Button
-            variant="default"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleOpenNewTaskDialog}
-          >
-            <SquarePen className="h-4 w-4" />
-            New Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setViewMode("list")}
+                  className="h-8 w-8"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Switch to List view</TooltipContent>
+            </Tooltip>
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleOpenNewTaskDialog}
+            >
+              <SquarePen className="h-4 w-4" />
+              New Task
+            </Button>
+          </div>
         </div>
 
         {/* Main content area */}

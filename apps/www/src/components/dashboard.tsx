@@ -106,7 +106,7 @@ export function Dashboard({
   const showRecommendedTasks =
     (data?.pages.flatMap((page) => page) ?? []).length < 3;
 
-  // Show Kanban view on larger screens when viewMode is 'kanban'
+  // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
 
   return (
@@ -157,22 +157,28 @@ export function Dashboard({
                 allowGroupBy={true}
                 showSuggestedTasks={false}
                 setPromptText={setPromptText}
+                showViewToggle={true}
               />
             </div>
           )}
         </div>
       )}
 
-      {/* Mobile: Always show list view */}
+      {/* Mobile: Show Kanban or List based on viewMode with view toggle */}
       {mounted && (
-        <div className="lg:hidden">
-          <ThreadListMain
-            queryFilters={{ archived: showArchived }}
-            viewFilter={showArchived ? "archived" : "active"}
-            allowGroupBy={true}
-            showSuggestedTasks={showRecommendedTasks}
-            setPromptText={setPromptText}
-          />
+        <div className="lg:hidden flex-1 min-h-0">
+          {showKanbanView ? (
+            <KanbanBoard queryFilters={{ archived: showArchived }} />
+          ) : (
+            <ThreadListMain
+              queryFilters={{ archived: showArchived }}
+              viewFilter={showArchived ? "archived" : "active"}
+              allowGroupBy={true}
+              showSuggestedTasks={showRecommendedTasks}
+              setPromptText={setPromptText}
+              showViewToggle={true}
+            />
+          )}
         </div>
       )}
     </div>

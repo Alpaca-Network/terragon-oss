@@ -12,6 +12,7 @@ import {
   Archive,
   SlidersHorizontal,
   List,
+  Kanban,
 } from "lucide-react";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
@@ -32,6 +33,7 @@ import {
   toggleThreadListCollapsedSectionAtom,
   timeZoneAtom,
   threadListGroupByAtom,
+  dashboardViewModeAtom,
 } from "@/atoms/user-cookies";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { cn } from "@/lib/utils";
@@ -43,13 +45,16 @@ export const ThreadListHeader = memo(function ThreadListHeader({
   viewFilter,
   setViewFilter,
   allowGroupBy,
+  showViewToggle = false,
 }: {
   className?: string;
   viewFilter: "all" | "active" | "archived";
   setViewFilter: (viewFilter: "active" | "archived") => void;
   allowGroupBy: boolean;
+  showViewToggle?: boolean;
 }) {
   const [groupBy, setGroupBy] = useAtom(threadListGroupByAtom);
+  const setViewMode = useSetAtom(dashboardViewModeAtom);
   return (
     <div
       className={cn(
@@ -59,6 +64,17 @@ export const ThreadListHeader = memo(function ThreadListHeader({
     >
       <h2 className="font-semibold text-sm">Tasks</h2>
       <div className="flex items-center gap-0.5">
+        {showViewToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hover:bg-sidebar-accent/50"
+            onClick={() => setViewMode("kanban")}
+            title="Switch to Kanban view"
+          >
+            <Kanban className="h-3.5 w-3.5" />
+          </Button>
+        )}
         {viewFilter !== "all" && (
           <SheetOrMenu
             trigger={
@@ -569,12 +585,14 @@ export const ThreadListMain = memo(function ThreadListMain({
   allowGroupBy,
   showSuggestedTasks = true,
   setPromptText,
+  showViewToggle = false,
 }: {
   viewFilter: "all" | "active" | "archived";
   queryFilters: ThreadListFilters;
   allowGroupBy: boolean;
   showSuggestedTasks?: boolean;
   setPromptText: (promptText: string) => void;
+  showViewToggle?: boolean;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -594,6 +612,7 @@ export const ThreadListMain = memo(function ThreadListMain({
             router.push(`${pathname}?${params.toString()}`);
           }}
           allowGroupBy={allowGroupBy}
+          showViewToggle={showViewToggle}
         />
         <ThreadListContents
           viewFilter={viewFilter}
