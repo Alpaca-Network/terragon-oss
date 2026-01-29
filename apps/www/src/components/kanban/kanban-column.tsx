@@ -4,10 +4,10 @@ import { ThreadInfo } from "@terragon/shared";
 import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Archive, ArchiveRestore, Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -20,12 +20,18 @@ export const KanbanColumn = memo(function KanbanColumn({
   selectedThreadId,
   onThreadSelect,
   onAddToBacklog,
+  showArchivedToggle,
+  showArchived,
+  onToggleArchived,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
   onAddToBacklog?: () => void;
+  showArchivedToggle?: boolean;
+  showArchived?: boolean;
+  onToggleArchived?: () => void;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
 
@@ -59,11 +65,13 @@ export const KanbanColumn = memo(function KanbanColumn({
           getColumnHeaderColor(column),
         )}
       >
-        <span>{columnConfig.title}</span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          <span>{columnConfig.title}</span>
           <span className="text-xs opacity-70 bg-white/30 dark:bg-black/20 px-1.5 py-0.5 rounded-full">
             {threads.length}
           </span>
+        </div>
+        <div className="flex items-center gap-1">
           {column === "backlog" && onAddToBacklog && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -80,6 +88,30 @@ export const KanbanColumn = memo(function KanbanColumn({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Add to backlog</TooltipContent>
+            </Tooltip>
+          )}
+          {showArchivedToggle && onToggleArchived && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-6 w-6",
+                    showArchived && "bg-white/20 dark:bg-black/20",
+                  )}
+                  onClick={onToggleArchived}
+                >
+                  {showArchived ? (
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                  ) : (
+                    <Archive className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {showArchived ? "Hide archived tasks" : "Show archived tasks"}
+              </TooltipContent>
             </Tooltip>
           )}
         </div>

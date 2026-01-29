@@ -1,8 +1,14 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, useCallback, useRef } from "react";
-import { LoaderCircle, RefreshCw, Plus } from "lucide-react";
+import { memo, useMemo, useState, useCallback, useRef, useEffect } from "react";
+import {
+  LoaderCircle,
+  RefreshCw,
+  Plus,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +27,11 @@ import {
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
@@ -51,6 +62,10 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const [activeColumn, setActiveColumn] =
     useState<KanbanColumnType>("in_progress");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
+  const [showArchivedInDone, setShowArchivedInDone] = useState(false);
+
+  // Ref for tab list to scroll to center
+  const tabsListRef = useRef<HTMLDivElement>(null);
 
   // Swipe gesture tracking
   const touchStartX = useRef<number | null>(null);
@@ -63,12 +78,32 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
 
+  // Fetch archived threads when showing archived in Done column
+  const archivedFilters = useMemo(
+    () => ({
+      ...queryFilters,
+      archived: true,
+    }),
+    [queryFilters],
+  );
+  const { data: archivedData, refetch: refetchArchived } =
+    useInfiniteThreadList(archivedFilters);
+
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
   );
 
+  const archivedThreads = useMemo(
+    () => archivedData?.pages.flatMap((page) => page) ?? [],
+    [archivedData],
+  );
+
   const threadIds = useMemo(() => new Set(threads.map((t) => t.id)), [threads]);
+  const archivedThreadIds = useMemo(
+    () => new Set(archivedThreads.map((t) => t.id)),
+    [archivedThreads],
+  );
 
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
@@ -85,6 +120,17 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       groups[column].push(thread);
     }
 
+    // Add archived threads to Done column if toggle is enabled
+    if (showArchivedInDone) {
+      for (const thread of archivedThreads) {
+        const column = getKanbanColumn(thread);
+        // Only add archived threads that would be in the Done column
+        if (column === "done") {
+          groups.done.push(thread);
+        }
+      }
+    }
+
     // Sort each column by updatedAt (most recent first)
     for (const column of Object.keys(groups) as KanbanColumnType[]) {
       groups[column].sort(
@@ -94,11 +140,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
 
     return groups;
-  }, [threads]);
+  }, [threads, archivedThreads, showArchivedInDone]);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      if (threadIds.has(threadId) || archivedThreadIds.has(threadId)) {
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
@@ -108,7 +154,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         return false;
       }
       if (typeof data.isThreadArchived === "boolean") {
+        // Match both archived and non-archived based on current filters and toggle state
         if (showArchived === data.isThreadArchived) {
+          return true;
+        }
+        // Also match archived threads when showArchivedInDone is enabled
+        if (showArchivedInDone && data.isThreadArchived) {
           return true;
         }
       }
@@ -117,13 +168,22 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       }
       return false;
     },
-    [threadIds, showArchived, automationId],
+    [
+      threadIds,
+      archivedThreadIds,
+      showArchived,
+      showArchivedInDone,
+      automationId,
+    ],
   );
 
   useRealtimeThreadMatch({
     matchThread,
     onThreadChange: () => {
       refetch();
+      if (showArchivedInDone) {
+        refetchArchived();
+      }
     },
   });
 
@@ -142,6 +202,28 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const handleCloseNewTaskDrawer = useCallback(() => {
     setNewTaskDrawerOpen(false);
   }, []);
+
+  // Scroll active tab to center when it changes
+  useEffect(() => {
+    if (tabsListRef.current) {
+      const tabsList = tabsListRef.current;
+      const activeTab = tabsList.querySelector(
+        `[data-state="active"]`,
+      ) as HTMLElement | null;
+      if (activeTab) {
+        const tabsListRect = tabsList.getBoundingClientRect();
+        const activeTabRect = activeTab.getBoundingClientRect();
+        const scrollLeft =
+          activeTab.offsetLeft -
+          tabsListRect.width / 2 +
+          activeTabRect.width / 2;
+        tabsList.scrollTo({
+          left: scrollLeft,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [activeColumn]);
 
   // Get the column index for the given column ID
   const getColumnIndex = useCallback((columnId: KanbanColumnType): number => {
@@ -255,8 +337,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         className="flex flex-col h-full"
       >
         {/* Column tabs - horizontally scrollable with new task button */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-2">
-          <div className="flex-1 overflow-x-auto">
+        <div className="flex-shrink-0 flex items-center gap-2 px-2 border-b">
+          <div
+            ref={tabsListRef}
+            className="flex-1 overflow-x-auto scrollbar-hide"
+          >
             <TabsList className="w-max min-w-full gap-1">
               {KANBAN_COLUMNS.map((col) => (
                 <TabsTrigger
@@ -298,6 +383,37 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           >
             <ScrollArea className="h-full">
               <div className="p-3 space-y-3">
+                {/* Show archived toggle for Done column */}
+                {col.id === "done" && !queryFilters.archived && (
+                  <div className="flex items-center justify-end">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={showArchivedInDone ? "secondary" : "ghost"}
+                          size="sm"
+                          className="h-7 px-2 gap-1.5 text-xs"
+                          onClick={() =>
+                            setShowArchivedInDone(!showArchivedInDone)
+                          }
+                        >
+                          {showArchivedInDone ? (
+                            <ArchiveRestore className="h-3.5 w-3.5" />
+                          ) : (
+                            <Archive className="h-3.5 w-3.5" />
+                          )}
+                          {showArchivedInDone
+                            ? "Hide Archived"
+                            : "Show Archived"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {showArchivedInDone
+                          ? "Hide archived tasks"
+                          : "Show archived tasks in Done column"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
                 {columnThreads[col.id].length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
                     No tasks in {col.title.toLowerCase()}
