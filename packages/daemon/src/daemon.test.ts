@@ -1608,5 +1608,35 @@ describe("daemon", () => {
       expect(claudeCommand).toContain("--dangerously-skip-permissions");
       expect(claudeCommand).not.toContain("--permission-mode");
     });
+
+    it("should use --dangerously-skip-permissions when permissionMode is loop", async () => {
+      const loopModeMessage: DaemonMessageClaude = {
+        ...TEST_INPUT_MESSAGE,
+        permissionMode: "loop",
+        loopConfig: {
+          maxIterations: 10,
+          completionPromise: "DONE",
+          useRegex: false,
+          requireApproval: false,
+          currentIteration: 1,
+          isLoopActive: true,
+          awaitingApproval: false,
+        },
+      };
+
+      await daemon.start();
+      await writeToUnixSocket({
+        unixSocketPath: runtime.unixSocketPath,
+        dataStr: JSON.stringify(loopModeMessage),
+      });
+      await sleepUntil(() => spawnCommandLineMock.mock.calls.length === 1);
+      expect(spawnCommandLineMock).toHaveBeenCalledTimes(1);
+      const claudeCommand = spawnCommandLineMock.mock.calls[0]![0];
+
+      // Loop mode should use --dangerously-skip-permissions (same as allowAll)
+      expect(claudeCommand).toContain("--dangerously-skip-permissions");
+      // Should NOT include --permission-mode plan
+      expect(claudeCommand).not.toContain("--permission-mode plan");
+    });
   });
 });

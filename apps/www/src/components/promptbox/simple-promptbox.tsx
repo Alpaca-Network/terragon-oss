@@ -20,7 +20,10 @@ import { Attachment } from "@/lib/attachment-types";
 import { AddContextButton } from "./add-context-button";
 import { FileAttachmentButton } from "./file-attachment-button";
 import { Typeahead } from "./typeahead/typeahead";
-import { ModeSelector } from "@/components/promptbox/mode-selector";
+import {
+  ModeSelector,
+  LoopConfigInput,
+} from "@/components/promptbox/mode-selector";
 import { TSubmitForm } from "./send-button";
 
 export function SimplePromptBox({
@@ -50,6 +53,8 @@ export function SimplePromptBox({
   supportSchedule,
   permissionMode,
   onPermissionModeChange,
+  loopConfig,
+  onLoopConfigChange,
   hideModelSelector = false,
   hideModeSelector = false,
   hideAddContextButton = false,
@@ -80,8 +85,10 @@ export function SimplePromptBox({
   typeahead: Typeahead | null;
   supportSaveAsDraft?: boolean;
   supportSchedule?: boolean;
-  permissionMode: "allowAll" | "plan";
-  onPermissionModeChange: (mode: "allowAll" | "plan") => void;
+  permissionMode: "allowAll" | "plan" | "loop";
+  onPermissionModeChange: (mode: "allowAll" | "plan" | "loop") => void;
+  loopConfig?: LoopConfigInput;
+  onLoopConfigChange?: (config: LoopConfigInput) => void;
   hideModelSelector?: boolean;
   hideModeSelector?: boolean;
   hideAddContextButton?: boolean;
@@ -163,6 +170,8 @@ export function SimplePromptBox({
               <ModeSelector
                 mode={permissionMode ?? "allowAll"}
                 onChange={onPermissionModeChange}
+                loopConfig={loopConfig}
+                onLoopConfigChange={onLoopConfigChange}
               />
             )}
         </div>

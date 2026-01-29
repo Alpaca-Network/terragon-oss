@@ -1,34 +1,89 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, useCallback } from "react";
+import { memo, useMemo, useState, useCallback, useRef } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { KanbanColumn } from "./kanban-column";
-import { KanbanTaskDetail } from "./kanban-task-detail";
 import {
   KanbanColumn as KanbanColumnType,
   KANBAN_COLUMNS,
   getKanbanColumn,
 } from "./types";
-import { LoaderCircle, SquarePen } from "lucide-react";
+import {
+  LoaderCircle,
+  X,
+  MessageSquare,
+  GitCommit,
+  MessageCircle,
+  LayoutList,
+  SquarePen,
+} from "lucide-react";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
+  threadQueryOptions,
 } from "@/queries/thread-queries";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
+import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useResizablePanel } from "@/hooks/use-resizable-panel";
+import { useQuery } from "@tanstack/react-query";
+import { useAtom, useSetAtom } from "jotai";
+import {
+  dashboardViewModeAtom,
+  kanbanNewTaskDialogOpenAtom,
+} from "@/atoms/user-cookies";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { NewTaskDialog } from "./new-task-dialog";
 import { QuickAddBacklogDialog } from "./quick-add-backlog";
-import { useAtom } from "jotai";
-import { kanbanNewTaskDialogOpenAtom } from "@/atoms/user-cookies";
+
+// Dynamically import ChatUI to avoid SSR issues
+const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+    </div>
+  ),
+});
+
+// Dynamically import GitDiffView for the Changes tab
+const GitDiffView = dynamic(
+  () =>
+    import("@/components/chat/git-diff-view").then((mod) => mod.GitDiffView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+type TaskPanelTab = "feed" | "changes" | "comments";
+
+const TASK_PANEL_MIN_WIDTH = 500;
+const TASK_PANEL_MAX_WIDTH_PERCENT = 75;
+const TASK_PANEL_DEFAULT_WIDTH_PERCENT = 55;
 
 export const KanbanBoard = memo(function KanbanBoard({
   queryFilters,
 }: {
   queryFilters: ThreadListFilters;
 }) {
-  const [selectedThread, setSelectedThread] = useState<ThreadInfo | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const setViewMode = useSetAtom(dashboardViewModeAtom);
+
+  // New Task and Quick Add Backlog dialog state
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useAtom(
     kanbanNewTaskDialogOpenAtom,
   );
@@ -104,21 +159,60 @@ export const KanbanBoard = memo(function KanbanBoard({
     },
   });
 
+  // Fetch full thread data for the selected thread (needed for Changes tab)
+  const { data: selectedThread } = useQuery({
+    ...threadQueryOptions(selectedThreadId ?? ""),
+    enabled: !!selectedThreadId,
+  });
+
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
-    setSelectedThread(thread);
+    setSelectedThreadId(thread.id);
+    setActiveTab("feed"); // Reset to feed tab when selecting a new thread
   }, []);
 
   const handleCloseDetail = useCallback(() => {
-    setSelectedThread(null);
+    setSelectedThreadId(null);
   }, []);
 
   const handleOpenNewTaskDialog = useCallback(() => {
     setIsNewTaskDialogOpen(true);
-  }, []);
+  }, [setIsNewTaskDialogOpen]);
 
   const handleOpenQuickAddBacklog = useCallback(() => {
     setIsQuickAddBacklogOpen(true);
   }, []);
+
+  // Calculate max width based on container
+  const getMaxWidth = useCallback(() => {
+    if (containerRef.current) {
+      return (
+        (containerRef.current.offsetWidth * TASK_PANEL_MAX_WIDTH_PERCENT) / 100
+      );
+    }
+    return 800;
+  }, []);
+
+  const getDefaultWidth = useCallback(() => {
+    if (containerRef.current) {
+      return (
+        (containerRef.current.offsetWidth * TASK_PANEL_DEFAULT_WIDTH_PERCENT) /
+        100
+      );
+    }
+    return 600;
+  }, []);
+
+  const {
+    width: panelWidth,
+    isResizing,
+    handleMouseDown,
+  } = useResizablePanel({
+    minWidth: TASK_PANEL_MIN_WIDTH,
+    maxWidth: getMaxWidth(),
+    defaultWidth: getDefaultWidth(),
+    mode: "fixed",
+    direction: "rtl",
+  });
 
   if (isLoading) {
     return (
@@ -141,9 +235,12 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   return (
     <>
-      <div className="flex flex-col h-full w-full">
+      <div
+        ref={containerRef}
+        className="flex flex-col h-full w-full overflow-hidden"
+      >
         {/* Board header with New Task button */}
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
           <h2 className="font-semibold text-sm">Tasks</h2>
           <Button
             variant="default"
@@ -156,35 +253,136 @@ export const KanbanBoard = memo(function KanbanBoard({
           </Button>
         </div>
 
-        {/* Kanban columns */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full w-full">
-            <div className="flex gap-4 p-4 h-full min-h-[500px]">
-              {KANBAN_COLUMNS.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column.id}
-                  threads={columnThreads[column.id]}
-                  selectedThreadId={selectedThread?.id ?? null}
-                  onThreadSelect={handleThreadSelect}
-                  onAddToBacklog={
-                    column.id === "backlog"
-                      ? handleOpenQuickAddBacklog
-                      : undefined
-                  }
-                />
-              ))}
+        {/* Main content area */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Kanban columns */}
+          <div
+            className={cn(
+              "flex-1 min-h-0 overflow-hidden transition-all duration-200",
+              selectedThreadId && "min-w-[300px]",
+            )}
+          >
+            <ScrollArea className="h-full w-full">
+              <div className="flex gap-4 p-4 h-full min-h-[500px]">
+                {KANBAN_COLUMNS.map((column) => (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column.id}
+                    threads={columnThreads[column.id]}
+                    selectedThreadId={selectedThreadId}
+                    onThreadSelect={handleThreadSelect}
+                    onAddToBacklog={
+                      column.id === "backlog"
+                        ? handleOpenQuickAddBacklog
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
+
+          {/* Task detail panel */}
+          {selectedThreadId && (
+            <div
+              className="relative flex-shrink-0 border-l bg-background flex flex-col"
+              style={{ width: `${panelWidth}px` }}
+            >
+              {/* Resize handle */}
+              <div
+                className={cn(
+                  "absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
+                  isResizing && "bg-primary/50",
+                )}
+                onMouseDown={handleMouseDown}
+              />
+
+              {/* Panel header with tabs and view toggle */}
+              <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+                {/* Tabs */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={activeTab === "feed" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3 gap-1.5"
+                    onClick={() => setActiveTab("feed")}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span className="text-xs">Feed</span>
+                  </Button>
+                  <Button
+                    variant={activeTab === "changes" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3 gap-1.5"
+                    onClick={() => setActiveTab("changes")}
+                    disabled={!selectedThread?.gitDiff}
+                  >
+                    <GitCommit className="h-3.5 w-3.5" />
+                    <span className="text-xs">Changes</span>
+                  </Button>
+                  <Button
+                    variant={activeTab === "comments" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3 gap-1.5"
+                    onClick={() => setActiveTab("comments")}
+                    disabled
+                    title="Coming soon"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    <span className="text-xs">Comments</span>
+                  </Button>
+                </div>
+
+                {/* View toggle and close button */}
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setViewMode("list")}
+                        className="h-8 w-8"
+                      >
+                        <LayoutList className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      Switch to List view
+                    </TooltipContent>
+                  </Tooltip>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleCloseDetail}
+                    className="h-8 w-8"
+                    title="Close task details"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tab content */}
+              <div className="flex-1 overflow-hidden">
+                {activeTab === "feed" && (
+                  <ChatUI threadId={selectedThreadId} isReadOnly={false} />
+                )}
+                {activeTab === "changes" && selectedThread && (
+                  <div className="h-full overflow-auto">
+                    <GitDiffView thread={selectedThread} />
+                  </div>
+                )}
+                {activeTab === "comments" && (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <p className="text-sm">Comments coming soon</p>
+                  </div>
+                )}
+              </div>
             </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          )}
         </div>
       </div>
-
-      <KanbanTaskDetail
-        thread={selectedThread}
-        open={selectedThread !== null}
-        onClose={handleCloseDetail}
-      />
 
       <NewTaskDialog
         open={isNewTaskDialogOpen}

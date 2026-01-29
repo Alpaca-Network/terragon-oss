@@ -2035,4 +2035,330 @@ describe("end-to-end", () => {
     expect(threadChatUpdated!.sessionId).toBe("test-session-id-1");
     expect(threadChatUpdated!.errorMessage).toBe("agent-generic-error");
   });
+
+  describe("loop mode", () => {
+    it("should complete loop when completion promise is found", async () => {
+      const testUserAndAccount = await createTestUser({ db });
+      const user = testUserAndAccount.user;
+      const session = testUserAndAccount.session;
+      await saveClaudeTokensForTest({ userId: user.id });
+
+      await mockWaitUntil();
+      await mockLoggedInUser(session);
+
+      const { threadId, threadChatId } = await newThread({
+        message: {
+          type: "user",
+          model: "sonnet",
+          parts: [{ type: "text", text: "Hello, world!" }],
+          permissionMode: "loop",
+          loopConfig: {
+            maxIterations: 10,
+            completionPromise: "DONE",
+            useRegex: false,
+            requireApproval: false,
+          },
+        },
+        githubRepoFullName: "terragon/test-repo",
+        branchName: "main",
+      });
+      await waitUntilResolved();
+
+      // Simulate init
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "system",
+            subtype: "init",
+            session_id: "test-session-id-1",
+            tools: [],
+            mcp_servers: [],
+          },
+        ],
+      });
+
+      // Verify loop is initialized
+      let threadChat = await getThreadChat({
+        db,
+        userId: user.id,
+        threadId,
+        threadChatId,
+      });
+      expect(threadChat!.loopConfig?.isLoopActive).toBe(true);
+      expect(threadChat!.loopConfig?.currentIteration).toBe(1);
+
+      // Simulate agent completion with "DONE" in output
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "assistant",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Task completed. DONE" }],
+            },
+            parent_tool_use_id: null,
+            session_id: "test-session-id-1",
+          },
+          getClaudeResultMessage(),
+        ],
+      });
+      await waitUntilResolved();
+
+      // Verify loop completed
+      threadChat = await getThreadChat({
+        db,
+        userId: user.id,
+        threadId,
+        threadChatId,
+      });
+      expect(threadChat!.loopConfig?.isLoopActive).toBe(false);
+      // Status is "complete" after result message processing
+      expect(threadChat!.status).toBe("complete");
+    });
+
+    it("should stop loop when max iterations reached", async () => {
+      const testUserAndAccount = await createTestUser({ db });
+      const user = testUserAndAccount.user;
+      const session = testUserAndAccount.session;
+      await saveClaudeTokensForTest({ userId: user.id });
+
+      await mockWaitUntil();
+      await mockLoggedInUser(session);
+
+      const { threadId, threadChatId } = await newThread({
+        message: {
+          type: "user",
+          model: "sonnet",
+          parts: [{ type: "text", text: "Hello, world!" }],
+          permissionMode: "loop",
+          loopConfig: {
+            maxIterations: 1,
+            completionPromise: "DONE",
+            useRegex: false,
+            requireApproval: false,
+          },
+        },
+        githubRepoFullName: "terragon/test-repo",
+        branchName: "main",
+      });
+      await waitUntilResolved();
+
+      // Simulate init
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "system",
+            subtype: "init",
+            session_id: "test-session-id-1",
+            tools: [],
+            mcp_servers: [],
+          },
+        ],
+      });
+
+      // Simulate agent completion without DONE (should hit max iterations)
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "assistant",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Still working..." }],
+            },
+            parent_tool_use_id: null,
+            session_id: "test-session-id-1",
+          },
+          getClaudeResultMessage(),
+        ],
+      });
+      await waitUntilResolved();
+
+      // Verify loop stopped at max iterations
+      const threadChat = await getThreadChat({
+        db,
+        userId: user.id,
+        threadId,
+        threadChatId,
+      });
+      expect(threadChat!.loopConfig?.isLoopActive).toBe(false);
+      expect(threadChat!.loopConfig?.currentIteration).toBe(1);
+    });
+
+    it("should handle regex completion detection with invalid regex gracefully", async () => {
+      const testUserAndAccount = await createTestUser({ db });
+      const user = testUserAndAccount.user;
+      const session = testUserAndAccount.session;
+      await saveClaudeTokensForTest({ userId: user.id });
+
+      await mockWaitUntil();
+      await mockLoggedInUser(session);
+
+      const { threadId, threadChatId } = await newThread({
+        message: {
+          type: "user",
+          model: "sonnet",
+          parts: [{ type: "text", text: "Hello, world!" }],
+          permissionMode: "loop",
+          loopConfig: {
+            maxIterations: 2,
+            completionPromise: "[unclosed", // Invalid regex
+            useRegex: true,
+            requireApproval: false,
+          },
+        },
+        githubRepoFullName: "terragon/test-repo",
+        branchName: "main",
+      });
+      await waitUntilResolved();
+
+      // Simulate init
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "system",
+            subtype: "init",
+            session_id: "test-session-id-1",
+            tools: [],
+            mcp_servers: [],
+          },
+        ],
+      });
+
+      // Simulate agent completion with the literal string [unclosed
+      // Should fall back to exact string match due to invalid regex
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "assistant",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Result: [unclosed" }],
+            },
+            parent_tool_use_id: null,
+            session_id: "test-session-id-1",
+          },
+          getClaudeResultMessage(),
+        ],
+      });
+      await waitUntilResolved();
+
+      // Verify loop completed via fallback string match
+      const threadChat = await getThreadChat({
+        db,
+        userId: user.id,
+        threadId,
+        threadChatId,
+      });
+      expect(threadChat!.loopConfig?.isLoopActive).toBe(false);
+    });
+
+    it("should await approval in approval mode", async () => {
+      const testUserAndAccount = await createTestUser({ db });
+      const user = testUserAndAccount.user;
+      const session = testUserAndAccount.session;
+      await saveClaudeTokensForTest({ userId: user.id });
+
+      await mockWaitUntil();
+      await mockLoggedInUser(session);
+
+      const { threadId, threadChatId } = await newThread({
+        message: {
+          type: "user",
+          model: "sonnet",
+          parts: [{ type: "text", text: "Hello, world!" }],
+          permissionMode: "loop",
+          loopConfig: {
+            maxIterations: 10,
+            completionPromise: "DONE",
+            useRegex: false,
+            requireApproval: true,
+          },
+        },
+        githubRepoFullName: "terragon/test-repo",
+        branchName: "main",
+      });
+      await waitUntilResolved();
+
+      // Simulate init
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "system",
+            subtype: "init",
+            session_id: "test-session-id-1",
+            tools: [],
+            mcp_servers: [],
+          },
+        ],
+      });
+
+      // Simulate agent completion without DONE
+      await handleDaemonEvent({
+        threadId,
+        threadChatId,
+        userId: user.id,
+        timezone: "UTC",
+        contextUsage: null,
+        messages: [
+          {
+            type: "assistant",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Still working..." }],
+            },
+            parent_tool_use_id: null,
+            session_id: "test-session-id-1",
+          },
+          getClaudeResultMessage(),
+        ],
+      });
+      await waitUntilResolved();
+
+      // Verify loop is awaiting approval
+      const threadChat = await getThreadChat({
+        db,
+        userId: user.id,
+        threadId,
+        threadChatId,
+      });
+      expect(threadChat!.loopConfig?.isLoopActive).toBe(true);
+      expect(threadChat!.loopConfig?.awaitingApproval).toBe(true);
+      expect(threadChat!.loopConfig?.currentIteration).toBe(1);
+    });
+  });
 });

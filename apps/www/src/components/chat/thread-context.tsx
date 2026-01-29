@@ -3,7 +3,7 @@ import React from "react";
 
 type PromptBoxRef = {
   focus: () => void;
-  setPermissionMode: (mode: "allowAll" | "plan") => void;
+  setPermissionMode: (mode: "allowAll" | "plan" | "loop") => void;
 };
 
 type ThreadContextType = {

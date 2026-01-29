@@ -3,22 +3,17 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState, useCallback } from "react";
-import { SquarePen, PanelLeftClose, LayoutList, Kanban } from "lucide-react";
+import { SquarePen, PanelLeftClose } from "lucide-react";
 import { ThreadListHeader, ThreadListContents } from "./main";
 import { Button } from "@/components/ui/button";
 import { useCollapsibleThreadList } from "./use-collapsible-thread-list";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { headerClassName } from "../shared/header";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   dashboardViewModeAtom,
   kanbanNewTaskDialogOpenAtom,
 } from "@/atoms/user-cookies";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useRouter, usePathname } from "next/navigation";
 
 const TASK_PANEL_MIN_WIDTH = 250;
@@ -33,7 +28,7 @@ export function ThreadListSidebar() {
   } = useCollapsibleThreadList();
 
   const [viewFilter, setViewFilter] = useState<"active" | "archived">("active");
-  const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
+  const viewMode = useAtomValue(dashboardViewModeAtom);
   const setKanbanNewTaskDialogOpen = useSetAtom(kanbanNewTaskDialogOpenAtom);
   const router = useRouter();
   const pathname = usePathname();
@@ -86,29 +81,6 @@ export function ThreadListSidebar() {
             <SquarePen className="h-4 w-4" />
             <span>New Task</span>
           </Link>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() =>
-                  setViewMode(viewMode === "list" ? "kanban" : "list")
-                }
-                className="h-8 w-8 flex-shrink-0"
-              >
-                {viewMode === "list" ? (
-                  <Kanban className="h-4 w-4 opacity-50" />
-                ) : (
-                  <LayoutList className="h-4 w-4 opacity-50" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {viewMode === "list"
-                ? "Switch to Kanban view"
-                : "Switch to List view"}
-            </TooltipContent>
-          </Tooltip>
           {canCollapseThreadList && (
             <Button
               variant="ghost"

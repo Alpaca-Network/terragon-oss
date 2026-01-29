@@ -18,14 +18,12 @@ import { convertToPlainText } from "@/lib/db-message-helpers";
 import { HandleUpdate } from "./promptbox/use-promptbox";
 import { cn } from "@/lib/utils";
 import { RecommendedTasks } from "./recommended-tasks";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
-import { Button } from "@/components/ui/button";
-import { LayoutList, Kanban } from "lucide-react";
 
 export function Dashboard({
   showArchived = false,
@@ -36,7 +34,7 @@ export function Dashboard({
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
-  const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
+  const viewMode = useAtomValue(dashboardViewModeAtom);
 
   useEffect(() => {
     setMounted(true);
@@ -144,33 +142,6 @@ export function Dashboard({
             </div>
           )}
         </>
-      )}
-
-      {/* View toggle header for desktop */}
-      {mounted && (
-        <div className="hidden lg:flex items-center justify-between px-0">
-          <h2 className="font-semibold text-sm">Tasks</h2>
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2.5 gap-1.5"
-              onClick={() => setViewMode("list")}
-            >
-              <LayoutList className="h-3.5 w-3.5" />
-              <span className="text-xs">List</span>
-            </Button>
-            <Button
-              variant={viewMode === "kanban" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2.5 gap-1.5"
-              onClick={() => setViewMode("kanban")}
-            >
-              <Kanban className="h-3.5 w-3.5" />
-              <span className="text-xs">Kanban</span>
-            </Button>
-          </div>
-        </div>
       )}
 
       {/* Desktop: Show Kanban or List based on viewMode */}
