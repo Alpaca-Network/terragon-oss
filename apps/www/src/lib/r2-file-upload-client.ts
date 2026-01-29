@@ -26,13 +26,13 @@ export async function uploadFileToR2({
     }),
   );
   // Upload directly to R2
-  // Convert File to ArrayBuffer for more reliable uploads
+  // Convert File to ArrayBuffer for more reliable uploads with presigned URLs
+  // Note: Content-Length is a forbidden header in browsers and is auto-computed
   const buffer = await file.arrayBuffer();
   const uploadResponse = await fetch(presignedUrl, {
     method: "PUT",
     headers: {
       "Content-Type": file.type,
-      "Content-Length": String(buffer.byteLength),
     },
     body: buffer,
   });
