@@ -16,7 +16,9 @@ import {
   GitCommit,
   MessageCircle,
   LayoutList,
+  Plus,
 } from "lucide-react";
+import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
@@ -78,6 +80,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   const platform = usePlatform();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
+  const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const setViewMode = useSetAtom(dashboardViewModeAtom);
 
@@ -232,128 +235,158 @@ export const KanbanBoard = memo(function KanbanBoard({
   }
 
   return (
-    <div ref={containerRef} className="flex h-full w-full overflow-hidden">
-      {/* Kanban columns */}
-      <div
-        className={cn(
-          "flex-1 min-h-0 overflow-hidden transition-all duration-200",
-          selectedThreadId && "min-w-[300px]",
-        )}
-      >
-        <ScrollArea className="h-full w-full">
-          <div className="flex gap-4 p-4 h-full min-h-[500px]">
-            {KANBAN_COLUMNS.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column.id}
-                threads={columnThreads[column.id]}
-                selectedThreadId={selectedThreadId}
-                onThreadSelect={handleThreadSelect}
-              />
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full overflow-hidden"
+    >
+      {/* Header with new task button */}
+      <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Kanban Board
+          </h2>
+        </div>
+        <Button
+          variant="default"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => setNewTaskDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="text-xs">New Task</span>
+        </Button>
       </div>
 
-      {/* Task detail panel */}
-      {selectedThreadId && (
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Kanban columns */}
         <div
-          className="relative flex-shrink-0 border-l bg-background flex flex-col"
-          style={{ width: `${panelWidth}px` }}
+          className={cn(
+            "flex-1 min-h-0 overflow-hidden transition-all duration-200",
+            selectedThreadId && "min-w-[300px]",
+          )}
         >
-          {/* Resize handle */}
-          <div
-            className={cn(
-              "absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
-              isResizing && "bg-primary/50",
-            )}
-            onMouseDown={handleMouseDown}
-          />
-
-          {/* Panel header with tabs and view toggle */}
-          <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
-            {/* Tabs */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant={activeTab === "feed" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 px-3 gap-1.5"
-                onClick={() => setActiveTab("feed")}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span className="text-xs">Feed</span>
-              </Button>
-              <Button
-                variant={activeTab === "changes" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 px-3 gap-1.5"
-                onClick={() => setActiveTab("changes")}
-                disabled={!selectedThread?.gitDiff}
-              >
-                <GitCommit className="h-3.5 w-3.5" />
-                <span className="text-xs">Changes</span>
-              </Button>
-              <Button
-                variant={activeTab === "comments" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 px-3 gap-1.5"
-                onClick={() => setActiveTab("comments")}
-                disabled
-                title="Coming soon"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                <span className="text-xs">Comments</span>
-              </Button>
+          <ScrollArea className="h-full w-full">
+            <div className="flex gap-4 p-4 h-full min-h-[500px]">
+              {KANBAN_COLUMNS.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column.id}
+                  threads={columnThreads[column.id]}
+                  selectedThreadId={selectedThreadId}
+                  onThreadSelect={handleThreadSelect}
+                />
+              ))}
             </div>
-
-            {/* View toggle and close button */}
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setViewMode("list")}
-                    className="h-8 w-8"
-                  >
-                    <LayoutList className="h-4 w-4 opacity-50" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Switch to List view
-                </TooltipContent>
-              </Tooltip>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseDetail}
-                className="h-8 w-8"
-                title="Close task details"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 overflow-hidden">
-            {activeTab === "feed" && (
-              <ChatUI threadId={selectedThreadId} isReadOnly={false} />
-            )}
-            {activeTab === "changes" && selectedThread && (
-              <div className="h-full overflow-auto">
-                <GitDiffView thread={selectedThread} />
-              </div>
-            )}
-            {activeTab === "comments" && (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p className="text-sm">Comments coming soon</p>
-              </div>
-            )}
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
-      )}
+
+        {/* Task detail panel */}
+        {selectedThreadId && (
+          <div
+            className="relative flex-shrink-0 border-l bg-background flex flex-col"
+            style={{ width: `${panelWidth}px` }}
+          >
+            {/* Resize handle */}
+            <div
+              className={cn(
+                "absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
+                isResizing && "bg-primary/50",
+              )}
+              onMouseDown={handleMouseDown}
+            />
+
+            {/* Panel header with tabs and view toggle */}
+            <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+              {/* Tabs */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={activeTab === "feed" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("feed")}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span className="text-xs">Feed</span>
+                </Button>
+                <Button
+                  variant={activeTab === "changes" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("changes")}
+                  disabled={!selectedThread?.gitDiff}
+                >
+                  <GitCommit className="h-3.5 w-3.5" />
+                  <span className="text-xs">Changes</span>
+                </Button>
+                <Button
+                  variant={activeTab === "comments" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("comments")}
+                  disabled
+                  title="Coming soon"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  <span className="text-xs">Comments</span>
+                </Button>
+              </div>
+
+              {/* View toggle and close button */}
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setViewMode("list")}
+                      className="h-8 w-8"
+                    >
+                      <LayoutList className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    Switch to List view
+                  </TooltipContent>
+                </Tooltip>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseDetail}
+                  className="h-8 w-8"
+                  title="Close task details"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === "feed" && (
+                <ChatUI threadId={selectedThreadId} isReadOnly={false} />
+              )}
+              {activeTab === "changes" && selectedThread && (
+                <div className="h-full overflow-auto">
+                  <GitDiffView thread={selectedThread} />
+                </div>
+              )}
+              {activeTab === "comments" && (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <p className="text-sm">Comments coming soon</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* New task dialog */}
+      <KanbanNewTaskDialog
+        open={newTaskDialogOpen}
+        onOpenChange={setNewTaskDialogOpen}
+        queryFilters={queryFilters}
+      />
     </div>
   );
 });
