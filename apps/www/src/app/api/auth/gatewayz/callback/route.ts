@@ -138,7 +138,9 @@ export async function GET(request: NextRequest) {
     ];
 
     if (embed) {
-      cookies.push(`gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`);
+      cookies.push(
+        `gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`,
+      );
     }
 
     // In embed mode, return an HTML page that stores the session in sessionStorage
