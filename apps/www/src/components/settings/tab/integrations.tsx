@@ -30,7 +30,7 @@ export function IntegrationsSettings({
             Connect your Slack workspace to interact with Terragon through
             Slack.{" "}
             <Link
-              href="https://docs.terragonlabs.com/docs/integrations/slack-integration"
+              href="https://beta.gatewayz.ai/inbox/docs/integrations/slack-integration"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:no-underline"

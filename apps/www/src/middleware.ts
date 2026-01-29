@@ -158,5 +158,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Match all routes to handle GatewayZ auth on any page
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Exclude /inbox/docs to allow public access to documentation
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|inbox/docs).*)"],
 };

@@ -251,6 +251,23 @@ export const allowedSignups = pgTable(
   (table) => [uniqueIndex("allowed_signups_email_unique").on(table.email)],
 );
 
+/**
+ * Configuration for loop mode execution.
+ * Constraints:
+ * - maxIterations: 1-100
+ * - completionPromise: non-empty string
+ * - currentIteration: >= 1, <= maxIterations
+ */
+export type LoopConfig = {
+  maxIterations: number;
+  completionPromise: string;
+  useRegex: boolean;
+  requireApproval: boolean;
+  currentIteration: number;
+  isLoopActive: boolean;
+  awaitingApproval: boolean;
+};
+
 const threadChatShared = {
   agent: text("agent").$type<AIAgent>().notNull().default("claudeCode"),
   agentVersion: integer("agent_version").notNull().default(0),
@@ -264,8 +281,9 @@ const threadChatShared = {
   reattemptQueueAt: timestamp("reattempt_queue_at"),
   contextLength: integer("context_length"),
   permissionMode: text("permission_mode")
-    .$type<"allowAll" | "plan">()
+    .$type<"allowAll" | "plan" | "loop">()
     .default("allowAll"),
+  loopConfig: jsonb("loop_config").$type<LoopConfig>(),
 };
 
 export const thread = pgTable(
@@ -475,7 +493,9 @@ export const userSettings = pgTable(
     autoClosePRsOnArchive: boolean("auto_close_draft_prs_on_archive")
       .notNull()
       .default(false),
-    branchNamePrefix: text("branch_name_prefix").notNull().default("terragon/"),
+    branchNamePrefix: text("branch_name_prefix")
+      .notNull()
+      .default("gatewayz-code/"),
     prType: text("pr_type")
       .$type<"draft" | "ready">()
       .notNull()

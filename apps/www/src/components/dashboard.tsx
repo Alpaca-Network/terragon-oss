@@ -20,8 +20,10 @@ import { cn } from "@/lib/utils";
 import { RecommendedTasks } from "./recommended-tasks";
 import { useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
+import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
+import { KanbanBoard } from "./kanban";
 
 export function Dashboard({
   showArchived = false,
@@ -32,9 +34,12 @@ export function Dashboard({
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
+  const viewMode = useAtomValue(dashboardViewModeAtom);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
   const handleSubmit = useCallback<DashboardPromptBoxHandleSubmit>(
     async ({
       userMessage,
@@ -101,33 +106,64 @@ export function Dashboard({
   const showRecommendedTasks =
     (data?.pages.flatMap((page) => page) ?? []).length < 3;
 
+  // Show Kanban view on larger screens when viewMode is 'kanban'
+  const showKanbanView = viewMode === "kanban" && mounted;
+
   return (
     <div
       className={cn(
-        "flex flex-col h-full max-w-2xl w-full mx-auto gap-8 justify-start pt-2.5",
+        "flex flex-col h-full w-full",
+        showKanbanView ? "max-w-full" : "max-w-2xl mx-auto gap-8 pt-2.5",
       )}
     >
       <FeatureUpsellToast />
-      <DashboardPromptBox
-        placeholder={placeholder}
-        status={null}
-        threadId={null}
-        onUpdate={onUpdate}
-        handleStop={handleStop}
-        handleSubmit={handleSubmit}
-        promptText={promptText ?? undefined}
-      />
-      {showRecommendedTasks && (
-        <div className="space-y-2 hidden lg:block">
-          <h3 className="text-sm font-medium text-muted-foreground/70">
-            Suggested tasks
-          </h3>
-          <RecommendedTasks
-            onTaskSelect={(p) => setPromptText(p)}
-            selectedModel={selectedModel}
+
+      {/* View toggle and prompt box - only show in list view or on mobile */}
+      {!showKanbanView && (
+        <>
+          <DashboardPromptBox
+            placeholder={placeholder}
+            status={null}
+            threadId={null}
+            onUpdate={onUpdate}
+            handleStop={handleStop}
+            handleSubmit={handleSubmit}
+            promptText={promptText ?? undefined}
           />
+          {showRecommendedTasks && (
+            <div className="space-y-2 hidden lg:block">
+              <h3 className="text-sm font-medium text-muted-foreground/70">
+                Suggested tasks
+              </h3>
+              <RecommendedTasks
+                onTaskSelect={(p) => setPromptText(p)}
+                selectedModel={selectedModel}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Desktop: Show Kanban or List based on viewMode */}
+      {mounted && (
+        <div className="hidden lg:flex flex-1 min-h-0">
+          {showKanbanView ? (
+            <KanbanBoard queryFilters={{ archived: showArchived }} />
+          ) : (
+            <div className="w-full">
+              <ThreadListMain
+                queryFilters={{ archived: showArchived }}
+                viewFilter={showArchived ? "archived" : "active"}
+                allowGroupBy={true}
+                showSuggestedTasks={false}
+                setPromptText={setPromptText}
+              />
+            </div>
+          )}
         </div>
       )}
+
+      {/* Mobile: Always show list view */}
       {mounted && (
         <div className="lg:hidden">
           <ThreadListMain

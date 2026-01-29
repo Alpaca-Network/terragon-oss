@@ -96,7 +96,10 @@ export default async function Home() {
     <>
       <StructuredData />
       <main className="w-full">
-        <Landing isShutdownMode={flags.shutdownMode} isEmbedMode={isEmbedMode} />
+        <Landing
+          isShutdownMode={flags.shutdownMode}
+          isEmbedMode={isEmbedMode}
+        />
       </main>
       {/* Google tag (gtag.js) - Production only */}
       {process.env.NODE_ENV === "production" && (
