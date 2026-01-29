@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/tooltip";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 
-const getColumnHeaderColor = (columnId: KanbanColumnType) => {
+export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
     case "backlog":
       return "data-[state=active]:bg-muted data-[state=active]:shadow-sm";
@@ -53,7 +53,34 @@ const getColumnHeaderColor = (columnId: KanbanColumnType) => {
 };
 
 // Minimum swipe distance required to trigger tab change
-const SWIPE_THRESHOLD = 50;
+export const SWIPE_THRESHOLD = 50;
+
+// FAB (Floating Action Button) configuration - exported for testing
+export const FAB_CLASSES = {
+  position: "fixed bottom-6 right-6",
+  size: "h-14 w-14",
+  style: "rounded-full shadow-lg z-50",
+} as const;
+
+// Content padding to account for FAB height
+export const CONTENT_BOTTOM_PADDING = "pb-20";
+
+// Calculate scroll position to center a tab
+export const calculateScrollToCenter = (
+  tabsListWidth: number,
+  tabOffsetLeft: number,
+  tabWidth: number,
+): number => {
+  return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
+};
+
+// Determine if archive toggle should be shown
+export const shouldShowArchiveToggle = (
+  columnId: KanbanColumnType,
+  isArchivedView: boolean,
+): boolean => {
+  return columnId === "done" && !isArchivedView;
+};
 
 export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters,
@@ -213,12 +240,13 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         `[data-state="active"]`,
       ) as HTMLElement | null;
       if (activeTab) {
-        const tabsListRect = tabsList.getBoundingClientRect();
-        const activeTabRect = activeTab.getBoundingClientRect();
-        const scrollLeft =
-          activeTab.offsetLeft -
-          tabsListRect.width / 2 +
-          activeTabRect.width / 2;
+        // Use offsetLeft which is relative to the offsetParent (the scroll container)
+        // combined with offsetWidth for consistent element-relative coordinates
+        const scrollLeft = calculateScrollToCenter(
+          tabsList.offsetWidth,
+          activeTab.offsetLeft,
+          activeTab.offsetWidth,
+        );
         tabsList.scrollTo({
           left: scrollLeft,
           behavior: "smooth",
@@ -352,11 +380,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
-        {/* Column tabs - horizontally scrollable with new task button */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        {/* Column tabs - horizontally scrollable */}
+        <div className="flex-shrink-0 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div
             ref={tabsListRef}
-            className="flex-1 overflow-x-auto scrollbar-hide py-1"
+            className="overflow-x-auto scrollbar-hide py-1"
           >
             <TabsList className="w-max min-w-full gap-1 bg-transparent">
               {KANBAN_COLUMNS.map((col) => (
@@ -386,15 +414,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
               ))}
             </TabsList>
           </div>
-          <Button
-            variant="default"
-            size="sm"
-            className="flex-shrink-0 h-9 px-3 gap-1.5 soft-glow tap-highlight rounded-lg"
-            onClick={handleOpenNewTaskDrawer}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="text-xs font-medium">New</span>
-          </Button>
         </div>
 
         {/* Column content with swipe support */}
@@ -408,9 +427,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             onTouchEnd={handleTouchEnd}
           >
             <ScrollArea className="h-full futuristic-scrollbar">
-              <div className="p-3 space-y-3">
+              <div className={cn("p-3 space-y-3", CONTENT_BOTTOM_PADDING)}>
                 {/* Show archived toggle for Done column */}
-                {col.id === "done" && !queryFilters.archived && (
+                {shouldShowArchiveToggle(
+                  col.id,
+                  queryFilters.archived ?? false,
+                ) && (
                   <div className="flex items-center justify-end">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -488,6 +510,21 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onClose={handleCloseNewTaskDrawer}
         queryFilters={queryFilters}
       />
+
+      {/* Floating action button - bottom right */}
+      <Button
+        variant="default"
+        size="icon"
+        className={cn(
+          FAB_CLASSES.position,
+          FAB_CLASSES.size,
+          FAB_CLASSES.style,
+        )}
+        onClick={handleOpenNewTaskDrawer}
+      >
+        <Plus className="h-6 w-6" />
+        <span className="sr-only">New Task</span>
+      </Button>
     </div>
   );
 });
