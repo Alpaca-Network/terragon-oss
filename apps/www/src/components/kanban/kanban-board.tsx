@@ -36,6 +36,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePlatform } from "@/hooks/use-platform";
+import { KanbanBoardMobile } from "./kanban-board-mobile";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -72,6 +74,8 @@ export const KanbanBoard = memo(function KanbanBoard({
 }: {
   queryFilters: ThreadListFilters;
 }) {
+  // All hooks must be called unconditionally at the top (React Rules of Hooks)
+  const platform = usePlatform();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -193,6 +197,20 @@ export const KanbanBoard = memo(function KanbanBoard({
     mode: "fixed",
     direction: "rtl",
   });
+
+  // Render mobile version on mobile devices (after all hooks are called)
+  if (platform === "mobile") {
+    return <KanbanBoardMobile queryFilters={queryFilters} />;
+  }
+
+  // Show loading state while platform is being determined to avoid flash
+  if (platform === "unknown") {
+    return (
+      <div className="flex flex-col h-full items-center justify-center">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
