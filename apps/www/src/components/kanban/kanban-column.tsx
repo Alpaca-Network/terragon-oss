@@ -67,7 +67,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       >
         <div className="flex items-center gap-2">
           <span>{columnConfig.title}</span>
-          <span className="text-xs opacity-70 bg-white/30 dark:bg-black/20 px-1.5 py-0.5 rounded-full">
+          <span className="text-xs opacity-70 bg-black/10 dark:bg-black/20 px-1.5 py-0.5 rounded-full">
             {threads.length}
           </span>
         </div>
@@ -79,7 +79,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                 size="icon"
                 className={cn(
                   "h-6 w-6",
-                  showArchived && "bg-white/20 dark:bg-black/20",
+                  showArchived && "bg-black/10 dark:bg-black/20",
                 )}
                 onClick={onToggleArchived}
               >

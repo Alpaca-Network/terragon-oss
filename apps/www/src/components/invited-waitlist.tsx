@@ -105,9 +105,9 @@ export function InvitedWaitlist() {
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center">
                   <svg
-                    className="w-6 h-6 text-black"
+                    className="w-6 h-6 text-foreground"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -138,7 +138,7 @@ export function InvitedWaitlist() {
       {/* Video Lightbox */}
       {isLightboxOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 dark:bg-black/95 flex items-center justify-center p-4"
           onClick={() => setIsLightboxOpen(false)}
         >
           <button

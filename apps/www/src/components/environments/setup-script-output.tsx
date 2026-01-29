@@ -50,13 +50,13 @@ export function SetupScriptOutput({
     return null;
   }
   return (
-    <div className="relative border rounded-md bg-black/95 font-mono text-sm overflow-auto max-h-[500px]">
+    <div className="relative border rounded-md bg-neutral-100 dark:bg-black/95 font-mono text-sm overflow-auto max-h-[500px]">
       {outputs.length > 0 && (
         <Button
           onClick={handleCopy}
           variant="ghost"
           size="sm"
-          className="sticky top-2 right-2 z-10 h-7 px-2 bg-black/50 hover:bg-black/70 text-gray-400 hover:text-gray-200 float-right mr-2 mt-2"
+          className="sticky top-2 right-2 z-10 h-7 px-2 bg-neutral-200/70 hover:bg-neutral-300/70 dark:bg-black/50 dark:hover:bg-black/70 text-muted-foreground hover:text-foreground float-right mr-2 mt-2"
           title="Copy output"
         >
           {copied ? (
@@ -78,9 +78,10 @@ export function SetupScriptOutput({
             key={index}
             className={cn(
               "whitespace-pre-wrap break-all",
-              output.type === "stdout" && "text-gray-100",
-              output.type === "stderr" && "text-red-400",
-              output.type === "error" && "text-red-500 font-semibold",
+              output.type === "stdout" && "text-neutral-800 dark:text-gray-100",
+              output.type === "stderr" && "text-red-600 dark:text-red-400",
+              output.type === "error" &&
+                "text-red-700 dark:text-red-500 font-semibold",
             )}
             dangerouslySetInnerHTML={{
               __html: ansiToHtml(output.content, theme),
@@ -88,7 +89,7 @@ export function SetupScriptOutput({
           />
         ))}
         {isRunning && (
-          <div className="text-gray-400">
+          <div className="text-muted-foreground">
             <span className="animate-shine">Running...</span>
           </div>
         )}
