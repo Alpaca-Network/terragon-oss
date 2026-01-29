@@ -8,6 +8,7 @@ import {
   Plus,
   Archive,
   ArchiveRestore,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -32,19 +33,20 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 
 const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
     case "backlog":
-      return "data-[state=active]:bg-muted";
+      return "data-[state=active]:bg-muted data-[state=active]:shadow-sm";
     case "in_progress":
-      return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary";
+      return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_12px_rgba(99,102,241,0.2)]";
     case "in_review":
-      return "data-[state=active]:bg-accent/10 data-[state=active]:text-accent-foreground";
+      return "data-[state=active]:bg-accent/10 data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm";
     case "done":
-      return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary";
+      return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_12px_rgba(99,102,241,0.15)]";
     case "cancelled":
-      return "data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive";
+      return "data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-sm";
     default:
       return "data-[state=active]:bg-muted";
   }
@@ -303,24 +305,38 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full items-center justify-center">
-        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
-        <p className="mt-2 text-sm text-muted-foreground">Loading tasks...</p>
+      <div className="flex flex-col h-full items-center justify-center gap-4 gradient-shift-bg">
+        <div className="relative">
+          <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+          <LoaderCircle className="size-8 animate-spin text-primary relative z-10" />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm font-medium text-foreground">Loading tasks</p>
+          <DataStreamLoader size="md" />
+        </div>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="flex flex-col h-full items-center justify-center gap-3">
-        <p className="text-sm text-muted-foreground">
-          Failed to load tasks. Please try again.
-        </p>
+      <div className="flex flex-col h-full items-center justify-center gap-4 p-6">
+        <div className="rounded-full bg-destructive/10 p-4">
+          <RefreshCw className="h-6 w-6 text-destructive" />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            Connection interrupted
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Failed to load tasks. Please try again.
+          </p>
+        </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => refetch()}
-          className="gap-1.5"
+          className="gap-1.5 tap-highlight soft-glow"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Retry
@@ -330,30 +346,40 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gradient-shift-bg">
       <Tabs
         value={activeColumn}
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
         {/* Column tabs - horizontally scrollable with new task button */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-2 border-b">
+        <div className="flex-shrink-0 flex items-center gap-2 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div
             ref={tabsListRef}
-            className="flex-1 overflow-x-auto scrollbar-hide"
+            className="flex-1 overflow-x-auto scrollbar-hide py-1"
           >
-            <TabsList className="w-max min-w-full gap-1">
+            <TabsList className="w-max min-w-full gap-1 bg-transparent">
               {KANBAN_COLUMNS.map((col) => (
                 <TabsTrigger
                   key={col.id}
                   value={col.id}
                   className={cn(
-                    "flex-shrink-0 gap-1.5 px-2.5 rounded-md",
+                    "flex-shrink-0 gap-1.5 px-3 py-2 rounded-lg transition-all duration-200",
+                    "tap-highlight futuristic-tab-indicator",
+                    "data-[state=active]:scale-[1.02]",
                     getColumnHeaderColor(col.id),
                   )}
                 >
-                  <span className="text-xs">{col.title}</span>
-                  <span className="text-xs opacity-60 bg-muted px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                  <span className="text-xs font-medium">{col.title}</span>
+                  <span
+                    className={cn(
+                      "text-xs px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center transition-all",
+                      "bg-muted/50 data-[state=active]:bg-background/50",
+                      columnThreads[col.id].length > 0 &&
+                        col.id === "in_progress" &&
+                        "status-pulse",
+                    )}
+                  >
                     {columnThreads[col.id].length}
                   </span>
                 </TabsTrigger>
@@ -363,11 +389,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           <Button
             variant="default"
             size="sm"
-            className="flex-shrink-0 h-8 px-2.5 gap-1"
+            className="flex-shrink-0 h-9 px-3 gap-1.5 soft-glow tap-highlight rounded-lg"
             onClick={handleOpenNewTaskDrawer}
           >
             <Plus className="h-4 w-4" />
-            <span className="text-xs">New</span>
+            <span className="text-xs font-medium">New</span>
           </Button>
         </div>
 
@@ -376,12 +402,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           <TabsContent
             key={col.id}
             value={col.id}
-            className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden"
+            className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden animate-page-enter"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-full futuristic-scrollbar">
               <div className="p-3 space-y-3">
                 {/* Show archived toggle for Done column */}
                 {col.id === "done" && !queryFilters.archived && (
@@ -391,7 +417,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                         <Button
                           variant={showArchivedInDone ? "secondary" : "ghost"}
                           size="sm"
-                          className="h-7 px-2 gap-1.5 text-xs"
+                          className="h-7 px-2 gap-1.5 text-xs tap-highlight rounded-lg"
                           onClick={() =>
                             setShowArchivedInDone(!showArchivedInDone)
                           }
@@ -415,18 +441,33 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                   </div>
                 )}
                 {columnThreads[col.id].length === 0 ? (
-                  <div className="py-12 text-center text-sm text-muted-foreground">
-                    No tasks in {col.title.toLowerCase()}
+                  <div className="py-16 text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
+                      <Sparkles className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      No tasks in {col.title.toLowerCase()}
+                    </p>
                   </div>
                 ) : (
-                  columnThreads[col.id].map((thread) => (
-                    <KanbanCard
-                      key={thread.id}
-                      thread={thread}
-                      isSelected={selectedThreadId === thread.id}
-                      onClick={() => handleThreadSelect(thread)}
-                    />
-                  ))
+                  <div className="space-y-3 stagger-children">
+                    {columnThreads[col.id].map((thread, index) => (
+                      <div
+                        key={thread.id}
+                        className="animate-card-enter opacity-0"
+                        style={{
+                          animationDelay: `${Math.min(index * 50, 300)}ms`,
+                          animationFillMode: "forwards",
+                        }}
+                      >
+                        <KanbanCard
+                          thread={thread}
+                          isSelected={selectedThreadId === thread.id}
+                          onClick={() => handleThreadSelect(thread)}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </ScrollArea>
