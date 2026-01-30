@@ -159,8 +159,8 @@ export function ThreadListSidebar() {
       {/* Resize handle */}
       <div
         className={cn(
-          "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500/50 transition-colors z-30",
-          isResizing && "bg-blue-500/50",
+          "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
+          isResizing && "bg-primary/50",
         )}
         onMouseDown={handleMouseDown}
       />
