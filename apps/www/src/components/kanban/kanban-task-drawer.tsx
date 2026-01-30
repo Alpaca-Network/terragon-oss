@@ -9,6 +9,7 @@ import {
   GitCommit,
   Maximize2,
   Minimize2,
+  MessageCircle,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,10 @@ import { useQuery } from "@tanstack/react-query";
 import { threadQueryOptions } from "@/queries/thread-queries";
 import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
+import { useServerActionQuery } from "@/queries/server-action-helpers";
+import { getPRFeedback } from "@/server-actions/get-pr-feedback";
+import { PRCommentsSection } from "@/components/chat/code-review/pr-comments-section";
+import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 
 const FuturisticLoader = () => (
   <div className="flex flex-col items-center justify-center h-full gap-4 gradient-shift-bg">
@@ -41,7 +46,7 @@ const GitDiffView = dynamic(
   },
 );
 
-type TabType = "feed" | "changes";
+type TabType = "feed" | "changes" | "comments";
 
 // Snap points: 75% and 100% of viewport height
 const SNAP_POINTS = [0.75, 1] as const;
@@ -66,6 +71,23 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
     ...threadQueryOptions(threadId ?? ""),
     enabled: !!threadId,
   });
+
+  const hasPR =
+    thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
+
+  // Fetch PR feedback data when thread has a PR
+  const { data: prFeedbackData, isLoading: isPRFeedbackLoading } =
+    useServerActionQuery({
+      queryKey: ["pr-feedback", threadId],
+      queryFn: () => getPRFeedback({ threadId: threadId! }),
+      enabled: hasPR && !!threadId,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // Refetch every minute
+    });
+
+  const feedback = prFeedbackData?.feedback;
+  const summary = feedback ? createFeedbackSummary(feedback) : null;
+  const commentCount = summary?.unresolvedCommentCount ?? 0;
 
   // Clear any pending reset timeout on unmount or when drawer opens
   useEffect(() => {
@@ -164,6 +186,25 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               <GitCommit className="h-4 w-4" />
               <span className="text-xs font-medium">Changes</span>
             </Button>
+            <Button
+              variant={activeTab === "comments" ? "secondary" : "ghost"}
+              size="sm"
+              className={cn(
+                "h-9 px-3.5 gap-2 rounded-lg tap-highlight transition-all duration-200",
+                activeTab === "comments" &&
+                  "shadow-[0_0_12px_rgba(99,102,241,0.15)]",
+              )}
+              onClick={() => setActiveTab("comments")}
+              disabled={!hasPR}
+            >
+              <MessageCircle className="h-4 w-4" />
+              <span className="text-xs font-medium">Comments</span>
+              {commentCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border border-yellow-500/20">
+                  {commentCount}
+                </span>
+              )}
+            </Button>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -200,6 +241,23 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
           {thread && activeTab === "changes" && (
             <div className="h-full overflow-auto animate-page-enter futuristic-scrollbar">
               <GitDiffView thread={thread} />
+            </div>
+          )}
+          {activeTab === "comments" && (
+            <div className="h-full overflow-auto animate-page-enter futuristic-scrollbar p-4">
+              {isPRFeedbackLoading ? (
+                <FuturisticLoader />
+              ) : feedback ? (
+                <PRCommentsSection
+                  unresolved={feedback.comments.unresolved}
+                  resolved={feedback.comments.resolved}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <MessageCircle className="size-8 mb-2 opacity-50" />
+                  <p className="text-sm">No PR associated with this task</p>
+                </div>
+              )}
             </div>
           )}
         </div>
