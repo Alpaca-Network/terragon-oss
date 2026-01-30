@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, MouseEvent } from "react";
+import { memo, useMemo, useState, MouseEvent, useCallback } from "react";
 import { getThreadTitle } from "@/agent/thread-utils";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -12,6 +12,7 @@ import { PRCommentCountBadge } from "./pr-comment-count-badge";
 import { ThreadMenuDropdown } from "../thread-menu-dropdown";
 import { Button } from "@/components/ui/button";
 import { GitBranch, EllipsisVertical } from "lucide-react";
+import { useLongPress } from "@/hooks/useLongPress";
 
 export const KanbanCard = memo(function KanbanCard({
   thread,
@@ -35,9 +36,22 @@ export const KanbanCard = memo(function KanbanCard({
     e.stopPropagation();
   };
 
+  // Handle context menu (right-click on desktop, long-press on mobile)
+  const handleContextMenu = useCallback(() => {
+    setIsMenuOpen(true);
+  }, []);
+
+  const longPressHandlers = useLongPress({
+    onLongPress: handleContextMenu,
+  });
+
   return (
     <div
       onClick={onClick}
+      onContextMenu={longPressHandlers.onContextMenu}
+      onTouchStart={longPressHandlers.onTouchStart}
+      onTouchEnd={longPressHandlers.onTouchEnd}
+      onTouchMove={longPressHandlers.onTouchMove}
       className={cn(
         "group relative bg-card border rounded-xl p-2.5 cursor-pointer",
         "transition-all duration-200 ease-out",
@@ -67,6 +81,7 @@ export const KanbanCard = memo(function KanbanCard({
             </Button>
           }
           showReadUnreadActions
+          open={isMenuOpen}
           onMenuOpenChange={setIsMenuOpen}
         />
       </div>

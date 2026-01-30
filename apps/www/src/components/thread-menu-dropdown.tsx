@@ -49,6 +49,8 @@ export function ThreadMenuDropdown({
   showReadUnreadActions = false,
   showShareAction = false,
   isReadOnly = false,
+  // Controlled state (optional)
+  open: controlledOpen,
   // Event handlers
   onRenameClick,
   onMenuOpenChange,
@@ -64,6 +66,8 @@ export function ThreadMenuDropdown({
   showReadUnreadActions?: boolean;
   showShareAction?: boolean;
   isReadOnly?: boolean;
+  // Controlled state (optional)
+  open?: boolean;
   // Event handlers
   onRenameClick?: () => void;
   onMenuOpenChange?: (open: boolean) => void;
@@ -328,6 +332,7 @@ export function ThreadMenuDropdown({
         trigger={trigger}
         getItems={() => menuItems}
         onOpenChange={onMenuOpenChange}
+        open={controlledOpen}
         title="More"
         collapseAsDrawer
       />

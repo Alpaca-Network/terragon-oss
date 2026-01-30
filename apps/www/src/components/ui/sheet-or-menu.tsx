@@ -69,6 +69,7 @@ export type SheetOrMenuProps = {
   title: string;
   getItems: () => SheetOrMenuItem[];
   onOpenChange?: (open: boolean) => void;
+  open?: boolean; // Controlled open state (optional)
 };
 
 export function SheetOrMenu({
@@ -78,15 +79,21 @@ export function SheetOrMenu({
   trigger,
   title,
   onOpenChange,
+  open: controlledOpen,
   getItems,
 }: SheetOrMenuProps) {
-  const [open, setOpenInner] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  // Use controlled state if provided, otherwise use internal state
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = useCallback(
-    (open: boolean) => {
-      setOpenInner(open);
-      onOpenChange?.(open);
+    (newOpen: boolean) => {
+      if (!isControlled) {
+        setInternalOpen(newOpen);
+      }
+      onOpenChange?.(newOpen);
     },
-    [onOpenChange],
+    [onOpenChange, isControlled],
   );
   // Use debounced media query to prevent rapid component swaps during orientation changes
   const isSmallScreen = useMediaQuery("(max-width: 40rem)", {
