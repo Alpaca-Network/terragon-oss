@@ -80,7 +80,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 rounded-full hover:bg-white/30 dark:hover:bg-black/20"
+                  className="h-6 w-6 rounded-full hover:bg-muted/50"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddToBacklog();
