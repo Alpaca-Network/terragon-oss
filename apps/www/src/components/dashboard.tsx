@@ -9,6 +9,7 @@ import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   threadQueryKeys,
@@ -24,6 +25,7 @@ import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
+import { TaskViewToggle } from "./task-view-toggle";
 
 export function Dashboard({
   showArchived = false,
@@ -37,6 +39,8 @@ export function Dashboard({
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
   const viewMode = useAtomValue(dashboardViewModeAtom);
+  const searchParams = useSearchParams();
+  const initialTaskId = searchParams.get("task");
 
   useEffect(() => {
     setMounted(true);
@@ -132,6 +136,18 @@ export function Dashboard({
     >
       <FeatureUpsellToast />
 
+      {/* Task View Toggle - shown at top right in both views on desktop */}
+      {mounted && (
+        <div
+          className={cn(
+            "hidden lg:flex justify-end items-center gap-2",
+            showKanbanView ? "px-4 pt-3 pb-1" : "pb-0",
+          )}
+        >
+          <TaskViewToggle />
+        </div>
+      )}
+
       {/* View toggle and prompt box - only show in list view or on mobile */}
       {!showKanbanView && (
         <>
@@ -162,7 +178,10 @@ export function Dashboard({
       {mounted && (
         <div className="hidden lg:flex flex-1 min-h-0">
           {showKanbanView ? (
-            <KanbanBoard queryFilters={queryFilters} />
+            <KanbanBoard
+              queryFilters={queryFilters}
+              initialSelectedTaskId={initialTaskId}
+            />
           ) : (
             <div className="w-full">
               <ThreadListMain
@@ -181,7 +200,10 @@ export function Dashboard({
       {mounted && (
         <div className="lg:hidden flex flex-col flex-1 min-h-0">
           {showKanbanView ? (
-            <KanbanBoard queryFilters={queryFilters} />
+            <KanbanBoard
+              queryFilters={queryFilters}
+              initialSelectedTaskId={initialTaskId}
+            />
           ) : (
             <ThreadListMain
               queryFilters={queryFilters}
