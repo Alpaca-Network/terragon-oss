@@ -5,7 +5,7 @@ import { memo, useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   LoaderCircle,
   RefreshCw,
-  Plus,
+  SquarePen,
   Archive,
   ArchiveRestore,
   ChevronLeft,
@@ -595,7 +595,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         )}
         onClick={handleOpenNewTaskDrawer}
       >
-        <Plus className="h-6 w-6" />
+        <SquarePen className="h-6 w-6" />
         <span className="sr-only">New Task</span>
       </Button>
     </div>

@@ -15,7 +15,7 @@ import {
   MessageSquare,
   GitCommit,
   MessageCircle,
-  Plus,
+  SquarePen,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
@@ -365,7 +365,7 @@ export const KanbanBoard = memo(function KanbanBoard({
           className="h-8 gap-1.5"
           onClick={() => setNewTaskDialogOpen(true)}
         >
-          <Plus className="h-4 w-4" />
+          <SquarePen className="h-4 w-4" />
           <span className="text-xs">New Task</span>
         </Button>
       </div>
