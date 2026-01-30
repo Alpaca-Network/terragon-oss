@@ -86,10 +86,21 @@ export const shouldShowArchiveToggle = (
 
 export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters,
+  initialSelectedTaskId,
 }: {
   queryFilters: ThreadListFilters;
+  initialSelectedTaskId?: string | null;
 }) {
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
+    initialSelectedTaskId ?? null,
+  );
+
+  // Handle initialSelectedTaskId changes (e.g., when navigating with ?task= param)
+  useEffect(() => {
+    if (initialSelectedTaskId) {
+      setSelectedThreadId(initialSelectedTaskId);
+    }
+  }, [initialSelectedTaskId]);
   const [activeColumn, setActiveColumn] =
     useState<KanbanColumnType>("in_progress");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
