@@ -70,7 +70,7 @@ export function TaskViewToggle({ className, threadId }: TaskViewToggleProps) {
         onClick={() => handleToggle("list")}
       >
         <LayoutList className="h-3.5 w-3.5" />
-        <span>List</span>
+        <span>Inbox</span>
       </Button>
     </div>
   );
