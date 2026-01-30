@@ -160,12 +160,15 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   // Update scroll state on mount, resize, and when scrollAreaRef changes
   useEffect(() => {
+    // Copy ref value to local variable for cleanup
+    const scrollAreaElement = scrollAreaRef.current;
+
     // Initial update
     updateScrollState();
 
     // Set up a MutationObserver to detect when the scroll container becomes available
     const observer = new MutationObserver(() => {
-      const scrollContainer = scrollAreaRef.current?.querySelector(
+      const scrollContainer = scrollAreaElement?.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (scrollContainer) {
@@ -174,14 +177,14 @@ export const KanbanBoard = memo(function KanbanBoard({
       }
     });
 
-    if (scrollAreaRef.current) {
-      observer.observe(scrollAreaRef.current, {
+    if (scrollAreaElement) {
+      observer.observe(scrollAreaElement, {
         childList: true,
         subtree: true,
       });
     }
 
-    const scrollContainer = scrollAreaRef.current?.querySelector(
+    const scrollContainer = scrollAreaElement?.querySelector(
       "[data-radix-scroll-area-viewport]",
     );
     if (scrollContainer) {
@@ -191,7 +194,7 @@ export const KanbanBoard = memo(function KanbanBoard({
 
     return () => {
       observer.disconnect();
-      const scrollContainer = scrollAreaRef.current?.querySelector(
+      const scrollContainer = scrollAreaElement?.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (scrollContainer) {
