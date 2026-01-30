@@ -10,6 +10,7 @@ import {
   Maximize2,
   Minimize2,
   MessageCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -72,18 +73,20 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
     enabled: !!threadId,
   });
 
-  const hasPR =
-    thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
+  const hasPR = thread?.githubPRNumber != null;
 
   // Fetch PR feedback data when thread has a PR
-  const { data: prFeedbackData, isLoading: isPRFeedbackLoading } =
-    useServerActionQuery({
-      queryKey: ["pr-feedback", threadId],
-      queryFn: () => getPRFeedback({ threadId: threadId! }),
-      enabled: hasPR && !!threadId,
-      staleTime: 30000, // 30 seconds
-      refetchInterval: 60000, // Refetch every minute
-    });
+  const {
+    data: prFeedbackData,
+    isLoading: isPRFeedbackLoading,
+    isError: isPRFeedbackError,
+  } = useServerActionQuery({
+    queryKey: ["pr-feedback", threadId],
+    queryFn: () => getPRFeedback({ threadId: threadId! }),
+    enabled: hasPR && !!threadId,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Refetch every minute
+  });
 
   const feedback = prFeedbackData?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
@@ -200,7 +203,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               <MessageCircle className="h-4 w-4" />
               <span className="text-xs font-medium">Comments</span>
               {commentCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border border-yellow-500/20">
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                   {commentCount}
                 </span>
               )}
@@ -247,6 +250,11 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
             <div className="h-full overflow-auto animate-page-enter futuristic-scrollbar p-4">
               {isPRFeedbackLoading ? (
                 <FuturisticLoader />
+              ) : isPRFeedbackError ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <AlertCircle className="size-8 mb-2 text-destructive opacity-70" />
+                  <p className="text-sm">Failed to load PR comments</p>
+                </div>
               ) : feedback ? (
                 <PRCommentsSection
                   unresolved={feedback.comments.unresolved}

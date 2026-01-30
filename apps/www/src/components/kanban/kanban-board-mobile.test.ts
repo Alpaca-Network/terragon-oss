@@ -110,10 +110,6 @@ describe("Kanban Mobile Components", () => {
     it("should have feed, changes, and comments tabs available", () => {
       expect(AVAILABLE_TABS).toContain("feed");
       expect(AVAILABLE_TABS).toContain("changes");
-      expect(AVAILABLE_TABS).toContain("comments");
-    });
-
-    it("should have comments tab for PR feedback", () => {
       // Comments tab is enabled when thread has a PR associated
       expect(AVAILABLE_TABS).toContain("comments");
     });
