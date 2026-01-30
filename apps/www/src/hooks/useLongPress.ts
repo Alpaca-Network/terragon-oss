@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export interface UseLongPressOptions {
   threshold?: number; // Time in ms to trigger long press (default: 500)
@@ -32,6 +32,13 @@ export function useLongPress({
       timerRef.current = null;
     }
   }, []);
+
+  // Clean up timer on unmount to prevent memory leaks and state updates on unmounted components
+  useEffect(() => {
+    return () => {
+      clearTimer();
+    };
+  }, [clearTimer]);
 
   const handleTouchStart = useCallback(
     (event: React.TouchEvent) => {
