@@ -118,6 +118,17 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const { data: archivedData, refetch: refetchArchived } =
     useInfiniteThreadList(archivedFilters);
 
+  // Fetch backlog threads to show in the Backlog column
+  const backlogFilters = useMemo(
+    () => ({
+      ...queryFilters,
+      isBacklog: true,
+    }),
+    [queryFilters],
+  );
+  const { data: backlogData, refetch: refetchBacklog } =
+    useInfiniteThreadList(backlogFilters);
+
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
@@ -128,10 +139,19 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     [archivedData],
   );
 
+  const backlogThreads = useMemo(
+    () => backlogData?.pages.flatMap((page) => page) ?? [],
+    [backlogData],
+  );
+
   const threadIds = useMemo(() => new Set(threads.map((t) => t.id)), [threads]);
   const archivedThreadIds = useMemo(
     () => new Set(archivedThreads.map((t) => t.id)),
     [archivedThreads],
+  );
+  const backlogThreadIds = useMemo(
+    () => new Set(backlogThreads.map((t) => t.id)),
+    [backlogThreads],
   );
 
   // Group threads by Kanban column
@@ -147,6 +167,14 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     for (const thread of threads) {
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
+    }
+
+    // Add backlog threads to the Backlog column
+    for (const thread of backlogThreads) {
+      // Avoid duplicates (threads that might be in both queries)
+      if (!threadIds.has(thread.id)) {
+        groups.backlog.push(thread);
+      }
     }
 
     // Add archived threads to Done column if toggle is enabled
@@ -169,11 +197,15 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
 
     return groups;
-  }, [threads, archivedThreads, showArchivedInDone]);
+  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId) || archivedThreadIds.has(threadId)) {
+      if (
+        threadIds.has(threadId) ||
+        archivedThreadIds.has(threadId) ||
+        backlogThreadIds.has(threadId)
+      ) {
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
@@ -192,6 +224,10 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           return true;
         }
       }
+      // Match backlog threads
+      if (typeof data.isThreadBacklog === "boolean") {
+        return true;
+      }
       if (data.isThreadCreated) {
         return true;
       }
@@ -200,6 +236,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     [
       threadIds,
       archivedThreadIds,
+      backlogThreadIds,
       showArchived,
       showArchivedInDone,
       automationId,
@@ -210,6 +247,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     matchThread,
     onThreadChange: () => {
       refetch();
+      refetchBacklog();
       if (showArchivedInDone) {
         refetchArchived();
       }

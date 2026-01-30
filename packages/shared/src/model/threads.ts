@@ -992,6 +992,7 @@ export async function updateThread({
         threadId: updatedThread.id,
         threadAutomationId: updatedThread.automationId ?? undefined,
         isThreadArchived: "archived" in updates ? updates.archived : undefined,
+        isThreadBacklog: "isBacklog" in updates ? updates.isBacklog : undefined,
         threadName: updatedThread.name ?? undefined,
       },
     });

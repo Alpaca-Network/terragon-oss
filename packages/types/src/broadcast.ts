@@ -21,6 +21,7 @@ const BroadcastMessageThreadDataSchema = z.object({
   isThreadCreated: z.boolean().optional(),
   isThreadDeleted: z.boolean().optional(),
   isThreadArchived: z.boolean().optional(),
+  isThreadBacklog: z.boolean().optional(),
   threadAutomationId: z.string().optional(),
   threadName: z.string().optional(),
   threadStatusUpdated: z.string().optional(),

@@ -16,6 +16,7 @@ function createMockThread(
       | "failure"
       | "unknown"
       | null;
+    isBacklog?: boolean;
   } = {},
 ): ThreadInfo {
   return {
@@ -34,6 +35,7 @@ function createMockThread(
     bootingSubstatus: null,
     gitDiffStats: null,
     archived: false,
+    isBacklog: overrides.isBacklog ?? false,
     createdAt: new Date(),
     updatedAt: new Date(),
     automationId: null,
@@ -134,6 +136,40 @@ describe("Kanban Types", () => {
 
       it("should return backlog for queued-blocked status", () => {
         const thread = createMockThread({ status: "queued-blocked" });
+        expect(getKanbanColumn(thread)).toBe("backlog");
+      });
+
+      it("should return backlog for threads with isBacklog flag set to true", () => {
+        const thread = createMockThread({
+          status: "complete",
+          isBacklog: true,
+        });
+        expect(getKanbanColumn(thread)).toBe("backlog");
+      });
+
+      it("should return backlog for working threads with isBacklog flag", () => {
+        const thread = createMockThread({
+          status: "working",
+          isBacklog: true,
+        });
+        expect(getKanbanColumn(thread)).toBe("backlog");
+      });
+
+      it("should return backlog for threads with open PR when isBacklog is true", () => {
+        const thread = createMockThread({
+          status: "complete",
+          githubPRNumber: 123,
+          prStatus: "open",
+          isBacklog: true,
+        });
+        expect(getKanbanColumn(thread)).toBe("backlog");
+      });
+
+      it("should return backlog for error threads when isBacklog is true", () => {
+        const thread = createMockThread({
+          status: "error",
+          isBacklog: true,
+        });
         expect(getKanbanColumn(thread)).toBe("backlog");
       });
     });
