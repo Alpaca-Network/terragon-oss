@@ -111,7 +111,7 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
             </a>
           </div>
           <div className="flex items-center gap-2">
-            <AddressFeedbackDialog feedback={feedback} />
+            <AddressFeedbackDialog feedback={feedback} thread={thread} />
           </div>
         </div>
 

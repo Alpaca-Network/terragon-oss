@@ -20,24 +20,26 @@ import { toast } from "sonner";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { newThread } from "@/server-actions/new-thread";
 import { queueFollowUp, QueueFollowUpArgs } from "@/server-actions/follow-up";
-import { useThread } from "../thread-context";
 import { getPrimaryThreadChat } from "@terragon/shared/utils/thread-utils";
 import { useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { useAccessInfo } from "@/queries/subscription";
 import { SUBSCRIPTION_MESSAGES } from "@/lib/subscription-msgs";
 import type { PRFeedback } from "@terragon/shared/db/types";
+import type { ThreadInfoFull } from "@terragon/shared";
 import { generateFeedbackTaskDescription } from "@/lib/feedback-task-template";
 
 type ActionMode = "new-task" | "integrate";
 
 interface AddressFeedbackDialogProps {
   feedback: PRFeedback;
+  thread: ThreadInfoFull;
   trigger?: React.ReactNode;
 }
 
 export function AddressFeedbackDialog({
   feedback,
+  thread,
   trigger,
 }: AddressFeedbackDialogProps) {
   const [open, setOpen] = useState(false);
@@ -45,8 +47,6 @@ export function AddressFeedbackDialog({
   const [includeMergeInstructions, setIncludeMergeInstructions] =
     useState(true);
   const [isEditing, setIsEditing] = useState(false);
-
-  const { thread } = useThread();
   const { isActive } = useAccessInfo();
   const selectedModel = useAtomValue(selectedModelAtom);
 
@@ -86,11 +86,6 @@ export function AddressFeedbackDialog({
   });
 
   const handleSubmit = async () => {
-    if (!thread) {
-      toast.error("No active task");
-      return;
-    }
-
     if (!isActive) {
       toast.error(SUBSCRIPTION_MESSAGES.CREATE_TASK);
       return;
