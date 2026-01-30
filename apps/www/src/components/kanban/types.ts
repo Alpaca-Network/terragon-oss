@@ -48,6 +48,11 @@ export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
   const hasMergedPR = thread.prStatus === "merged";
   const hasPRChecksFailure = thread.prChecksStatus === "failure";
 
+  // Tasks explicitly marked as backlog go to backlog column
+  if (thread.isBacklog) {
+    return "backlog";
+  }
+
   // Error states go to cancelled
   if (status === "error" || status === "working-error") {
     return "cancelled";
