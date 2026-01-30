@@ -31,8 +31,8 @@ export function PRFeedbackIndicators({
     queryKey: ["pr-feedback-indicators", threadId],
     queryFn: () => getPRFeedback({ threadId }),
     enabled: hasPR,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // Refetch every minute
+    staleTime: 10000, // 10 seconds
+    refetchInterval: 15000, // Refetch every 15 seconds for frequent updates
   });
 
   // Don't render anything if no PR
