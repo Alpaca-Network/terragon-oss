@@ -308,7 +308,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
               </a>
             </div>
             <div className="flex items-center gap-2">
-              <AddressFeedbackDialog feedback={feedback} />
+              <AddressFeedbackDialog feedback={feedback} thread={thread} />
               <MergeButton
                 repoFullName={feedback.repoFullName}
                 prNumber={feedback.prNumber}
