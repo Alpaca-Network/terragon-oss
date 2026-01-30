@@ -23,6 +23,118 @@ type ReviewThreadsResponse =
 type CheckRunsResponse =
   Endpoints["GET /repos/{owner}/{repo}/commits/{ref}/check-runs"]["response"]["data"];
 
+// GraphQL types for review thread resolution status
+type GraphQLReviewThread = {
+  id: string;
+  isResolved: boolean;
+  isOutdated: boolean;
+  comments: {
+    nodes: Array<{
+      databaseId: number;
+    }>;
+  };
+};
+
+type GraphQLReviewThreadsResponse = {
+  repository: {
+    pullRequest: {
+      reviewThreads: {
+        nodes: GraphQLReviewThread[];
+        pageInfo: {
+          hasNextPage: boolean;
+          endCursor: string | null;
+        };
+      };
+    };
+  };
+};
+
+// GraphQL query to fetch review thread resolution status
+const REVIEW_THREADS_QUERY = `
+  query GetReviewThreads($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $prNumber) {
+        reviewThreads(first: 100, after: $cursor) {
+          nodes {
+            id
+            isResolved
+            isOutdated
+            comments(first: 1) {
+              nodes {
+                databaseId
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Fetches review thread resolution status using GitHub GraphQL API
+ * Returns a map of comment ID to resolution status
+ */
+export async function fetchReviewThreadsResolutionStatus(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<Map<number, { isResolved: boolean; isOutdated: boolean }>> {
+  const resolutionMap = new Map<
+    number,
+    { isResolved: boolean; isOutdated: boolean }
+  >();
+
+  let cursor: string | null = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    try {
+      const response: GraphQLReviewThreadsResponse =
+        await octokit.graphql<GraphQLReviewThreadsResponse>(
+          REVIEW_THREADS_QUERY,
+          {
+            owner,
+            repo,
+            prNumber,
+            cursor,
+          },
+        );
+
+      const reviewThreads = response.repository.pullRequest?.reviewThreads;
+      const threads = reviewThreads?.nodes || [];
+
+      for (const thread of threads) {
+        // Map the first comment's database ID to the thread's resolution status
+        const firstComment = thread.comments.nodes[0];
+        if (firstComment?.databaseId) {
+          resolutionMap.set(firstComment.databaseId, {
+            isResolved: thread.isResolved,
+            isOutdated: thread.isOutdated,
+          });
+        }
+      }
+
+      hasNextPage = reviewThreads?.pageInfo?.hasNextPage || false;
+      cursor = reviewThreads?.pageInfo?.endCursor || null;
+    } catch (error) {
+      // If GraphQL fails (permissions, etc), fall back to heuristic method
+      console.warn(
+        "Failed to fetch review thread resolution status via GraphQL, falling back to heuristics:",
+        error,
+      );
+      break;
+    }
+  }
+
+  return resolutionMap;
+}
+
 /**
  * Fetches PR review comments
  */
@@ -139,9 +251,12 @@ function toCheckRun(raw: CheckRunsResponse["check_runs"][number]): PRCheckRun {
 
 /**
  * Groups comments into threads and determines resolved status
- * Uses GitHub's review thread API when available, falls back to comment grouping
+ * Uses GitHub's GraphQL API resolution status when available, falls back to heuristics
  */
-function groupCommentsIntoThreads(comments: ReviewCommentsResponse): {
+function groupCommentsIntoThreads(
+  comments: ReviewCommentsResponse,
+  resolutionStatus?: Map<number, { isResolved: boolean; isOutdated: boolean }>,
+): {
   unresolved: PRReviewThread[];
   resolved: PRReviewThread[];
 } {
@@ -158,10 +273,6 @@ function groupCommentsIntoThreads(comments: ReviewCommentsResponse): {
     threadMap.get(threadId)!.push(converted);
   }
 
-  // Convert map to threads array
-  // For now, treat all threads as unresolved since GitHub REST API
-  // doesn't directly expose resolved status. The GraphQL API does,
-  // but we'll use a heuristic: threads with no replies in 24h are considered "addressed"
   const unresolved: PRReviewThread[] = [];
   const resolved: PRReviewThread[] = [];
 
@@ -172,19 +283,30 @@ function groupCommentsIntoThreads(comments: ReviewCommentsResponse): {
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
 
+    // Check if we have GraphQL resolution status for this thread
+    const graphqlStatus = resolutionStatus?.get(threadId);
+    let isResolved = false;
+
+    if (graphqlStatus !== undefined) {
+      // Use actual GitHub resolution status from GraphQL
+      isResolved = graphqlStatus.isResolved;
+    } else {
+      // Fall back to heuristic: if the last comment mentions resolution keywords
+      const lastComment = threadComments[threadComments.length - 1];
+      const resolvedKeywords =
+        /\b(done|fixed|addressed|resolved|updated|applied)\b/i;
+      if (lastComment && resolvedKeywords.test(lastComment.body)) {
+        isResolved = true;
+      }
+    }
+
     const thread: PRReviewThread = {
       id: String(threadId),
-      isResolved: false, // Default to unresolved - can be enhanced with GraphQL later
+      isResolved,
       comments: threadComments,
     };
 
-    // Heuristic: if the last comment is from the PR author and mentions "done", "fixed", "addressed",
-    // consider it potentially resolved (user can expand to see full context)
-    const lastComment = threadComments[threadComments.length - 1];
-    const resolvedKeywords =
-      /\b(done|fixed|addressed|resolved|updated|applied)\b/i;
-    if (lastComment && resolvedKeywords.test(lastComment.body)) {
-      thread.isResolved = true;
+    if (isResolved) {
       resolved.push(thread);
     } else {
       unresolved.push(thread);
@@ -225,16 +347,19 @@ export async function aggregatePRFeedback(
   repo: string,
   prNumber: number,
 ): Promise<PRFeedback> {
-  // Fetch all data in parallel
-  const [prDetails, rawComments, rawChecks] = await Promise.all([
-    fetchPRDetails(octokit, owner, repo, prNumber),
+  // Fetch PR details first to get head SHA
+  const prDetails = await fetchPRDetails(octokit, owner, repo, prNumber);
+
+  // Fetch remaining data in parallel
+  const [rawComments, rawChecks, resolutionStatus] = await Promise.all([
     fetchPRComments(octokit, owner, repo, prNumber),
-    fetchPRDetails(octokit, owner, repo, prNumber).then((pr) =>
-      fetchPRChecks(octokit, owner, repo, pr.head.sha),
-    ),
+    fetchPRChecks(octokit, owner, repo, prDetails.head.sha),
+    // Fetch actual resolution status from GraphQL API
+    fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
   ]);
 
-  const comments = groupCommentsIntoThreads(rawComments);
+  // Pass resolution status to thread grouping for accurate resolved/unresolved classification
+  const comments = groupCommentsIntoThreads(rawComments, resolutionStatus);
   const checks = rawChecks.check_runs.map(toCheckRun);
   const coverageCheck = extractCoverageCheck(checks);
 

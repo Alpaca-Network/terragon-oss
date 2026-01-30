@@ -7,6 +7,7 @@ import {
   fetchPRReviews,
   fetchPRDetails,
   fetchPRChecks,
+  fetchReviewThreadsResolutionStatus,
 } from "./pr-feedback";
 import type { PRCheckRun, PRFeedback, PRReviewThread } from "../db/types";
 
@@ -261,6 +262,114 @@ describe("createFeedbackSummary", () => {
   });
 });
 
+describe("fetchReviewThreadsResolutionStatus", () => {
+  const mockOctokit = {
+    graphql: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should fetch and map resolution status from GraphQL", async () => {
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread1",
+                isResolved: true,
+                isOutdated: false,
+                comments: { nodes: [{ databaseId: 100 }] },
+              },
+              {
+                id: "thread2",
+                isResolved: false,
+                isOutdated: true,
+                comments: { nodes: [{ databaseId: 200 }] },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const result = await fetchReviewThreadsResolutionStatus(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(result.get(100)).toEqual({ isResolved: true, isOutdated: false });
+    expect(result.get(200)).toEqual({ isResolved: false, isOutdated: true });
+  });
+
+  it("should handle pagination", async () => {
+    mockOctokit.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: [
+                {
+                  id: "thread1",
+                  isResolved: true,
+                  isOutdated: false,
+                  comments: { nodes: [{ databaseId: 100 }] },
+                },
+              ],
+              pageInfo: { hasNextPage: true, endCursor: "cursor1" },
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: [
+                {
+                  id: "thread2",
+                  isResolved: false,
+                  isOutdated: false,
+                  comments: { nodes: [{ databaseId: 200 }] },
+                },
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
+
+    const result = await fetchReviewThreadsResolutionStatus(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(result.size).toBe(2);
+    expect(result.get(100)).toEqual({ isResolved: true, isOutdated: false });
+    expect(result.get(200)).toEqual({ isResolved: false, isOutdated: false });
+  });
+
+  it("should return empty map on GraphQL error", async () => {
+    mockOctokit.graphql.mockRejectedValue(new Error("GraphQL error"));
+
+    const result = await fetchReviewThreadsResolutionStatus(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(result.size).toBe(0);
+  });
+});
+
 describe("aggregatePRFeedback", () => {
   const mockOctokit = {
     rest: {
@@ -273,6 +382,7 @@ describe("aggregatePRFeedback", () => {
         listForRef: vi.fn(),
       },
     },
+    graphql: vi.fn(),
   };
 
   beforeEach(() => {
@@ -326,6 +436,24 @@ describe("aggregatePRFeedback", () => {
         ],
       },
     });
+    // Mock GraphQL for resolution status - comment not resolved
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread1",
+                isResolved: false,
+                isOutdated: false,
+                comments: { nodes: [{ databaseId: 1 }] },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
 
     const feedback = await aggregatePRFeedback(
       mockOctokit as any,
@@ -365,6 +493,16 @@ describe("aggregatePRFeedback", () => {
     mockOctokit.rest.checks.listForRef.mockResolvedValue({
       data: { check_runs: [] },
     });
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
 
     const feedback = await aggregatePRFeedback(
       mockOctokit as any,
@@ -378,7 +516,86 @@ describe("aggregatePRFeedback", () => {
     expect(feedback.mergeableState).toBe("dirty");
   });
 
-  it("should group comment threads correctly", async () => {
+  it("should use GraphQL resolution status when available", async () => {
+    const prDetails = {
+      html_url: "https://github.com/owner/repo/pull/123",
+      title: "Test PR",
+      draft: false,
+      closed_at: null,
+      merged_at: null,
+      base: { ref: "main" },
+      head: { ref: "feature", sha: "abc123" },
+      mergeable: true,
+      mergeable_state: "clean",
+    };
+
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Initial comment",
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer", avatar_url: "https://example.com" },
+          created_at: "2024-01-01T00:00:00Z",
+          updated_at: "2024-01-01T00:00:00Z",
+          in_reply_to_id: null,
+          html_url: "https://github.com",
+        },
+        {
+          id: 2,
+          body: "I will work on this", // No resolution keyword
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "author", avatar_url: "https://example.com" },
+          created_at: "2024-01-01T00:01:00Z",
+          updated_at: "2024-01-01T00:01:00Z",
+          in_reply_to_id: 1,
+          html_url: "https://github.com",
+        },
+      ],
+    });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    // GraphQL says thread is resolved even though comment doesn't have keywords
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread1",
+                isResolved: true,
+                isOutdated: false,
+                comments: { nodes: [{ databaseId: 1 }] },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    // Thread should be marked as resolved based on GraphQL API, not heuristics
+    expect(feedback.comments.resolved.length).toBe(1);
+    expect(feedback.comments.resolved[0]!.comments.length).toBe(2);
+    expect(feedback.comments.unresolved.length).toBe(0);
+  });
+
+  it("should fall back to heuristics when GraphQL fails", async () => {
     const prDetails = {
       html_url: "https://github.com/owner/repo/pull/123",
       title: "Test PR",
@@ -425,6 +642,8 @@ describe("aggregatePRFeedback", () => {
     mockOctokit.rest.checks.listForRef.mockResolvedValue({
       data: { check_runs: [] },
     });
+    // GraphQL fails
+    mockOctokit.graphql.mockRejectedValue(new Error("GraphQL error"));
 
     const feedback = await aggregatePRFeedback(
       mockOctokit as any,
@@ -433,7 +652,7 @@ describe("aggregatePRFeedback", () => {
       123,
     );
 
-    // Thread should be marked as resolved because last comment says "Done"
+    // Thread should be marked as resolved based on keyword heuristic (fallback)
     expect(feedback.comments.resolved.length).toBe(1);
     expect(feedback.comments.resolved[0]!.comments.length).toBe(2);
     expect(feedback.comments.unresolved.length).toBe(0);
@@ -476,6 +695,16 @@ describe("aggregatePRFeedback", () => {
             details_url: "https://codecov.io",
           },
         ],
+      },
+    });
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
       },
     });
 

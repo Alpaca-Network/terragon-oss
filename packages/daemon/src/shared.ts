@@ -42,6 +42,9 @@ export const DaemonMessageClaudeSchema = z.object({
   permissionMode: z.enum(["allowAll", "plan", "loop"]).optional(),
   loopConfig: LoopConfigSchema.optional(),
   useCredits: z.boolean().optional(),
+  // When true, route API calls through Gatewayz proxy instead of direct provider APIs
+  // This is used when user has an active Gatewayz subscription (pro/max tier)
+  useGatewayz: z.boolean().optional(),
 });
 
 export const DaemonMessagePingSchema = z.object({

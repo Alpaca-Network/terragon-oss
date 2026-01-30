@@ -49,6 +49,18 @@ describe("buildOpencodeConfig", () => {
               }
             },
             "models": {
+              "glm-4.7": {
+                "id": "z-ai/glm-4.7:exacto",
+                "name": "GLM 4.7"
+              },
+              "glm-4.7-flash": {
+                "id": "z-ai/glm-4.7-flash:exacto",
+                "name": "GLM 4.7 Flash"
+              },
+              "glm-4.7-lite": {
+                "id": "z-ai/glm-4.7-lite:exacto",
+                "name": "GLM 4.7 Lite"
+              },
               "glm-4.6": {
                 "id": "z-ai/glm-4.6:exacto",
                 "name": "GLM 4.6"

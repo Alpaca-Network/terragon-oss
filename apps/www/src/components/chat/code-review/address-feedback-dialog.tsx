@@ -153,6 +153,11 @@ export function AddressFeedbackDialog({
     ).length +
     (feedback.hasConflicts ? 1 : 0);
 
+  // Hide the button if there's no feedback to address
+  if (issueCount === 0) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>

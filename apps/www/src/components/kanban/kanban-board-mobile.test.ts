@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { KANBAN_COLUMNS, KanbanColumn } from "./types";
+import {
+  FAB_CLASSES,
+  CONTENT_BOTTOM_PADDING,
+  SWIPE_THRESHOLD,
+  calculateScrollToCenter,
+  shouldShowArchiveToggle,
+  getColumnHeaderColor,
+} from "./kanban-board-mobile";
 
 describe("Kanban Mobile Components", () => {
   describe("KANBAN_COLUMNS configuration", () => {
@@ -32,26 +40,7 @@ describe("Kanban Mobile Components", () => {
   });
 
   describe("Column header colors mapping", () => {
-    // Test the color mapping logic that's used in the mobile component
-    const getColumnHeaderColor = (
-      columnId: (typeof KANBAN_COLUMNS)[number]["id"],
-    ) => {
-      switch (columnId) {
-        case "backlog":
-          return "data-[state=active]:bg-muted";
-        case "in_progress":
-          return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary";
-        case "in_review":
-          return "data-[state=active]:bg-accent/10 data-[state=active]:text-accent-foreground";
-        case "done":
-          return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary";
-        case "cancelled":
-          return "data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive";
-        default:
-          return "data-[state=active]:bg-muted";
-      }
-    };
-
+    // Tests the actual exported getColumnHeaderColor function from the component
     it("should return muted color for backlog", () => {
       const color = getColumnHeaderColor("backlog");
       expect(color).toContain("bg-muted");
@@ -88,15 +77,30 @@ describe("Kanban Mobile Components", () => {
 
   describe("Mobile drawer configuration", () => {
     // Constants that should match the drawer implementation
-    const DRAWER_HEIGHT = "85vh";
+    const SNAP_POINTS = [0.75, 1] as const;
+    const DEFAULT_SNAP_POINT = 0.75;
     const DEFAULT_TAB = "feed";
     const AVAILABLE_TABS = ["feed", "changes"];
 
-    it("should have a reasonable drawer height for mobile", () => {
-      // 85vh gives enough room to see content while allowing swipe-to-dismiss
-      const heightValue = parseInt(DRAWER_HEIGHT);
-      expect(heightValue).toBeGreaterThanOrEqual(80);
-      expect(heightValue).toBeLessThanOrEqual(95);
+    it("should have snap points at 75% and 100% for mobile", () => {
+      expect(SNAP_POINTS).toContain(0.75);
+      expect(SNAP_POINTS).toContain(1);
+      expect(SNAP_POINTS.length).toBe(2);
+    });
+
+    it("should default to 75% snap point (not maximized)", () => {
+      expect(DEFAULT_SNAP_POINT).toBe(0.75);
+    });
+
+    it("should have snap points in ascending order", () => {
+      // Vaul requires snap points to be in ascending order
+      for (let i = 1; i < SNAP_POINTS.length; i++) {
+        expect(SNAP_POINTS[i]).toBeGreaterThan(SNAP_POINTS[i - 1]!);
+      }
+    });
+
+    it("should allow maximizing to 100% viewport height", () => {
+      expect(SNAP_POINTS).toContain(1);
     });
 
     it("should default to feed tab", () => {
@@ -109,9 +113,56 @@ describe("Kanban Mobile Components", () => {
     });
   });
 
+  describe("Mobile drawer maximize/minimize", () => {
+    const DEFAULT_SNAP_POINT = 0.75;
+    const MAXIMIZED_SNAP_POINT = 1;
+
+    // Helper to simulate toggle maximize logic
+    const toggleMaximize = (currentSnap: number): number => {
+      return currentSnap === MAXIMIZED_SNAP_POINT
+        ? DEFAULT_SNAP_POINT
+        : MAXIMIZED_SNAP_POINT;
+    };
+
+    // Helper to get height class based on snap point
+    const getHeightClass = (currentSnap: number): string => {
+      if (currentSnap === MAXIMIZED_SNAP_POINT) {
+        return "h-[100dvh] max-h-[100dvh]";
+      }
+      return "h-[75dvh] max-h-[75dvh]";
+    };
+
+    it("should toggle from default (75%) to maximized (100%)", () => {
+      const newSnap = toggleMaximize(DEFAULT_SNAP_POINT);
+      expect(newSnap).toBe(MAXIMIZED_SNAP_POINT);
+    });
+
+    it("should toggle from maximized (100%) back to default (75%)", () => {
+      const newSnap = toggleMaximize(MAXIMIZED_SNAP_POINT);
+      expect(newSnap).toBe(DEFAULT_SNAP_POINT);
+    });
+
+    it("should return 75dvh height class for default snap point", () => {
+      const heightClass = getHeightClass(DEFAULT_SNAP_POINT);
+      expect(heightClass).toContain("75dvh");
+    });
+
+    it("should return 100dvh height class for maximized snap point", () => {
+      const heightClass = getHeightClass(MAXIMIZED_SNAP_POINT);
+      expect(heightClass).toContain("100dvh");
+    });
+
+    it("should use dvh units for dynamic viewport height support", () => {
+      // dvh accounts for mobile browser chrome (address bar, etc.)
+      const defaultClass = getHeightClass(DEFAULT_SNAP_POINT);
+      const maximizedClass = getHeightClass(MAXIMIZED_SNAP_POINT);
+      expect(defaultClass).toContain("dvh");
+      expect(maximizedClass).toContain("dvh");
+    });
+  });
+
   describe("Swipe gesture navigation", () => {
-    // Constants that should match the mobile component implementation
-    const SWIPE_THRESHOLD = 50;
+    // Uses the actual exported SWIPE_THRESHOLD constant from the component
 
     // Helper to get column index
     const getColumnIndex = (columnId: KanbanColumn): number => {
@@ -193,49 +244,83 @@ describe("Kanban Mobile Components", () => {
   });
 
   describe("New task drawer", () => {
-    // Constants that should match the new task drawer implementation
+    // New task drawer uses fixed height (doesn't need snap points for maximize)
     const NEW_TASK_DRAWER_HEIGHT = "85vh";
 
-    it("should have the same height as task detail drawer for consistency", () => {
-      const taskDrawerHeight = "85vh";
-      expect(NEW_TASK_DRAWER_HEIGHT).toBe(taskDrawerHeight);
+    it("should have a reasonable height for mobile", () => {
+      const heightValue = parseInt(NEW_TASK_DRAWER_HEIGHT);
+      expect(heightValue).toBeGreaterThanOrEqual(80);
+      expect(heightValue).toBeLessThanOrEqual(90);
+    });
+  });
+
+  describe("Floating action button", () => {
+    // Tests the actual exported FAB_CLASSES constant from the component
+    it("should be positioned at bottom-right corner", () => {
+      expect(FAB_CLASSES.position).toContain("bottom-6");
+      expect(FAB_CLASSES.position).toContain("right-6");
+      expect(FAB_CLASSES.position).toContain("fixed");
+    });
+
+    it("should have appropriate size for touch targets", () => {
+      // 56px (h-14/w-14) is good for mobile touch targets (recommended min 44px)
+      expect(FAB_CLASSES.size).toContain("h-14");
+      expect(FAB_CLASSES.size).toContain("w-14");
+      // Verify 14 * 4 = 56px >= 44px minimum touch target
+      const sizeValue = 14 * 4;
+      expect(sizeValue).toBeGreaterThanOrEqual(44);
+    });
+
+    it("should have high z-index to stay above content", () => {
+      expect(FAB_CLASSES.style).toContain("z-50");
+    });
+
+    it("should have rounded styling for FAB appearance", () => {
+      expect(FAB_CLASSES.style).toContain("rounded-full");
+      expect(FAB_CLASSES.style).toContain("shadow-lg");
+    });
+  });
+
+  describe("Content bottom padding for FAB", () => {
+    it("should have padding to prevent FAB from obscuring content", () => {
+      // pb-20 = 80px which accounts for FAB height (56px) + margin
+      expect(CONTENT_BOTTOM_PADDING).toBe("pb-20");
     });
   });
 
   describe("Archive toggle in Done column", () => {
+    // Tests the actual exported shouldShowArchiveToggle function from the component
     it("should only show archive toggle for done column", () => {
-      const showArchiveToggle = (columnId: KanbanColumn) => columnId === "done";
-
-      expect(showArchiveToggle("done")).toBe(true);
-      expect(showArchiveToggle("backlog")).toBe(false);
-      expect(showArchiveToggle("in_progress")).toBe(false);
-      expect(showArchiveToggle("in_review")).toBe(false);
-      expect(showArchiveToggle("cancelled")).toBe(false);
+      expect(shouldShowArchiveToggle("done", false)).toBe(true);
+      expect(shouldShowArchiveToggle("backlog", false)).toBe(false);
+      expect(shouldShowArchiveToggle("in_progress", false)).toBe(false);
+      expect(shouldShowArchiveToggle("in_review", false)).toBe(false);
+      expect(shouldShowArchiveToggle("cancelled", false)).toBe(false);
     });
 
     it("should not show archive toggle when viewing archived tasks", () => {
-      // When queryFilters.archived is true, toggle should be hidden
-      const showArchiveToggle = (
-        columnId: KanbanColumn,
-        isArchivedView: boolean,
-      ) => columnId === "done" && !isArchivedView;
+      // When isArchivedView is true, toggle should be hidden
+      expect(shouldShowArchiveToggle("done", true)).toBe(false);
+      expect(shouldShowArchiveToggle("done", false)).toBe(true);
+    });
 
-      expect(showArchiveToggle("done", true)).toBe(false);
-      expect(showArchiveToggle("done", false)).toBe(true);
+    it("should hide toggle for all columns in archived view", () => {
+      KANBAN_COLUMNS.forEach((col) => {
+        expect(shouldShowArchiveToggle(col.id, true)).toBe(false);
+      });
     });
   });
 
   describe("Tab scroll to center on swipe", () => {
-    it("should calculate correct scroll position to center a tab", () => {
-      // Simulates the scroll calculation
-      const calculateScrollToCenter = (
-        tabsListWidth: number,
-        tabOffsetLeft: number,
-        tabWidth: number,
-      ) => {
-        return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
-      };
+    // Tests the actual exported calculateScrollToCenter function from the component
+    it("should have all column IDs available for scroll tracking", () => {
+      // Verify all columns have unique IDs that can be used for tracking
+      const columnIds = KANBAN_COLUMNS.map((c) => c.id);
+      const uniqueIds = new Set(columnIds);
+      expect(uniqueIds.size).toBe(KANBAN_COLUMNS.length);
+    });
 
+    it("should calculate correct scroll position to center a tab", () => {
       // Example: tabs list is 300px wide, tab is at 150px offset with 60px width
       const scrollPos = calculateScrollToCenter(300, 150, 60);
       // Expected: 150 - 150 + 30 = 30
@@ -243,18 +328,24 @@ describe("Kanban Mobile Components", () => {
     });
 
     it("should handle scroll for first tab correctly", () => {
-      const calculateScrollToCenter = (
-        tabsListWidth: number,
-        tabOffsetLeft: number,
-        tabWidth: number,
-      ) => {
-        return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
-      };
-
       // First tab at offset 0, width 60px, list is 300px
       const scrollPos = calculateScrollToCenter(300, 0, 60);
       // Expected: 0 - 150 + 30 = -120 (browser will clamp to 0)
       expect(scrollPos).toBe(-120);
+    });
+
+    it("should center middle tabs correctly", () => {
+      // Middle tab at offset 200px, width 80px, list is 400px
+      const scrollPos = calculateScrollToCenter(400, 200, 80);
+      // Expected: 200 - 200 + 40 = 40
+      expect(scrollPos).toBe(40);
+    });
+
+    it("should handle last tab position", () => {
+      // Last tab at offset 340px, width 60px, list is 400px
+      const scrollPos = calculateScrollToCenter(400, 340, 60);
+      // Expected: 340 - 200 + 30 = 170
+      expect(scrollPos).toBe(170);
     });
   });
 });
