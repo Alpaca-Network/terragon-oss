@@ -92,6 +92,7 @@ export const KanbanColumn = memo(function KanbanColumn({
               disabled={!canNavigateLeft}
               className="h-6 w-6"
               title="Previous column"
+              aria-label="Previous column"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -108,6 +109,7 @@ export const KanbanColumn = memo(function KanbanColumn({
               disabled={!canNavigateRight}
               className="h-6 w-6"
               title="Next column"
+              aria-label="Next column"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

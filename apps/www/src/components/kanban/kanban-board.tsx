@@ -551,6 +551,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 onClick={handleCloseDetail}
                 className="h-8 w-8"
                 title="Close task details"
+                aria-label="Close task details"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -759,6 +760,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 onClick={handleCloseDetail}
                 className="h-8 w-8"
                 title="Close task details"
+                aria-label="Close task details"
               >
                 <X className="h-4 w-4" />
               </Button>
