@@ -41,7 +41,7 @@ export function AddressFeedbackDialog({
   trigger,
 }: AddressFeedbackDialogProps) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<ActionMode>("new-task");
+  const [mode, setMode] = useState<ActionMode>("integrate");
   const [includeMergeInstructions, setIncludeMergeInstructions] =
     useState(true);
   const [isEditing, setIsEditing] = useState(false);

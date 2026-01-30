@@ -8,6 +8,8 @@ import {
   Plus,
   Archive,
   ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -380,8 +382,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
-        {/* Column tabs - horizontally scrollable */}
-        <div className="flex-shrink-0 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        {/* Column tabs - horizontally scrollable with arrows */}
+        <div className="flex-shrink-0 flex items-center gap-1 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+          {/* Left arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-8 w-8"
+            onClick={() => swipeToAdjacentTab("right")}
+            disabled={getColumnIndex(activeColumn) === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
           <div
             ref={tabsListRef}
             className="overflow-x-auto scrollbar-hide py-1"
@@ -414,6 +426,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
               ))}
             </TabsList>
           </div>
+          {/* Right arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-8 w-8"
+            onClick={() => swipeToAdjacentTab("left")}
+            disabled={
+              getColumnIndex(activeColumn) === KANBAN_COLUMNS.length - 1
+            }
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Column content with swipe support */}
@@ -427,7 +451,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             onTouchEnd={handleTouchEnd}
           >
             <ScrollArea className="h-full futuristic-scrollbar">
-              <div className={cn("p-3 space-y-3", CONTENT_BOTTOM_PADDING)}>
+              <div className={cn("p-2 space-y-2", CONTENT_BOTTOM_PADDING)}>
                 {/* Show archived toggle for Done column */}
                 {shouldShowArchiveToggle(
                   col.id,
