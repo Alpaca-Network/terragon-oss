@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, useRef, useEffect } from "react";
+import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { getThreadTitle } from "@/agent/thread-utils";
 import { PRStatusPill } from "../pr-status-pill";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,10 @@ import { useUpdateThreadNameMutation } from "@/queries/thread-mutations";
 import { DraftTaskDialog } from "../chat/draft-task-dialog";
 import { useRouter } from "next/navigation";
 import { ThreadAgentIcon } from "../thread-agent-icon";
+import { PRCommentCountBadge } from "../kanban/pr-comment-count-badge";
+import { useSetAtom } from "jotai";
+import { secondaryPanelViewAtom } from "@/atoms/user-cookies";
+import { useLongPress } from "@/hooks/useLongPress";
 
 export const ThreadListItem = memo(function ThreadListItem({
   thread,
@@ -26,6 +30,7 @@ export const ThreadListItem = memo(function ThreadListItem({
   className?: string;
   hideRepository: boolean;
 }) {
+  const router = useRouter();
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const relativeTime = useMemo(
@@ -37,6 +42,19 @@ export const ThreadListItem = memo(function ThreadListItem({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const updateNameMutation = useUpdateThreadNameMutation();
+  const setSecondaryPanelView = useSetAtom(secondaryPanelViewAtom);
+
+  // Handle context menu (right-click on desktop, long-press on mobile)
+  const handleContextMenu = useCallback(() => {
+    if (!isEditingName) {
+      setIsMenuOpen(true);
+    }
+  }, [isEditingName]);
+
+  const longPressHandlers = useLongPress({
+    onLongPress: handleContextMenu,
+    disabled: isEditingName,
+  });
 
   useEffect(() => {
     if (isEditingName && inputRef.current) {
@@ -102,6 +120,10 @@ export const ThreadListItem = memo(function ThreadListItem({
               setIsEditingDraft(true);
             }
           }}
+          onContextMenu={longPressHandlers.onContextMenu}
+          onTouchStart={longPressHandlers.onTouchStart}
+          onTouchEnd={longPressHandlers.onTouchEnd}
+          onTouchMove={longPressHandlers.onTouchMove}
         >
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1">
@@ -164,6 +186,20 @@ export const ThreadListItem = memo(function ThreadListItem({
                     automationId={thread.automationId}
                   />
                 )}
+                {thread.githubPRNumber && (
+                  <PRCommentCountBadge
+                    threadId={thread.id}
+                    repoFullName={thread.githubRepoFullName}
+                    prNumber={thread.githubPRNumber}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Set the secondary panel to comments view and navigate to task
+                      setSecondaryPanelView("comments");
+                      router.push(`/task/${thread.id}`);
+                    }}
+                  />
+                )}
                 {thread.githubPRNumber && thread.prStatus && (
                   <PRStatusPill
                     status={thread.prStatus}
@@ -200,6 +236,7 @@ export const ThreadListItem = memo(function ThreadListItem({
             showReadUnreadActions
             showRenameAction
             onRenameClick={() => setIsEditingName(true)}
+            open={isMenuOpen}
             onMenuOpenChange={setIsMenuOpen}
           />
         </div>

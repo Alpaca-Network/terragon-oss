@@ -8,6 +8,8 @@ import {
   Plus,
   Archive,
   ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,6 +120,17 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const { data: archivedData, refetch: refetchArchived } =
     useInfiniteThreadList(archivedFilters);
 
+  // Fetch backlog threads to show in the Backlog column
+  const backlogFilters = useMemo(
+    () => ({
+      ...queryFilters,
+      isBacklog: true,
+    }),
+    [queryFilters],
+  );
+  const { data: backlogData, refetch: refetchBacklog } =
+    useInfiniteThreadList(backlogFilters);
+
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
@@ -128,10 +141,19 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     [archivedData],
   );
 
+  const backlogThreads = useMemo(
+    () => backlogData?.pages.flatMap((page) => page) ?? [],
+    [backlogData],
+  );
+
   const threadIds = useMemo(() => new Set(threads.map((t) => t.id)), [threads]);
   const archivedThreadIds = useMemo(
     () => new Set(archivedThreads.map((t) => t.id)),
     [archivedThreads],
+  );
+  const backlogThreadIds = useMemo(
+    () => new Set(backlogThreads.map((t) => t.id)),
+    [backlogThreads],
   );
 
   // Group threads by Kanban column
@@ -147,6 +169,14 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     for (const thread of threads) {
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
+    }
+
+    // Add backlog threads to the Backlog column
+    for (const thread of backlogThreads) {
+      // Avoid duplicates (threads that might be in both queries)
+      if (!threadIds.has(thread.id)) {
+        groups.backlog.push(thread);
+      }
     }
 
     // Add archived threads to Done column if toggle is enabled
@@ -169,11 +199,15 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
 
     return groups;
-  }, [threads, archivedThreads, showArchivedInDone]);
+  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId) || archivedThreadIds.has(threadId)) {
+      if (
+        threadIds.has(threadId) ||
+        archivedThreadIds.has(threadId) ||
+        backlogThreadIds.has(threadId)
+      ) {
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
@@ -192,6 +226,10 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           return true;
         }
       }
+      // Match backlog threads
+      if (typeof data.isThreadBacklog === "boolean") {
+        return true;
+      }
       if (data.isThreadCreated) {
         return true;
       }
@@ -200,6 +238,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     [
       threadIds,
       archivedThreadIds,
+      backlogThreadIds,
       showArchived,
       showArchivedInDone,
       automationId,
@@ -210,6 +249,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     matchThread,
     onThreadChange: () => {
       refetch();
+      refetchBacklog();
       if (showArchivedInDone) {
         refetchArchived();
       }
@@ -380,8 +420,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
-        {/* Column tabs - horizontally scrollable */}
-        <div className="flex-shrink-0 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        {/* Column tabs - horizontally scrollable with arrows */}
+        <div className="flex-shrink-0 flex items-center gap-1 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+          {/* Left arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-8 w-8"
+            onClick={() => swipeToAdjacentTab("right")}
+            disabled={getColumnIndex(activeColumn) === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
           <div
             ref={tabsListRef}
             className="overflow-x-auto scrollbar-hide py-1"
@@ -414,6 +464,18 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
               ))}
             </TabsList>
           </div>
+          {/* Right arrow */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0 h-8 w-8"
+            onClick={() => swipeToAdjacentTab("left")}
+            disabled={
+              getColumnIndex(activeColumn) === KANBAN_COLUMNS.length - 1
+            }
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Column content with swipe support */}
@@ -427,7 +489,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             onTouchEnd={handleTouchEnd}
           >
             <ScrollArea className="h-full futuristic-scrollbar">
-              <div className={cn("p-3 space-y-3", CONTENT_BOTTOM_PADDING)}>
+              <div className={cn("p-2 space-y-2", CONTENT_BOTTOM_PADDING)}>
                 {/* Show archived toggle for Done column */}
                 {shouldShowArchiveToggle(
                   col.id,

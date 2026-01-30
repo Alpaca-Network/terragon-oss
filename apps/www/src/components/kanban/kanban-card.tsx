@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useLongPress } from "@/hooks/useLongPress";
 
 export const KanbanCard = memo(function KanbanCard({
   thread,
@@ -72,11 +73,24 @@ export const KanbanCard = memo(function KanbanCard({
     [thread, submitDraftMutation],
   );
 
+  // Handle context menu (right-click on desktop, long-press on mobile)
+  const handleContextMenu = useCallback(() => {
+    setIsMenuOpen(true);
+  }, []);
+
+  const longPressHandlers = useLongPress({
+    onLongPress: handleContextMenu,
+  });
+
   return (
     <div
       onClick={onClick}
+      onContextMenu={longPressHandlers.onContextMenu}
+      onTouchStart={longPressHandlers.onTouchStart}
+      onTouchEnd={longPressHandlers.onTouchEnd}
+      onTouchMove={longPressHandlers.onTouchMove}
       className={cn(
-        "group relative bg-card border rounded-xl p-3.5 cursor-pointer",
+        "group relative bg-card border rounded-xl p-2.5 cursor-pointer",
         "transition-all duration-200 ease-out",
         "tap-highlight card-float-hover",
         "hover:border-primary/40 active:scale-[0.98]",
@@ -88,7 +102,7 @@ export const KanbanCard = memo(function KanbanCard({
       {(!isDraft || isMenuOpen) && (
         <div
           className={cn(
-            "absolute right-2 top-2 transition-opacity",
+            "absolute right-1.5 top-1.5 transition-opacity",
             isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
           )}
           onClick={handleMenuClick}
@@ -105,6 +119,7 @@ export const KanbanCard = memo(function KanbanCard({
               </Button>
             }
             showReadUnreadActions
+            open={isMenuOpen}
             onMenuOpenChange={setIsMenuOpen}
           />
         </div>
@@ -112,7 +127,7 @@ export const KanbanCard = memo(function KanbanCard({
 
       {/* Start Task button - shown on hover for draft tasks */}
       {isDraft && !isMenuOpen && (
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -134,7 +149,7 @@ export const KanbanCard = memo(function KanbanCard({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {/* Header with status and title */}
         <div className="flex items-start gap-2 pr-6">
           <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center mt-0.5">
@@ -156,7 +171,7 @@ export const KanbanCard = memo(function KanbanCard({
         )}
 
         {/* Footer with metadata */}
-        <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex items-center justify-between gap-2">
           <span
             className="text-xs text-muted-foreground"
             title={new Date(thread.updatedAt).toLocaleString()}

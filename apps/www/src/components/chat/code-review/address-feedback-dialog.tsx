@@ -41,7 +41,7 @@ export function AddressFeedbackDialog({
   trigger,
 }: AddressFeedbackDialogProps) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<ActionMode>("new-task");
+  const [mode, setMode] = useState<ActionMode>("integrate");
   const [includeMergeInstructions, setIncludeMergeInstructions] =
     useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -153,6 +153,11 @@ export function AddressFeedbackDialog({
     ).length +
     (feedback.hasConflicts ? 1 : 0);
 
+  // Hide the button if there's no feedback to address
+  if (issueCount === 0) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -188,6 +193,21 @@ export function AddressFeedbackDialog({
             >
               <label
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  mode === "integrate"
+                    ? "border-primary bg-primary/5"
+                    : "hover:bg-muted/50"
+                }`}
+              >
+                <RadioGroupItem value="integrate" className="mt-0.5" />
+                <div>
+                  <div className="font-medium text-sm">Add to task queue</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Add to current task&apos;s message queue
+                  </p>
+                </div>
+              </label>
+              <label
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                   mode === "new-task"
                     ? "border-primary bg-primary/5"
                     : "hover:bg-muted/50"
@@ -198,23 +218,6 @@ export function AddressFeedbackDialog({
                   <div className="font-medium text-sm">Start as new task</div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Create a separate task to address feedback
-                  </p>
-                </div>
-              </label>
-              <label
-                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  mode === "integrate"
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-muted/50"
-                }`}
-              >
-                <RadioGroupItem value="integrate" className="mt-0.5" />
-                <div>
-                  <div className="font-medium text-sm">
-                    Integrate into existing task
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Add to current task&apos;s message queue
                   </p>
                 </div>
               </label>

@@ -549,6 +549,16 @@
   }
 }
 
+/* Hide scrollbar utility class */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
 /* ==========================================================================
    FUTURISTIC EFFECTS - Mobile-optimized animations and styles
    ========================================================================== */
