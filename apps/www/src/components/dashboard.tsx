@@ -112,7 +112,7 @@ export function Dashboard({
   const showRecommendedTasks =
     (data?.pages.flatMap((page) => page) ?? []).length < 3;
 
-  // Show Kanban view on larger screens when viewMode is 'kanban'
+  // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
 
   // Determine view filter and query filters
@@ -190,6 +190,7 @@ export function Dashboard({
                 allowGroupBy={true}
                 showSuggestedTasks={false}
                 setPromptText={setPromptText}
+                showViewToggle={true}
               />
             </div>
           )}
@@ -211,6 +212,7 @@ export function Dashboard({
               allowGroupBy={true}
               showSuggestedTasks={showRecommendedTasks}
               setPromptText={setPromptText}
+              showViewToggle={true}
             />
           )}
         </div>

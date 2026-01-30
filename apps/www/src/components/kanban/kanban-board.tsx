@@ -30,9 +30,12 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
 import { usePlatform } from "@/hooks/use-platform";
 import { KanbanBoardMobile } from "./kanban-board-mobile";
+import { QuickAddBacklogDialog } from "./quick-add-backlog";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -102,6 +105,9 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useAtom(
+    kanbanQuickAddBacklogOpenAtom,
+  );
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -277,6 +283,10 @@ export const KanbanBoard = memo(function KanbanBoard({
     setSelectedThreadId(null);
   }, []);
 
+  const handleOpenQuickAddBacklog = useCallback(() => {
+    setIsQuickAddBacklogOpen(true);
+  }, [setIsQuickAddBacklogOpen]);
+
   // Calculate max width based on container
   const getMaxWidth = useCallback(() => {
     if (containerRef.current) {
@@ -352,22 +362,25 @@ export const KanbanBoard = memo(function KanbanBoard({
       ref={containerRef}
       className="flex flex-col h-full w-full overflow-hidden"
     >
-      {/* Header with new task button */}
-      <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
+      {/* Header with view toggle and new task button */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-muted-foreground">
             Kanban Board
           </h2>
         </div>
-        <Button
-          variant="default"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={() => setNewTaskDialogOpen(true)}
-        >
-          <SquarePen className="h-4 w-4" />
-          <span className="text-xs">New Task</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <TaskViewToggle />
+          <Button
+            variant="default"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => setNewTaskDialogOpen(true)}
+          >
+            <SquarePen className="h-4 w-4" />
+            <span className="text-xs">New Task</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -387,6 +400,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                   threads={columnThreads[column.id]}
                   selectedThreadId={selectedThreadId}
                   onThreadSelect={handleThreadSelect}
+                  onAddToBacklog={
+                    column.id === "backlog"
+                      ? handleOpenQuickAddBacklog
+                      : undefined
+                  }
                   onThreadCommentsClick={handleThreadCommentsClick}
                   showArchivedToggle={
                     column.id === "done" && !queryFilters.archived
@@ -405,7 +423,7 @@ export const KanbanBoard = memo(function KanbanBoard({
         {/* Task detail panel */}
         {selectedThreadId && (
           <div
-            className="relative flex-shrink-0 border-l bg-background flex flex-col"
+            className="relative flex-shrink-0 border-l border-border bg-background flex flex-col"
             style={{ width: `${panelWidth}px` }}
           >
             {/* Resize handle */}
@@ -418,7 +436,7 @@ export const KanbanBoard = memo(function KanbanBoard({
             />
 
             {/* Panel header with tabs and view toggle */}
-            <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2 flex-shrink-0">
               {/* Tabs */}
               <div className="flex items-center gap-1">
                 <Button
@@ -497,6 +515,12 @@ export const KanbanBoard = memo(function KanbanBoard({
         open={newTaskDialogOpen}
         onOpenChange={setNewTaskDialogOpen}
         queryFilters={queryFilters}
+      />
+
+      {/* Quick add backlog dialog */}
+      <QuickAddBacklogDialog
+        open={isQuickAddBacklogOpen}
+        onOpenChange={setIsQuickAddBacklogOpen}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getKanbanColumn, KANBAN_COLUMNS } from "./types";
+import { getKanbanColumn, KANBAN_COLUMNS, isDraftThread } from "./types";
 import { ThreadInfo, ThreadStatus } from "@terragon/shared";
 
 // Helper to create a mock ThreadInfo with specific status and properties
@@ -321,6 +321,67 @@ describe("Kanban Types", () => {
         // "working-error" should take precedence
         expect(getKanbanColumn(thread)).toBe("cancelled");
       });
+    });
+  });
+
+  describe("isDraftThread", () => {
+    it("should return true for thread with all draft chats", () => {
+      const thread = createMockThread({ status: "draft" });
+      expect(isDraftThread(thread)).toBe(true);
+    });
+
+    it("should return false for thread with non-draft status", () => {
+      const thread = createMockThread({ status: "queued" });
+      expect(isDraftThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with working status", () => {
+      const thread = createMockThread({ status: "working" });
+      expect(isDraftThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with empty threadChats", () => {
+      const thread = createMockThread();
+      thread.threadChats = [];
+      expect(isDraftThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with mixed statuses", () => {
+      const thread = createMockThread();
+      thread.threadChats = [
+        {
+          id: "1",
+          agent: "claudeCode",
+          status: "draft",
+          errorMessage: null,
+        },
+        {
+          id: "2",
+          agent: "claudeCode",
+          status: "working",
+          errorMessage: null,
+        },
+      ];
+      expect(isDraftThread(thread)).toBe(false);
+    });
+
+    it("should return true for thread with multiple draft chats", () => {
+      const thread = createMockThread();
+      thread.threadChats = [
+        {
+          id: "1",
+          agent: "claudeCode",
+          status: "draft",
+          errorMessage: null,
+        },
+        {
+          id: "2",
+          agent: "claudeCode",
+          status: "draft",
+          errorMessage: null,
+        },
+      ];
+      expect(isDraftThread(thread)).toBe(true);
     });
   });
 });
