@@ -34,6 +34,7 @@ import posthog from "posthog-js";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { useThread } from "./thread-context";
 import { useSecondaryPanel } from "./hooks";
+import { PRFeedbackIndicators } from "./pr-feedback-indicators";
 
 export const ChatHeaderButtons = memo(function ChatHeaderButtons({
   thread,
@@ -53,6 +54,9 @@ export const ChatHeaderButtons = memo(function ChatHeaderButtons({
   const handleShareClick = () => {
     setShareDrawerOpen(true);
   };
+
+  const hasPR =
+    thread.githubPRNumber !== null && thread.githubPRNumber !== undefined;
 
   return (
     <>
@@ -75,6 +79,7 @@ export const ChatHeaderButtons = memo(function ChatHeaderButtons({
             isReadOnly={isReadOnly}
           />
         )}
+        <PRFeedbackIndicators threadId={thread.id} hasPR={hasPR} />
         <Button
           variant="ghost"
           size="icon"
