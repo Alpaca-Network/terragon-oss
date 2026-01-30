@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SquarePen, PanelLeftClose } from "lucide-react";
 import {
   ThreadListHeader,
@@ -24,6 +24,7 @@ export function ThreadListSidebar() {
     canCollapseThreadList,
     isThreadListCollapsed,
     setThreadListCollapsed,
+    isDashboardKanban,
   } = useCollapsibleThreadList();
 
   const [viewFilter, setViewFilter] = useState<ThreadViewFilter>("active");
@@ -36,6 +37,14 @@ export function ThreadListSidebar() {
     mode: "fixed",
     direction: "ltr",
   });
+
+  // Auto-collapse sidebar when entering kanban view on dashboard
+  useEffect(() => {
+    if (isDashboardKanban && !isThreadListCollapsed) {
+      setThreadListCollapsed(true);
+    }
+  }, [isDashboardKanban, isThreadListCollapsed, setThreadListCollapsed]);
+
   // Don't render the sidebar if it should be collapsed
   if (isThreadListCollapsed) {
     return null;
