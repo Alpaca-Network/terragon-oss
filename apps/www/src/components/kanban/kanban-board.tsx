@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, useCallback, useRef } from "react";
+import { memo, useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { KanbanColumn } from "./kanban-column";
 import {
@@ -15,7 +15,6 @@ import {
   MessageSquare,
   GitCommit,
   MessageCircle,
-  LayoutList,
 } from "lucide-react";
 import {
   ThreadListFilters,
@@ -29,13 +28,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
-import { useSetAtom } from "jotai";
-import { dashboardViewModeAtom } from "@/atoms/user-cookies";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TaskViewToggle } from "@/components/task-view-toggle";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -69,13 +62,23 @@ const TASK_PANEL_DEFAULT_WIDTH_PERCENT = 55;
 
 export const KanbanBoard = memo(function KanbanBoard({
   queryFilters,
+  initialSelectedTaskId,
 }: {
   queryFilters: ThreadListFilters;
+  initialSelectedTaskId?: string | null;
 }) {
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
+    initialSelectedTaskId ?? null,
+  );
+
+  // Handle initialSelectedTaskId changes (e.g., when navigating with ?task= param)
+  useEffect(() => {
+    if (initialSelectedTaskId) {
+      setSelectedThreadId(initialSelectedTaskId);
+    }
+  }, [initialSelectedTaskId]);
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const containerRef = useRef<HTMLDivElement>(null);
-  const setViewMode = useSetAtom(dashboardViewModeAtom);
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
@@ -274,7 +277,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 disabled={!selectedThread?.gitDiff}
               >
                 <GitCommit className="h-3.5 w-3.5" />
-                <span className="text-xs">Changes</span>
+                <span className="text-xs">Files Changed</span>
               </Button>
               <Button
                 variant={activeTab === "comments" ? "secondary" : "ghost"}
@@ -291,21 +294,7 @@ export const KanbanBoard = memo(function KanbanBoard({
 
             {/* View toggle and close button */}
             <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setViewMode("list")}
-                    className="h-8 w-8"
-                  >
-                    <LayoutList className="h-4 w-4 opacity-50" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Switch to List view
-                </TooltipContent>
-              </Tooltip>
+              <TaskViewToggle threadId={selectedThreadId} />
               <Button
                 variant="ghost"
                 size="icon"

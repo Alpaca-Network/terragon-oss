@@ -9,6 +9,7 @@ import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   threadQueryKeys,
@@ -24,6 +25,16 @@ import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
+import { TaskViewToggle } from "./task-view-toggle";
+import { Button } from "@/components/ui/button";
+import { SquarePen } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function Dashboard({
   showArchived = false,
@@ -35,6 +46,8 @@ export function Dashboard({
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
   const viewMode = useAtomValue(dashboardViewModeAtom);
+  const searchParams = useSearchParams();
+  const initialTaskId = searchParams.get("task");
 
   useEffect(() => {
     setMounted(true);
@@ -109,6 +122,20 @@ export function Dashboard({
   // Show Kanban view on larger screens when viewMode is 'kanban'
   const showKanbanView = viewMode === "kanban" && mounted;
 
+  // State for the new task dialog in Kanban view
+  const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+
+  // Wrap handleSubmit to close dialog on successful submission
+  const handleKanbanSubmit = useCallback<DashboardPromptBoxHandleSubmit>(
+    async (params) => {
+      await handleSubmit(params);
+      if (!params.saveAsDraft) {
+        setNewTaskDialogOpen(false);
+      }
+    },
+    [handleSubmit],
+  );
+
   return (
     <div
       className={cn(
@@ -117,6 +144,46 @@ export function Dashboard({
       )}
     >
       <FeatureUpsellToast />
+
+      {/* Task View Toggle - shown at top right in both views on desktop */}
+      {mounted && (
+        <div
+          className={cn(
+            "hidden lg:flex justify-end items-center gap-2",
+            showKanbanView ? "px-4 pt-3 pb-1" : "pb-0",
+          )}
+        >
+          {/* New Task button for Kanban view */}
+          {showKanbanView && (
+            <Dialog
+              open={newTaskDialogOpen}
+              onOpenChange={setNewTaskDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <SquarePen className="h-4 w-4" />
+                  <span>New Task</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>New Task</DialogTitle>
+                </DialogHeader>
+                <DashboardPromptBox
+                  placeholder={placeholder}
+                  status={null}
+                  threadId={null}
+                  onUpdate={onUpdate}
+                  handleStop={handleStop}
+                  handleSubmit={handleKanbanSubmit}
+                  promptText={promptText ?? undefined}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+          <TaskViewToggle />
+        </div>
+      )}
 
       {/* View toggle and prompt box - only show in list view or on mobile */}
       {!showKanbanView && (
@@ -148,7 +215,10 @@ export function Dashboard({
       {mounted && (
         <div className="hidden lg:flex flex-1 min-h-0">
           {showKanbanView ? (
-            <KanbanBoard queryFilters={{ archived: showArchived }} />
+            <KanbanBoard
+              queryFilters={{ archived: showArchived }}
+              initialSelectedTaskId={initialTaskId}
+            />
           ) : (
             <div className="w-full">
               <ThreadListMain
