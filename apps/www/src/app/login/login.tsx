@@ -19,13 +19,8 @@ import TestimonialCard from "@/components/landing/shared/TestimonialCard";
 const allTestimonials = [...testimonialColumn1, ...testimonialColumn2];
 const mobileTestimonial = testimonialColumn2[0];
 
-// GatewayZ login URL - redirects user to GatewayZ for authentication
-const GATEWAYZ_AUTH_URL =
-  process.env.NEXT_PUBLIC_GATEWAYZ_URL || "https://beta.gatewayz.ai";
-
 export default function Login({ returnUrl }: { returnUrl: string }) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isGatewayZLoading, setIsGatewayZLoading] = useState(false);
 
   const handleGithubSignIn = async () => {
     await signInWithGithub({
@@ -33,22 +28,6 @@ export default function Login({ returnUrl }: { returnUrl: string }) {
       returnUrl,
       location: "login_page",
     });
-  };
-
-  const handleGatewayZSignIn = () => {
-    setIsGatewayZLoading(true);
-    // Build the callback URL for GatewayZ to redirect back to
-    const callbackUrl = new URL(
-      "/api/auth/gatewayz/callback",
-      window.location.origin,
-    );
-    callbackUrl.searchParams.set("returnUrl", returnUrl);
-
-    // Redirect to GatewayZ auth page with callback URL
-    const gatewayZAuthUrl = new URL("/auth/terragon", GATEWAYZ_AUTH_URL);
-    gatewayZAuthUrl.searchParams.set("callback", callbackUrl.toString());
-
-    window.location.href = gatewayZAuthUrl.toString();
   };
 
   return (
@@ -77,48 +56,12 @@ export default function Login({ returnUrl }: { returnUrl: string }) {
           </div>
 
           <div className="space-y-4">
-            {/* Primary: GatewayZ Login */}
             <Button
               variant="default"
               size="lg"
               className="w-full relative"
-              onClick={handleGatewayZSignIn}
-              disabled={isGatewayZLoading || isLoading}
-            >
-              {isGatewayZLoading ? (
-                "Redirecting to GatewayZ..."
-              ) : (
-                <>
-                  <svg
-                    className="absolute left-4 w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                  </svg>
-                  Continue with GatewayZ
-                </>
-              )}
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or
-                </span>
-              </div>
-            </div>
-
-            {/* Secondary: GitHub Login (for direct GitHub auth if needed) */}
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full relative"
               onClick={handleGithubSignIn}
-              disabled={isLoading || isGatewayZLoading}
+              disabled={isLoading}
             >
               {isLoading ? (
                 "Signing in..."
