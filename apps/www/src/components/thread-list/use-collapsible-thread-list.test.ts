@@ -100,8 +100,9 @@ describe("Collapsible Thread List Logic", () => {
     });
 
     it("should handle paths that contain dashboard but are not exact match", () => {
+      // usePathname() only returns the pathname without query params
       expect(isDashboardKanban("/dashboard/settings", "kanban")).toBe(false);
-      expect(isDashboardKanban("/dashboard?tab=active", "kanban")).toBe(false);
+      expect(isDashboardKanban("/dashboards", "kanban")).toBe(false);
     });
   });
 

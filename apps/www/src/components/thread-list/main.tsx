@@ -12,6 +12,7 @@ import {
   Archive,
   SlidersHorizontal,
   List,
+  Kanban,
   Clock,
   MessageSquare,
   CheckCircle2,
@@ -37,6 +38,7 @@ import {
   toggleThreadListCollapsedSectionAtom,
   timeZoneAtom,
   threadListGroupByAtom,
+  dashboardViewModeAtom,
 } from "@/atoms/user-cookies";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { cn } from "@/lib/utils";
@@ -141,6 +143,7 @@ export const ThreadListHeader = memo(function ThreadListHeader({
   viewFilter,
   setViewFilter,
   allowGroupBy,
+  showViewToggle = false,
   feedbackFilter,
   onFeedbackFilterChange,
   showFeedbackFilters = false,
@@ -149,16 +152,30 @@ export const ThreadListHeader = memo(function ThreadListHeader({
   viewFilter: ThreadViewFilter;
   setViewFilter: (viewFilter: "active" | "backlog" | "archived") => void;
   allowGroupBy: boolean;
+  showViewToggle?: boolean;
   feedbackFilter?: FeedbackFilter;
   onFeedbackFilterChange?: (filter: FeedbackFilter) => void;
   showFeedbackFilters?: boolean;
 }) {
   const [groupBy, setGroupBy] = useAtom(threadListGroupByAtom);
+  const setViewMode = useSetAtom(dashboardViewModeAtom);
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="px-4 flex items-center justify-between min-h-8">
         <h2 className="font-semibold text-sm">Tasks</h2>
         <div className="flex items-center gap-0.5">
+          {showViewToggle && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-sidebar-accent/50"
+              onClick={() => setViewMode("kanban")}
+              title="Switch to Kanban view"
+              aria-label="Switch to Kanban view"
+            >
+              <Kanban className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {viewFilter !== "all" && (
             <SheetOrMenu
               trigger={
@@ -718,12 +735,14 @@ export const ThreadListMain = memo(function ThreadListMain({
   allowGroupBy,
   showSuggestedTasks = true,
   setPromptText,
+  showViewToggle = false,
 }: {
   viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   allowGroupBy: boolean;
   showSuggestedTasks?: boolean;
   setPromptText: (promptText: string) => void;
+  showViewToggle?: boolean;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -746,6 +765,7 @@ export const ThreadListMain = memo(function ThreadListMain({
             router.push(`${pathname}?${params.toString()}`);
           }}
           allowGroupBy={allowGroupBy}
+          showViewToggle={showViewToggle}
         />
         <ThreadListContents
           viewFilter={viewFilter}

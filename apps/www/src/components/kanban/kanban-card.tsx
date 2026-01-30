@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo, useState, MouseEvent, useCallback } from "react";
+import { memo, useMemo, useCallback, useState, MouseEvent } from "react";
 import { getThreadTitle } from "@/agent/thread-utils";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -11,7 +11,15 @@ import { ThreadAgentIcon } from "../thread-agent-icon";
 import { PRCommentCountBadge } from "./pr-comment-count-badge";
 import { ThreadMenuDropdown } from "../thread-menu-dropdown";
 import { Button } from "@/components/ui/button";
-import { GitBranch, EllipsisVertical } from "lucide-react";
+import { GitBranch, EllipsisVertical, Play, LoaderCircle } from "lucide-react";
+import { isDraftThread } from "./types";
+import { useSubmitDraftThreadMutation } from "@/queries/thread-mutations";
+import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLongPress } from "@/hooks/useLongPress";
 
 export const KanbanCard = memo(function KanbanCard({
@@ -26,6 +34,9 @@ export const KanbanCard = memo(function KanbanCard({
   onCommentsClick?: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const submitDraftMutation = useSubmitDraftThreadMutation();
+  const isDraft = useMemo(() => isDraftThread(thread), [thread]);
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const relativeTime = useMemo(
     () => formatRelativeTime(thread.updatedAt),
@@ -35,6 +46,32 @@ export const KanbanCard = memo(function KanbanCard({
   const handleMenuClick = (e: MouseEvent) => {
     e.stopPropagation();
   };
+
+  const handleStartTask = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!thread.draftMessage) {
+        toast.error("No draft message found");
+        return;
+      }
+
+      setIsStarting(true);
+      try {
+        await submitDraftMutation.mutateAsync({
+          threadId: thread.id,
+          userMessage: thread.draftMessage,
+          selectedModels: {},
+        });
+        toast.success("Task started");
+      } catch (error) {
+        console.error("Failed to start task:", error);
+        toast.error("Failed to start task");
+      } finally {
+        setIsStarting(false);
+      }
+    },
+    [thread, submitDraftMutation],
+  );
 
   // Handle context menu (right-click on desktop, long-press on mobile)
   const handleContextMenu = useCallback(() => {
@@ -61,30 +98,56 @@ export const KanbanCard = memo(function KanbanCard({
           "ring-2 ring-primary border-primary shadow-[0_0_20px_rgba(99,102,241,0.15)]",
       )}
     >
-      {/* Three dots menu */}
-      <div
-        className={cn(
-          "absolute right-1.5 top-1.5 transition-opacity",
-          isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-        )}
-        onClick={handleMenuClick}
-      >
-        <ThreadMenuDropdown
-          thread={thread}
-          trigger={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:bg-muted"
-            >
-              <EllipsisVertical className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          }
-          showReadUnreadActions
-          open={isMenuOpen}
-          onMenuOpenChange={setIsMenuOpen}
-        />
-      </div>
+      {/* Three dots menu - show when not a draft or when menu is open */}
+      {(!isDraft || isMenuOpen) && (
+        <div
+          className={cn(
+            "absolute right-1.5 top-1.5 transition-opacity",
+            isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+          )}
+          onClick={handleMenuClick}
+        >
+          <ThreadMenuDropdown
+            thread={thread}
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:bg-muted"
+              >
+                <EllipsisVertical className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            }
+            showReadUnreadActions
+            open={isMenuOpen}
+            onMenuOpenChange={setIsMenuOpen}
+          />
+        </div>
+      )}
+
+      {/* Start Task button - shown on hover for draft tasks */}
+      {isDraft && !isMenuOpen && (
+        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="default"
+                size="icon"
+                className="h-7 w-7"
+                onClick={handleStartTask}
+                disabled={isStarting}
+              >
+                {isStarting ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Start task</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         {/* Header with status and title */}

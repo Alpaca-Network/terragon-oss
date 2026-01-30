@@ -15,7 +15,7 @@ import {
   MessageSquare,
   GitCommit,
   MessageCircle,
-  Plus,
+  SquarePen,
   ChevronLeft,
   ChevronRight,
   PanelRightClose,
@@ -33,10 +33,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
 import { usePlatform } from "@/hooks/use-platform";
 import { KanbanBoardMobile } from "./kanban-board-mobile";
 import { useCollapsibleThreadList } from "@/components/thread-list/use-collapsible-thread-list";
+import { QuickAddBacklogDialog } from "./quick-add-backlog";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -106,6 +109,9 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useAtom(
+    kanbanQuickAddBacklogOpenAtom,
+  );
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const [isFullScreenTask, setIsFullScreenTask] = useState(false);
   const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
@@ -152,20 +158,47 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
   }, []);
 
-  // Update scroll state on mount and resize
+  // Update scroll state on mount, resize, and when scrollAreaRef changes
   useEffect(() => {
+    // Initial update
     updateScrollState();
+
+    // Set up a MutationObserver to detect when the scroll container becomes available
+    const observer = new MutationObserver(() => {
+      const scrollContainer = scrollAreaRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
+      if (scrollContainer) {
+        updateScrollState();
+        scrollContainer.addEventListener("scroll", updateScrollState);
+      }
+    });
+
+    if (scrollAreaRef.current) {
+      observer.observe(scrollAreaRef.current, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
     const scrollContainer = scrollAreaRef.current?.querySelector(
       "[data-radix-scroll-area-viewport]",
     );
     if (scrollContainer) {
       scrollContainer.addEventListener("scroll", updateScrollState);
-      window.addEventListener("resize", updateScrollState);
-      return () => {
-        scrollContainer.removeEventListener("scroll", updateScrollState);
-        window.removeEventListener("resize", updateScrollState);
-      };
     }
+    window.addEventListener("resize", updateScrollState);
+
+    return () => {
+      observer.disconnect();
+      const scrollContainer = scrollAreaRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", updateScrollState);
+      }
+      window.removeEventListener("resize", updateScrollState);
+    };
   }, [updateScrollState]);
 
   const { data, isLoading, isError, refetch } =
@@ -356,6 +389,10 @@ export const KanbanBoard = memo(function KanbanBoard({
       return newIndex;
     });
   }, []);
+
+  const handleOpenQuickAddBacklog = useCallback(() => {
+    setIsQuickAddBacklogOpen(true);
+  }, [setIsQuickAddBacklogOpen]);
 
   // Calculate max width based on container
   const getMaxWidth = useCallback(() => {
@@ -577,8 +614,8 @@ export const KanbanBoard = memo(function KanbanBoard({
       ref={containerRef}
       className="flex flex-col h-full w-full overflow-hidden"
     >
-      {/* Header with new task button */}
-      <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
+      {/* Header with view toggle and new task button */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
           {/* Expand sidebar button */}
           {canCollapseThreadList && isThreadListCollapsed && (
@@ -596,15 +633,18 @@ export const KanbanBoard = memo(function KanbanBoard({
             Kanban Board
           </h2>
         </div>
-        <Button
-          variant="default"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={() => setNewTaskDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          <span className="text-xs">New Task</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <TaskViewToggle />
+          <Button
+            variant="default"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => setNewTaskDialogOpen(true)}
+          >
+            <SquarePen className="h-4 w-4" />
+            <span className="text-xs">New Task</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
@@ -641,6 +681,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                   threads={columnThreads[column.id]}
                   selectedThreadId={selectedThreadId}
                   onThreadSelect={handleThreadSelect}
+                  onAddToBacklog={
+                    column.id === "backlog"
+                      ? handleOpenQuickAddBacklog
+                      : undefined
+                  }
                   onThreadCommentsClick={handleThreadCommentsClick}
                   showArchivedToggle={
                     column.id === "done" && !queryFilters.archived
@@ -656,19 +701,21 @@ export const KanbanBoard = memo(function KanbanBoard({
           </ScrollArea>
         </div>
 
-        {/* Right scroll arrow */}
+        {/* Right scroll arrow - positioned dynamically based on panel width */}
         <Button
           variant="ghost"
           size="icon"
           onClick={scrollRight}
           disabled={!canScrollRight}
           className={cn(
-            "absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-background/90 shadow-md border transition-opacity",
-            selectedThreadId && "right-[calc(55%+8px)]",
+            "absolute top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-background/90 shadow-md border transition-opacity",
             canScrollRight
               ? "opacity-100 hover:bg-background"
               : "opacity-0 pointer-events-none",
           )}
+          style={{
+            right: selectedThreadId ? `${panelWidth + 8}px` : "8px",
+          }}
           title="Scroll right"
         >
           <ChevronRight className="h-5 w-5" />
@@ -677,7 +724,7 @@ export const KanbanBoard = memo(function KanbanBoard({
         {/* Task detail panel */}
         {selectedThreadId && (
           <div
-            className="relative flex-shrink-0 border-l bg-background flex flex-col"
+            className="relative flex-shrink-0 border-l border-border bg-background flex flex-col"
             style={{ width: `${panelWidth}px` }}
           >
             {/* Resize handle */}
@@ -690,7 +737,7 @@ export const KanbanBoard = memo(function KanbanBoard({
             />
 
             {/* Panel header with tabs and view toggle */}
-            <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2 flex-shrink-0">
               {/* Tabs */}
               <div className="flex items-center gap-1">
                 <Button
@@ -769,6 +816,12 @@ export const KanbanBoard = memo(function KanbanBoard({
         open={newTaskDialogOpen}
         onOpenChange={setNewTaskDialogOpen}
         queryFilters={queryFilters}
+      />
+
+      {/* Quick add backlog dialog */}
+      <QuickAddBacklogDialog
+        open={isQuickAddBacklogOpen}
+        onOpenChange={setIsQuickAddBacklogOpen}
       />
     </div>
   );

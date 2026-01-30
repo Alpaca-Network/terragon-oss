@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
-import { Archive, ArchiveRestore } from "lucide-react";
+import { Archive, ArchiveRestore, Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -19,6 +19,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   threads,
   selectedThreadId,
   onThreadSelect,
+  onAddToBacklog,
   onThreadCommentsClick,
   showArchivedToggle,
   showArchived,
@@ -28,6 +29,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   threads: ThreadInfo[];
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
+  onAddToBacklog?: () => void;
   onThreadCommentsClick?: (thread: ThreadInfo) => void;
   showArchivedToggle?: boolean;
   showArchived?: boolean;
@@ -71,27 +73,47 @@ export const KanbanColumn = memo(function KanbanColumn({
             {threads.length}
           </span>
         </div>
-        {showArchivedToggle && onToggleArchived && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-6 w-6", showArchived && "bg-muted/50")}
-                onClick={onToggleArchived}
-              >
-                {showArchived ? (
-                  <ArchiveRestore className="h-3.5 w-3.5" />
-                ) : (
-                  <Archive className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {showArchived ? "Hide archived tasks" : "Show archived tasks"}
-            </TooltipContent>
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-1">
+          {column === "backlog" && onAddToBacklog && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full hover:bg-muted/50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddToBacklog();
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Add to backlog</TooltipContent>
+            </Tooltip>
+          )}
+          {showArchivedToggle && onToggleArchived && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-6 w-6", showArchived && "bg-muted/50")}
+                  onClick={onToggleArchived}
+                >
+                  {showArchived ? (
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                  ) : (
+                    <Archive className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {showArchived ? "Hide archived tasks" : "Show archived tasks"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {/* Column content */}

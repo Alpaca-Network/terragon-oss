@@ -221,11 +221,21 @@ export function useUpdateDraftThreadMutation() {
 export function useSubmitDraftThreadMutation() {
   return useThreadMutation({
     mutationFn: submitDraftThread,
-    updateThread: (thread, args) => ({
-      ...thread,
-      status: args.scheduleAt ? ("scheduled" as const) : ("queued" as const),
-      scheduleAt: args.scheduleAt ? new Date(args.scheduleAt) : null,
-      draftMessage: null,
-    }),
+    updateThread: (thread, args) => {
+      const newStatus = args.scheduleAt
+        ? ("scheduled" as const)
+        : ("queued" as const);
+      return {
+        ...thread,
+        status: newStatus,
+        scheduleAt: args.scheduleAt ? new Date(args.scheduleAt) : null,
+        draftMessage: null,
+        // Update threadChats status so isDraftThread() returns false
+        threadChats: thread.threadChats.map((chat) => ({
+          ...chat,
+          status: chat.status === "draft" ? newStatus : chat.status,
+        })),
+      };
+    },
   });
 }
