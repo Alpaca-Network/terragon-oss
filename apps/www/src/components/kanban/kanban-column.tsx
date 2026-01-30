@@ -7,7 +7,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
-import { Archive, ArchiveRestore } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -19,19 +25,31 @@ export const KanbanColumn = memo(function KanbanColumn({
   threads,
   selectedThreadId,
   onThreadSelect,
+  onAddToBacklog,
   onThreadCommentsClick,
   showArchivedToggle,
   showArchived,
   onToggleArchived,
+  showNavigation,
+  canNavigateLeft,
+  canNavigateRight,
+  onNavigateLeft,
+  onNavigateRight,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
+  onAddToBacklog?: () => void;
   onThreadCommentsClick?: (thread: ThreadInfo) => void;
   showArchivedToggle?: boolean;
   showArchived?: boolean;
   onToggleArchived?: () => void;
+  showNavigation?: boolean;
+  canNavigateLeft?: boolean;
+  canNavigateRight?: boolean;
+  onNavigateLeft?: () => void;
+  onNavigateRight?: () => void;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
 
@@ -66,32 +84,78 @@ export const KanbanColumn = memo(function KanbanColumn({
         )}
       >
         <div className="flex items-center gap-2">
+          {showNavigation && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNavigateLeft}
+              disabled={!canNavigateLeft}
+              className="h-6 w-6"
+              title="Previous column"
+              aria-label="Previous column"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
           <span>{columnConfig.title}</span>
           <span className="text-xs opacity-70 bg-muted/50 px-1.5 py-0.5 rounded-full">
             {threads.length}
           </span>
+          {showNavigation && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onNavigateRight}
+              disabled={!canNavigateRight}
+              className="h-6 w-6"
+              title="Next column"
+              aria-label="Next column"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        {showArchivedToggle && onToggleArchived && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-6 w-6", showArchived && "bg-muted/50")}
-                onClick={onToggleArchived}
-              >
-                {showArchived ? (
-                  <ArchiveRestore className="h-3.5 w-3.5" />
-                ) : (
-                  <Archive className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {showArchived ? "Hide archived tasks" : "Show archived tasks"}
-            </TooltipContent>
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-1">
+          {column === "backlog" && onAddToBacklog && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full hover:bg-muted/50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddToBacklog();
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Add to backlog</TooltipContent>
+            </Tooltip>
+          )}
+          {showArchivedToggle && onToggleArchived && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-6 w-6", showArchived && "bg-muted/50")}
+                  onClick={onToggleArchived}
+                >
+                  {showArchived ? (
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                  ) : (
+                    <Archive className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {showArchived ? "Hide archived tasks" : "Show archived tasks"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {/* Column content */}

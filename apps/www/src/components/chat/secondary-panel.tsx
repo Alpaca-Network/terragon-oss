@@ -291,8 +291,8 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with PR info when on PR tabs */}
-      {hasPR && feedback && effectiveView !== "files-changed" && (
+      {/* Header with PR info */}
+      {hasPR && feedback && (
         <div className="border-b px-4 py-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -308,7 +308,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
               </a>
             </div>
             <div className="flex items-center gap-2">
-              <AddressFeedbackDialog feedback={feedback} />
+              <AddressFeedbackDialog feedback={feedback} thread={thread} />
               <MergeButton
                 repoFullName={feedback.repoFullName}
                 prNumber={feedback.prNumber}

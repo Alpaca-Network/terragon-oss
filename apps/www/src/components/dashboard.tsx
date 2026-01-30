@@ -112,7 +112,7 @@ export function Dashboard({
   const showRecommendedTasks =
     (data?.pages.flatMap((page) => page) ?? []).length < 3;
 
-  // Show Kanban view on larger screens when viewMode is 'kanban'
+  // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
 
   // Determine view filter and query filters
@@ -136,14 +136,9 @@ export function Dashboard({
     >
       <FeatureUpsellToast />
 
-      {/* Task View Toggle - shown at top right in both views on desktop */}
-      {mounted && (
-        <div
-          className={cn(
-            "hidden lg:flex justify-end items-center gap-2",
-            showKanbanView ? "px-4 pt-3 pb-1" : "pb-0",
-          )}
-        >
+      {/* Task View Toggle - shown at top right in inbox view on desktop (kanban has its own toggle) */}
+      {mounted && !showKanbanView && (
+        <div className="hidden lg:flex justify-end items-center gap-2 pb-0">
           <TaskViewToggle />
         </div>
       )}
@@ -190,6 +185,7 @@ export function Dashboard({
                 allowGroupBy={true}
                 showSuggestedTasks={false}
                 setPromptText={setPromptText}
+                showViewToggle={true}
               />
             </div>
           )}
@@ -211,6 +207,7 @@ export function Dashboard({
               allowGroupBy={true}
               showSuggestedTasks={showRecommendedTasks}
               setPromptText={setPromptText}
+              showViewToggle={true}
             />
           )}
         </div>
