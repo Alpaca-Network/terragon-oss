@@ -16,6 +16,9 @@ import {
   GitCommit,
   MessageCircle,
   SquarePen,
+  ChevronLeft,
+  ChevronRight,
+  PanelRightClose,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
@@ -35,6 +38,7 @@ import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
 import { usePlatform } from "@/hooks/use-platform";
 import { KanbanBoardMobile } from "./kanban-board-mobile";
+import { useCollapsibleThreadList } from "@/components/thread-list/use-collapsible-thread-list";
 import { QuickAddBacklogDialog } from "./quick-add-backlog";
 
 // Dynamically import ChatUI to avoid SSR issues
@@ -109,7 +113,96 @@ export const KanbanBoard = memo(function KanbanBoard({
     kanbanQuickAddBacklogOpenAtom,
   );
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
+  const [isFullScreenTask, setIsFullScreenTask] = useState(false);
+  const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Sidebar collapse state
+  const {
+    canCollapseThreadList,
+    isThreadListCollapsed,
+    setThreadListCollapsed,
+  } = useCollapsibleThreadList();
+
+  // Check scroll state
+  const updateScrollState = useCallback(() => {
+    const scrollContainer = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (scrollContainer) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainer;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  }, []);
+
+  // Scroll handlers
+  const scrollLeft = useCallback(() => {
+    const scrollContainer = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (scrollContainer) {
+      scrollContainer.scrollBy({ left: -320, behavior: "smooth" });
+    }
+  }, []);
+
+  const scrollRight = useCallback(() => {
+    const scrollContainer = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (scrollContainer) {
+      scrollContainer.scrollBy({ left: 320, behavior: "smooth" });
+    }
+  }, []);
+
+  // Update scroll state on mount, resize, and when scrollAreaRef changes
+  useEffect(() => {
+    // Copy ref value to local variable for cleanup
+    const scrollAreaElement = scrollAreaRef.current;
+
+    // Initial update
+    updateScrollState();
+
+    // Set up a MutationObserver to detect when the scroll container becomes available
+    const observer = new MutationObserver(() => {
+      const scrollContainer = scrollAreaElement?.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
+      if (scrollContainer) {
+        updateScrollState();
+        scrollContainer.addEventListener("scroll", updateScrollState);
+      }
+    });
+
+    if (scrollAreaElement) {
+      observer.observe(scrollAreaElement, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    const scrollContainer = scrollAreaElement?.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", updateScrollState);
+    }
+    window.addEventListener("resize", updateScrollState);
+
+    return () => {
+      observer.disconnect();
+      const scrollContainer = scrollAreaElement?.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", updateScrollState);
+      }
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, [updateScrollState]);
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
@@ -272,6 +365,11 @@ export const KanbanBoard = memo(function KanbanBoard({
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
     setActiveTab("feed"); // Reset to feed tab when selecting a new thread
+    // Enter full-screen mode and set the column index
+    const column = getKanbanColumn(thread);
+    const columnIndex = KANBAN_COLUMNS.findIndex((c) => c.id === column);
+    setFullScreenColumnIndex(columnIndex >= 0 ? columnIndex : 0);
+    setIsFullScreenTask(true);
   }, []);
 
   const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
@@ -281,6 +379,18 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   const handleCloseDetail = useCallback(() => {
     setSelectedThreadId(null);
+    setIsFullScreenTask(false);
+  }, []);
+
+  // Navigate between columns in full-screen mode
+  const navigateColumn = useCallback((direction: "left" | "right") => {
+    setFullScreenColumnIndex((prev) => {
+      const newIndex =
+        direction === "left"
+          ? Math.max(0, prev - 1)
+          : Math.min(KANBAN_COLUMNS.length - 1, prev + 1);
+      return newIndex;
+    });
   }, []);
 
   const handleOpenQuickAddBacklog = useCallback(() => {
@@ -357,6 +467,151 @@ export const KanbanBoard = memo(function KanbanBoard({
     );
   }
 
+  // Full-screen task view
+  if (isFullScreenTask && selectedThreadId) {
+    // Safe to use non-null assertion as fullScreenColumnIndex is clamped to valid range
+    const currentColumn = KANBAN_COLUMNS[fullScreenColumnIndex]!;
+    return (
+      <div
+        ref={containerRef}
+        className="flex flex-col h-full w-full overflow-hidden"
+      >
+        {/* Full-screen header */}
+        <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Left arrow */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigateColumn("left")}
+              disabled={fullScreenColumnIndex === 0}
+              className="h-8 w-8"
+              title="Previous column"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-sm font-medium">
+              {currentColumn?.title ?? "Kanban Board"}
+            </h2>
+            {/* Right arrow */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigateColumn("right")}
+              disabled={fullScreenColumnIndex === KANBAN_COLUMNS.length - 1}
+              className="h-8 w-8"
+              title="Next column"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={handleCloseDetail}
+          >
+            <X className="h-4 w-4" />
+            <span className="text-xs">Close</span>
+          </Button>
+        </div>
+
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Single column in full-screen mode */}
+          <div className="w-full max-w-[400px] min-h-0 overflow-hidden p-4 border-r">
+            <KanbanColumn
+              column={currentColumn.id}
+              threads={columnThreads[currentColumn.id]}
+              selectedThreadId={selectedThreadId}
+              onThreadSelect={handleThreadSelect}
+              onThreadCommentsClick={handleThreadCommentsClick}
+              showArchivedToggle={
+                currentColumn.id === "done" && !queryFilters.archived
+              }
+              showArchived={showArchivedInDone}
+              onToggleArchived={() =>
+                setShowArchivedInDone(!showArchivedInDone)
+              }
+            />
+          </div>
+
+          {/* Task detail panel - full width */}
+          <div className="relative flex-1 bg-background flex flex-col min-w-0">
+            {/* Panel header with tabs and view toggle */}
+            <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+              {/* Tabs */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={activeTab === "feed" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("feed")}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span className="text-xs">Feed</span>
+                </Button>
+                <Button
+                  variant={activeTab === "changes" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("changes")}
+                  disabled={!selectedThread?.gitDiff}
+                >
+                  <GitCommit className="h-3.5 w-3.5" />
+                  <span className="text-xs">Files Changed</span>
+                </Button>
+                <Button
+                  variant={activeTab === "comments" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("comments")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  <span className="text-xs">Comments</span>
+                </Button>
+              </div>
+
+              {/* View toggle */}
+              <div className="flex items-center gap-1">
+                <TaskViewToggle threadId={selectedThreadId} />
+              </div>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === "feed" && (
+                <ChatUI threadId={selectedThreadId} isReadOnly={false} />
+              )}
+              {activeTab === "changes" && selectedThread && (
+                <div className="h-full overflow-auto">
+                  <GitDiffView thread={selectedThread} />
+                </div>
+              )}
+              {activeTab === "comments" && selectedThread && (
+                <div className="h-full overflow-auto">
+                  <CodeReviewView thread={selectedThread} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* New task dialog */}
+        <KanbanNewTaskDialog
+          open={newTaskDialogOpen}
+          onOpenChange={setNewTaskDialogOpen}
+          queryFilters={queryFilters}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -365,6 +620,18 @@ export const KanbanBoard = memo(function KanbanBoard({
       {/* Header with view toggle and new task button */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
+          {/* Expand sidebar button */}
+          {canCollapseThreadList && isThreadListCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setThreadListCollapsed(false)}
+              className="h-8 w-8 flex-shrink-0"
+              title="Show task list"
+            >
+              <PanelRightClose className="h-4 w-4" />
+            </Button>
+          )}
           <h2 className="text-sm font-medium text-muted-foreground">
             Kanban Board
           </h2>
@@ -383,7 +650,24 @@ export const KanbanBoard = memo(function KanbanBoard({
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Left scroll arrow */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={scrollLeft}
+          disabled={!canScrollLeft}
+          className={cn(
+            "absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-background/90 shadow-md border transition-opacity",
+            canScrollLeft
+              ? "opacity-100 hover:bg-background"
+              : "opacity-0 pointer-events-none",
+          )}
+          title="Scroll left"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+
         {/* Kanban columns */}
         <div
           className={cn(
@@ -391,7 +675,7 @@ export const KanbanBoard = memo(function KanbanBoard({
             selectedThreadId && "min-w-[300px]",
           )}
         >
-          <ScrollArea className="h-full w-full">
+          <ScrollArea ref={scrollAreaRef} className="h-full w-full">
             <div className="flex gap-4 p-4 h-full min-h-[500px]">
               {KANBAN_COLUMNS.map((column) => (
                 <KanbanColumn
@@ -419,6 +703,26 @@ export const KanbanBoard = memo(function KanbanBoard({
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
+
+        {/* Right scroll arrow - positioned dynamically based on panel width */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={scrollRight}
+          disabled={!canScrollRight}
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-background/90 shadow-md border transition-opacity",
+            canScrollRight
+              ? "opacity-100 hover:bg-background"
+              : "opacity-0 pointer-events-none",
+          )}
+          style={{
+            right: selectedThreadId ? `${panelWidth + 8}px` : "8px",
+          }}
+          title="Scroll right"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </Button>
 
         {/* Task detail panel */}
         {selectedThreadId && (

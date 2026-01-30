@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { SquarePen, PanelLeftClose } from "lucide-react";
 import {
   ThreadListHeader,
@@ -30,6 +30,7 @@ export function ThreadListSidebar() {
     canCollapseThreadList,
     isThreadListCollapsed,
     setThreadListCollapsed,
+    isDashboardKanban,
   } = useCollapsibleThreadList();
 
   const [viewFilter, setViewFilter] = useState<ThreadViewFilter>("active");
@@ -46,6 +47,28 @@ export function ThreadListSidebar() {
     mode: "fixed",
     direction: "ltr",
   });
+
+  // Track if user has manually expanded the sidebar in this session
+  const hasUserExpandedRef = useRef(false);
+
+  // Auto-collapse sidebar when entering kanban view on dashboard
+  // But only if user hasn't manually expanded it
+  useEffect(() => {
+    if (
+      isDashboardKanban &&
+      !isThreadListCollapsed &&
+      !hasUserExpandedRef.current
+    ) {
+      setThreadListCollapsed(true);
+    }
+  }, [isDashboardKanban, isThreadListCollapsed, setThreadListCollapsed]);
+
+  // Reset the manual expand flag when leaving kanban view
+  useEffect(() => {
+    if (!isDashboardKanban) {
+      hasUserExpandedRef.current = false;
+    }
+  }, [isDashboardKanban]);
 
   // Handle "New Task" button click based on current view mode
   const handleNewTaskClick = useCallback(
@@ -136,11 +159,33 @@ export function ThreadListSidebar() {
       {/* Resize handle */}
       <div
         className={cn(
-          "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500/50 transition-colors z-30",
-          isResizing && "bg-blue-500/50",
+          "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
+          isResizing && "bg-primary/50",
         )}
         onMouseDown={handleMouseDown}
       />
     </div>
   );
+}
+
+/**
+ * Hook to get a function to expand the sidebar (for use in kanban header)
+ * This marks that user manually expanded it to prevent auto-collapse
+ */
+export function useExpandSidebar() {
+  const {
+    setThreadListCollapsed,
+    isThreadListCollapsed,
+    canCollapseThreadList,
+  } = useCollapsibleThreadList();
+
+  const expandSidebar = useCallback(() => {
+    setThreadListCollapsed(false);
+  }, [setThreadListCollapsed]);
+
+  return {
+    expandSidebar,
+    isCollapsed: isThreadListCollapsed,
+    canExpand: canCollapseThreadList && isThreadListCollapsed,
+  };
 }
