@@ -148,7 +148,7 @@ export function Dashboard({
         </div>
       )}
 
-      {/* View toggle and prompt box - only show in list view or on mobile */}
+      {/* View toggle and prompt box - only show in inbox view or on mobile */}
       {!showKanbanView && (
         <>
           <DashboardPromptBox
@@ -174,7 +174,7 @@ export function Dashboard({
         </>
       )}
 
-      {/* Desktop: Show Kanban or List based on viewMode */}
+      {/* Desktop: Show Kanban or Inbox based on viewMode */}
       {mounted && (
         <div className="hidden lg:flex flex-1 min-h-0">
           {showKanbanView ? (
@@ -196,7 +196,7 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Mobile: Show Kanban or List based on viewMode */}
+      {/* Mobile: Show Kanban or Inbox based on viewMode */}
       {mounted && (
         <div className="lg:hidden flex flex-col flex-1 min-h-0">
           {showKanbanView ? (

@@ -382,7 +382,7 @@ function ViewModeToggle() {
     }
   }, [viewMode, setViewMode, router, pathname, isMobile, setOpenMobile]);
 
-  const nextMode = viewMode === "list" ? "Kanban" : "List";
+  const nextMode = viewMode === "list" ? "Kanban" : "Inbox";
 
   return (
     <AppMenuItem>

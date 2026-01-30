@@ -3,12 +3,12 @@ import { describe, it, expect } from "vitest";
 /**
  * Tests for the TaskViewToggle component logic.
  *
- * The TaskViewToggle component allows users to switch between Kanban and List views
+ * The TaskViewToggle component allows users to switch between Kanban and Inbox views
  * for the task dashboard. It persists the view mode preference using a Jotai atom
  * and navigates to /dashboard when toggled from a different path.
  *
  * Key behaviors:
- * - Displays "Task View:" label and two buttons: "Kanban" and "List"
+ * - Displays "Task View:" label and two buttons: "Kanban" and "Inbox"
  * - Highlights the currently selected view mode
  * - Updates the dashboardViewModeAtom when a button is clicked
  * - Navigates to /dashboard if not already there
@@ -28,7 +28,7 @@ describe("TaskViewToggle logic", () => {
         return isSelected ? "bg-background shadow-sm" : "";
       };
 
-      // When viewMode is list, List button should be selected
+      // When viewMode is list, Inbox button should be selected
       expect(getButtonClassName("list", "list")).toContain("bg-background");
       expect(getButtonClassName("list", "kanban")).not.toContain(
         "bg-background",
@@ -66,7 +66,7 @@ describe("TaskViewToggle logic", () => {
       expect(getNavigationPath("/dashboard", "kanban")).toBe(null);
     });
 
-    it("should navigate to task page when switching to list with threadId", () => {
+    it("should navigate to task page when switching to inbox with threadId", () => {
       const getNavigationPath = (mode: "list" | "kanban", threadId: string) => {
         if (mode === "kanban") {
           return `/dashboard?task=${threadId}`;
@@ -103,7 +103,7 @@ describe("TaskViewToggle logic", () => {
       expect(newMode).toBe("kanban");
     });
 
-    it("should switch from kanban to list when list is selected", () => {
+    it("should switch from kanban to inbox when inbox is selected", () => {
       const currentMode = "kanban";
       const newMode = "list";
       expect(newMode).not.toBe(currentMode);
@@ -121,11 +121,11 @@ describe("TaskViewToggle logic", () => {
     it("should have correct labels for each view mode", () => {
       const buttons = [
         { mode: "kanban", label: "Kanban" },
-        { mode: "list", label: "List" },
+        { mode: "list", label: "Inbox" },
       ];
 
       expect(buttons.find((b) => b.mode === "kanban")?.label).toBe("Kanban");
-      expect(buttons.find((b) => b.mode === "list")?.label).toBe("List");
+      expect(buttons.find((b) => b.mode === "list")?.label).toBe("Inbox");
     });
   });
 
@@ -144,7 +144,7 @@ describe("TaskViewToggle logic", () => {
       // Switching to kanban should use query param
       expect(getTargetUrl("kanban", threadId)).toBe("/dashboard?task=abc-123");
 
-      // Switching to list should go to task page directly
+      // Switching to inbox should go to task page directly
       expect(getTargetUrl("list", threadId)).toBe("/task/abc-123");
     });
   });
