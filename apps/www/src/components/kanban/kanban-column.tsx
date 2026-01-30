@@ -4,19 +4,34 @@ import { ThreadInfo } from "@terragon/shared";
 import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
+import { Archive, ArchiveRestore } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const KanbanColumn = memo(function KanbanColumn({
   column,
   threads,
   selectedThreadId,
   onThreadSelect,
+  onThreadCommentsClick,
+  showArchivedToggle,
+  showArchived,
+  onToggleArchived,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
   selectedThreadId: string | null;
   onThreadSelect: (thread: ThreadInfo) => void;
+  onThreadCommentsClick?: (thread: ThreadInfo) => void;
+  showArchivedToggle?: boolean;
+  showArchived?: boolean;
+  onToggleArchived?: () => void;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
 
@@ -50,10 +65,33 @@ export const KanbanColumn = memo(function KanbanColumn({
           getColumnHeaderColor(column),
         )}
       >
-        <span>{columnConfig.title}</span>
-        <span className="text-xs opacity-70 bg-white/30 dark:bg-black/20 px-1.5 py-0.5 rounded-full">
-          {threads.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span>{columnConfig.title}</span>
+          <span className="text-xs opacity-70 bg-muted/50 px-1.5 py-0.5 rounded-full">
+            {threads.length}
+          </span>
+        </div>
+        {showArchivedToggle && onToggleArchived && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-6 w-6", showArchived && "bg-muted/50")}
+                onClick={onToggleArchived}
+              >
+                {showArchived ? (
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                ) : (
+                  <Archive className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {showArchived ? "Hide archived tasks" : "Show archived tasks"}
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {/* Column content */}
@@ -71,6 +109,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                   thread={thread}
                   isSelected={selectedThreadId === thread.id}
                   onClick={() => onThreadSelect(thread)}
+                  onCommentsClick={() => onThreadCommentsClick?.(thread)}
                 />
               ))
             )}

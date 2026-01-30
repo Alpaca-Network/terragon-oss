@@ -4,7 +4,7 @@ import {
   DashboardPromptBoxHandleSubmit,
   DashboardPromptBox,
 } from "./promptbox/dashboard-promptbox";
-import { ThreadListMain } from "./thread-list/main";
+import { ThreadListMain, ThreadViewFilter } from "./thread-list/main";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
@@ -26,20 +26,13 @@ import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
 import { TaskViewToggle } from "./task-view-toggle";
-import { Button } from "@/components/ui/button";
-import { SquarePen } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 export function Dashboard({
   showArchived = false,
+  showBacklog = false,
 }: {
   showArchived?: boolean;
+  showBacklog?: boolean;
 }) {
   const [typewriterEffectEnabled, setTypewriterEffectEnabled] = useState(true);
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
@@ -122,19 +115,17 @@ export function Dashboard({
   // Show Kanban view on larger screens when viewMode is 'kanban'
   const showKanbanView = viewMode === "kanban" && mounted;
 
-  // State for the new task dialog in Kanban view
-  const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
-
-  // Wrap handleSubmit to close dialog on successful submission
-  const handleKanbanSubmit = useCallback<DashboardPromptBoxHandleSubmit>(
-    async (params) => {
-      await handleSubmit(params);
-      if (!params.saveAsDraft) {
-        setNewTaskDialogOpen(false);
-      }
-    },
-    [handleSubmit],
-  );
+  // Determine view filter and query filters
+  const viewFilter: ThreadViewFilter = showArchived
+    ? "archived"
+    : showBacklog
+      ? "backlog"
+      : "active";
+  const queryFilters = showArchived
+    ? { archived: true }
+    : showBacklog
+      ? { isBacklog: true }
+      : { archived: false, isBacklog: false };
 
   return (
     <div
@@ -153,34 +144,6 @@ export function Dashboard({
             showKanbanView ? "px-4 pt-3 pb-1" : "pb-0",
           )}
         >
-          {/* New Task button for Kanban view */}
-          {showKanbanView && (
-            <Dialog
-              open={newTaskDialogOpen}
-              onOpenChange={setNewTaskDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <SquarePen className="h-4 w-4" />
-                  <span>New Task</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>New Task</DialogTitle>
-                </DialogHeader>
-                <DashboardPromptBox
-                  placeholder={placeholder}
-                  status={null}
-                  threadId={null}
-                  onUpdate={onUpdate}
-                  handleStop={handleStop}
-                  handleSubmit={handleKanbanSubmit}
-                  promptText={promptText ?? undefined}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
           <TaskViewToggle />
         </div>
       )}
@@ -216,14 +179,14 @@ export function Dashboard({
         <div className="hidden lg:flex flex-1 min-h-0">
           {showKanbanView ? (
             <KanbanBoard
-              queryFilters={{ archived: showArchived }}
+              queryFilters={queryFilters}
               initialSelectedTaskId={initialTaskId}
             />
           ) : (
             <div className="w-full">
               <ThreadListMain
-                queryFilters={{ archived: showArchived }}
-                viewFilter={showArchived ? "archived" : "active"}
+                queryFilters={queryFilters}
+                viewFilter={viewFilter}
                 allowGroupBy={true}
                 showSuggestedTasks={false}
                 setPromptText={setPromptText}
@@ -233,16 +196,23 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Mobile: Always show list view */}
+      {/* Mobile: Show Kanban or List based on viewMode */}
       {mounted && (
-        <div className="lg:hidden">
-          <ThreadListMain
-            queryFilters={{ archived: showArchived }}
-            viewFilter={showArchived ? "archived" : "active"}
-            allowGroupBy={true}
-            showSuggestedTasks={showRecommendedTasks}
-            setPromptText={setPromptText}
-          />
+        <div className="lg:hidden flex flex-col flex-1 min-h-0">
+          {showKanbanView ? (
+            <KanbanBoard
+              queryFilters={queryFilters}
+              initialSelectedTaskId={initialTaskId}
+            />
+          ) : (
+            <ThreadListMain
+              queryFilters={queryFilters}
+              viewFilter={viewFilter}
+              allowGroupBy={true}
+              showSuggestedTasks={showRecommendedTasks}
+              setPromptText={setPromptText}
+            />
+          )}
         </div>
       )}
     </div>

@@ -30,6 +30,7 @@ import { retryThread } from "@/server-actions/retry-thread";
 import { retryGitCheckpoint } from "@/server-actions/retry-git-checkpoint";
 import { stopThread } from "@/server-actions/stop-thread";
 import { ChatError } from "./chat-error";
+import { LoopIterationApproval } from "./tools/loop-iteration-approval";
 import { ThreadProvider } from "./thread-context";
 import { ThreadPromptBox } from "@/components/promptbox/thread-promptbox";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -85,7 +86,7 @@ function ChatUI({
 
   const promptBoxRef = useRef<{
     focus: () => void;
-    setPermissionMode: (mode: "allowAll" | "plan") => void;
+    setPermissionMode: (mode: "allowAll" | "plan" | "loop") => void;
   } | null>(null);
 
   // Use React Query to fetch thread data.
@@ -239,8 +240,14 @@ function ChatUI({
 
   if (isLoading || !thread || !threadChat) {
     return (
-      <div className="flex flex-col h-[100dvh] w-full items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="flex flex-col h-full w-full items-center justify-center gap-4 gradient-shift-bg">
+        <div className="relative">
+          <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+          <div className="size-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin relative z-10" />
+        </div>
+        <div className="text-sm text-muted-foreground animate-pulse">
+          Loading conversation...
+        </div>
       </div>
     );
   }
@@ -252,7 +259,7 @@ function ChatUI({
       promptBoxRef={promptBoxRef}
       isReadOnly={isReadOnly}
     >
-      <div className="flex flex-col h-[100dvh] w-full">
+      <div className="flex flex-col h-full w-full">
         <ChatHeader
           thread={thread}
           isReadOnly={isReadOnly}
@@ -296,6 +303,9 @@ function ChatUI({
                     bootingSubstatus={thread.bootingSubstatus ?? undefined}
                     reattemptQueueAt={threadChat.reattemptQueueAt ?? null}
                   />
+                )}
+                {threadChat.loopConfig?.awaitingApproval && (
+                  <LoopIterationApproval loopConfig={threadChat.loopConfig} />
                 )}
                 {threadChat.status === "scheduled" && threadChat.scheduleAt && (
                   <MessageScheduled
@@ -354,7 +364,7 @@ function ChatPromptBox({
   refetch: () => void;
   promptBoxRef: React.RefObject<{
     focus: () => void;
-    setPermissionMode: (mode: "allowAll" | "plan") => void;
+    setPermissionMode: (mode: "allowAll" | "plan" | "loop") => void;
   } | null>;
 }) {
   const threadId = thread.id;
@@ -460,19 +470,25 @@ function ChatPromptBox({
   );
 
   return (
-    <div className="sticky bottom-0 z-10 bg-background chat-prompt-box px-6 max-w-[800px] w-full mx-auto">
+    <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-md chat-prompt-box px-6 max-w-[800px] w-full mx-auto border-t border-border/30">
       <div className="flex h-0 items-center justify-center">
         <button
           onClick={forceScrollToBottom}
           className={cn(
-            "z-20 -mt-20 flex size-8 items-center justify-center rounded-full bg-background/80 border border-foreground/20 backdrop-blur-md shadow-md transition-all duration-200 hover:bg-background/90 hover:border-foreground/30",
+            "z-20 -mt-20 flex size-9 items-center justify-center rounded-full",
+            "bg-background/90 backdrop-blur-md",
+            "border border-primary/20 shadow-lg",
+            "transition-all duration-300 ease-out",
+            "hover:bg-background hover:border-primary/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]",
+            "active:scale-95",
+            "tap-highlight",
             showScrollButton && !isAtBottom
               ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-2 pointer-events-none",
+              : "opacity-0 translate-y-4 pointer-events-none",
           )}
           aria-label="Scroll to bottom"
         >
-          <ArrowDown className="size-5" />
+          <ArrowDown className="size-5 text-primary" />
         </button>
       </div>
       {showContextUsageChip ? (

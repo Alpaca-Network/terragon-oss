@@ -4,7 +4,12 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
 import { SquarePen, PanelLeftClose } from "lucide-react";
-import { ThreadListHeader, ThreadListContents } from "./main";
+import {
+  ThreadListHeader,
+  ThreadListContents,
+  ThreadViewFilter,
+  FeedbackFilter,
+} from "./main";
 import { Button } from "@/components/ui/button";
 import { useCollapsibleThreadList } from "./use-collapsible-thread-list";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
@@ -21,7 +26,8 @@ export function ThreadListSidebar() {
     setThreadListCollapsed,
   } = useCollapsibleThreadList();
 
-  const [viewFilter, setViewFilter] = useState<"active" | "archived">("active");
+  const [viewFilter, setViewFilter] = useState<ThreadViewFilter>("active");
+  const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>("all");
 
   const { width, isResizing, handleMouseDown } = useResizablePanel({
     minWidth: TASK_PANEL_MIN_WIDTH,
@@ -67,6 +73,9 @@ export function ThreadListSidebar() {
           viewFilter={viewFilter}
           setViewFilter={setViewFilter}
           allowGroupBy={true}
+          feedbackFilter={feedbackFilter}
+          onFeedbackFilterChange={setFeedbackFilter}
+          showFeedbackFilters={true}
         />
         <div
           className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-border/80"
@@ -77,11 +86,18 @@ export function ThreadListSidebar() {
         >
           <ThreadListContents
             viewFilter={viewFilter}
-            queryFilters={{ archived: viewFilter === "archived" }}
+            queryFilters={
+              viewFilter === "archived"
+                ? { archived: true }
+                : viewFilter === "backlog"
+                  ? { isBacklog: true }
+                  : { archived: false, isBacklog: false }
+            }
             allowGroupBy={true}
             showSuggestedTasks={false}
             setPromptText={() => {}}
             isSidebar={true}
+            feedbackFilter={feedbackFilter}
           />
         </div>
       </div>

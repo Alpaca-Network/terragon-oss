@@ -86,6 +86,7 @@ export type ThreadSource =
   | "www-fork"
   | "www-multi-agent"
   | "www-suggested-followup-task"
+  | "www-address-pr-feedback"
   | "webhook" // Deprecated
   | "automation"
   | "slack-mention"
@@ -220,6 +221,7 @@ export type ThreadInfo = Omit<
   | "errorMessage"
   | "errorMessageInfo"
   | "permissionMode"
+  | "loopConfig"
   | "reattemptQueueAt"
   | "scheduleAt"
   | "contextLength"
@@ -266,6 +268,8 @@ export type SubscriptionInsert = typeof schema.subscription.$inferInsert;
 export type ThreadInsertRaw = typeof schema.thread.$inferInsert;
 export type ThreadChatInsertRaw = typeof schema.threadChat.$inferInsert;
 
+export type { LoopConfig } from "./schema";
+
 export type ThreadChatInsert = Partial<
   Omit<
     ThreadChatInsertRaw,
@@ -274,6 +278,7 @@ export type ThreadChatInsert = Partial<
     | "errorMessage"
     | "errorMessageInfo"
     | "status"
+    | "loopConfig"
   > &
     Partial<{
       // Only allow inserting one of our known types.
@@ -290,6 +295,8 @@ export type ThreadChatInsert = Partial<
       appendAndResetQueuedMessages?: boolean;
       // Exclude deprecated statuses.
       status?: Exclude<ThreadStatus, ThreadStatusDeprecated>;
+      // Loop configuration updates
+      loopConfig?: ThreadChatInsertRaw["loopConfig"];
     }>
 >;
 
@@ -375,11 +382,17 @@ export type UsageEventInsert = typeof schema.usageEvents.$inferInsert;
 export type UserCredit = typeof schema.userCredits.$inferSelect;
 export type UserCreditInsert = typeof schema.userCredits.$inferInsert;
 
+export type GatewayZTier = "free" | "pro" | "max";
+
 export type UserCredentials = {
   hasClaude: boolean;
   hasAmp: boolean;
   hasOpenAI: boolean;
   hasOpenAIOAuthCredentials: boolean;
+  // GatewayZ subscription tier - 'free' means no active subscription
+  gwTier: GatewayZTier;
+  // Whether user has an active Gatewayz subscription (pro or max)
+  hasGatewayz: boolean;
 };
 
 export type SignupTrialInfo = {
@@ -441,6 +454,96 @@ export type OpenAIProviderMetadata = {
   chatgptAccountId?: string;
 };
 
+export type GeminiAgentProviderMetadata = {
+  type: "gemini";
+  accountId?: string;
+  accountEmail?: string;
+  // Indicates if this is via Google account subscription
+  isSubscription?: boolean;
+  // Subscription tier: pro (Google One AI Premium), ultra, or free
+  subscriptionType?: "pro" | "ultra" | "free";
+  scope?: string;
+};
+
 export type AgentProviderMetadata =
   | ClaudeAgentProviderMetadata
-  | OpenAIProviderMetadata;
+  | OpenAIProviderMetadata
+  | GeminiAgentProviderMetadata;
+
+// =============================================================================
+// PR Feedback Types (for Code Review integration)
+// =============================================================================
+
+export type PRComment = {
+  id: number;
+  body: string;
+  path: string;
+  line: number | null;
+  originalLine: number | null;
+  side: "LEFT" | "RIGHT";
+  author: {
+    login: string;
+    avatarUrl: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  inReplyToId?: number;
+  htmlUrl: string;
+};
+
+export type PRReviewThread = {
+  id: string;
+  isResolved: boolean;
+  comments: PRComment[];
+};
+
+export type PRCheckRun = {
+  id: number;
+  name: string;
+  status: GithubCheckRunStatus;
+  conclusion: GithubCheckRunConclusion | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  detailsUrl: string | null;
+  output?: {
+    title: string | null;
+    summary: string | null;
+  };
+};
+
+export type PRFeedback = {
+  prNumber: number;
+  repoFullName: string;
+  prUrl: string;
+  prTitle: string;
+  prState: GithubPRStatus;
+  baseBranch: string;
+  headBranch: string;
+  headSha: string;
+  comments: {
+    unresolved: PRReviewThread[];
+    resolved: PRReviewThread[];
+  };
+  checks: PRCheckRun[];
+  coverageCheck: PRCheckRun | null;
+  mergeableState: GithubPRMergeableState;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRFeedbackSummary = {
+  unresolvedCommentCount: number;
+  resolvedCommentCount: number;
+  failingCheckCount: number;
+  pendingCheckCount: number;
+  passingCheckCount: number;
+  hasCoverageCheck: boolean;
+  coverageCheckPassed: boolean | null;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRReference = {
+  repoFullName: string;
+  prNumber: number;
+};

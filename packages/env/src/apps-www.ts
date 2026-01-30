@@ -52,6 +52,13 @@ export const env = envsafe({
   OPENROUTER_API_KEY: str({ allowEmpty: true, default: "" }),
   GOOGLE_AI_STUDIO_API_KEY: str({ allowEmpty: true, default: "" }),
 
+  // Gatewayz - unified AI gateway provider (default for pro/max subscribers)
+  GATEWAYZ_API_KEY: str({ allowEmpty: true, default: "" }),
+
+  // Google OAuth (for Gemini subscription access)
+  GOOGLE_OAUTH_CLIENT_ID: str({ allowEmpty: true, default: "" }),
+  GOOGLE_OAUTH_CLIENT_SECRET: str({ allowEmpty: true, default: "" }),
+
   // Deprecated, use LOCALHOST_PUBLIC_DOMAIN instead
   NGROK_DOMAIN: str({ allowEmpty: true, default: "" }),
   LOCALHOST_PUBLIC_DOMAIN: str({ allowEmpty: true, default: "" }),

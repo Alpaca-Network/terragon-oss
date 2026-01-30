@@ -45,8 +45,6 @@ import {
   AutomationTriggerConfig,
 } from "../automations";
 
-export type GatewayZTier = "free" | "pro" | "max";
-
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -251,6 +249,23 @@ export const allowedSignups = pgTable(
   (table) => [uniqueIndex("allowed_signups_email_unique").on(table.email)],
 );
 
+/**
+ * Configuration for loop mode execution.
+ * Constraints:
+ * - maxIterations: 1-100
+ * - completionPromise: non-empty string
+ * - currentIteration: >= 1, <= maxIterations
+ */
+export type LoopConfig = {
+  maxIterations: number;
+  completionPromise: string;
+  useRegex: boolean;
+  requireApproval: boolean;
+  currentIteration: number;
+  isLoopActive: boolean;
+  awaitingApproval: boolean;
+};
+
 const threadChatShared = {
   agent: text("agent").$type<AIAgent>().notNull().default("claudeCode"),
   agentVersion: integer("agent_version").notNull().default(0),
@@ -264,8 +279,9 @@ const threadChatShared = {
   reattemptQueueAt: timestamp("reattempt_queue_at"),
   contextLength: integer("context_length"),
   permissionMode: text("permission_mode")
-    .$type<"allowAll" | "plan">()
+    .$type<"allowAll" | "plan" | "loop">()
     .default("allowAll"),
+  loopConfig: jsonb("loop_config").$type<LoopConfig>(),
 };
 
 export const thread = pgTable(
@@ -294,6 +310,7 @@ export const thread = pgTable(
     gitDiff: text("git_diff"),
     gitDiffStats: jsonb("git_diff_stats").$type<GitDiffStats>(),
     archived: boolean("archived").notNull().default(false),
+    isBacklog: boolean("is_backlog").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
@@ -327,6 +344,7 @@ export const thread = pgTable(
     index("user_id_updated_at_index").on(table.userId, table.updatedAt),
     index("user_id_status_index").on(table.userId, table.status),
     index("user_id_archived_index").on(table.userId, table.archived),
+    index("user_id_is_backlog_index").on(table.userId, table.isBacklog),
     index("parent_thread_id_index").on(table.parentThreadId),
     index("user_id_automation_id_index").on(table.userId, table.automationId),
     index("github_repo_full_name_github_pr_number_index").on(
@@ -1168,6 +1186,40 @@ export const agentProviderCredentials = pgTable(
     index("agent_provider_credentials_user_agent_index").on(
       table.userId,
       table.agent,
+    ),
+  ],
+);
+
+/**
+ * Gatewayz usage events table for tracking API usage through the Gatewayz proxy.
+ * This data is used for:
+ * 1. Displaying usage to users in the UI
+ * 2. Cross-referencing with Gatewayz billing data for reconciliation
+ * 3. Analytics and monitoring
+ */
+export const gatewayZUsageEvents = pgTable(
+  "gatewayz_usage_events",
+  {
+    id: text("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gwRequestId: text("gw_request_id"), // Gatewayz request ID for correlation
+    provider: text("provider").notNull(), // 'anthropic' | 'google' | 'openai' | 'zai' | 'other'
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    costUsd: numeric("cost_usd"), // Cost in USD (populated during reconciliation with Gatewayz)
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("gatewayz_usage_events_user_id_idx").on(table.userId),
+    index("gatewayz_usage_events_created_at_idx").on(table.createdAt),
+    index("gatewayz_usage_events_user_provider_idx").on(
+      table.userId,
+      table.provider,
     ),
   ],
 );

@@ -15,7 +15,9 @@ import {
   MessageSquare,
   GitCommit,
   MessageCircle,
+  Plus,
 } from "lucide-react";
+import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
@@ -29,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
 import { TaskViewToggle } from "@/components/task-view-toggle";
+import { usePlatform } from "@/hooks/use-platform";
+import { KanbanBoardMobile } from "./kanban-board-mobile";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -54,6 +58,22 @@ const GitDiffView = dynamic(
   },
 );
 
+// Dynamically import CodeReviewView for the Comments tab
+const CodeReviewView = dynamic(
+  () =>
+    import("@/components/chat/code-review-view").then(
+      (mod) => mod.CodeReviewView,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
 type TaskPanelTab = "feed" | "changes" | "comments";
 
 const TASK_PANEL_MIN_WIDTH = 500;
@@ -67,6 +87,8 @@ export const KanbanBoard = memo(function KanbanBoard({
   queryFilters: ThreadListFilters;
   initialSelectedTaskId?: string | null;
 }) {
+  // All hooks must be called unconditionally at the top (React Rules of Hooks)
+  const platform = usePlatform();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
     initialSelectedTaskId ?? null,
   );
@@ -77,18 +99,61 @@ export const KanbanBoard = memo(function KanbanBoard({
       setSelectedThreadId(initialSelectedTaskId);
     }
   }, [initialSelectedTaskId]);
+
   const [activeTab, setActiveTab] = useState<TaskPanelTab>("feed");
+  const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
+  const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
+
+  // Fetch archived threads when showing archived in Done column
+  const archivedFilters = useMemo(
+    () => ({
+      ...queryFilters,
+      archived: true,
+    }),
+    [queryFilters],
+  );
+  const { data: archivedData, refetch: refetchArchived } =
+    useInfiniteThreadList(archivedFilters);
+
+  // Fetch backlog threads to show in the Backlog column
+  const backlogFilters = useMemo(
+    () => ({
+      ...queryFilters,
+      isBacklog: true,
+    }),
+    [queryFilters],
+  );
+  const { data: backlogData, refetch: refetchBacklog } =
+    useInfiniteThreadList(backlogFilters);
 
   const threads = useMemo(
     () => data?.pages.flatMap((page) => page) ?? [],
     [data],
   );
 
+  const archivedThreads = useMemo(
+    () => archivedData?.pages.flatMap((page) => page) ?? [],
+    [archivedData],
+  );
+
+  const backlogThreads = useMemo(
+    () => backlogData?.pages.flatMap((page) => page) ?? [],
+    [backlogData],
+  );
+
   const threadIds = useMemo(() => new Set(threads.map((t) => t.id)), [threads]);
+  const archivedThreadIds = useMemo(
+    () => new Set(archivedThreads.map((t) => t.id)),
+    [archivedThreads],
+  );
+  const backlogThreadIds = useMemo(
+    () => new Set(backlogThreads.map((t) => t.id)),
+    [backlogThreads],
+  );
 
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
@@ -105,6 +170,25 @@ export const KanbanBoard = memo(function KanbanBoard({
       groups[column].push(thread);
     }
 
+    // Add backlog threads to the Backlog column
+    for (const thread of backlogThreads) {
+      // Avoid duplicates (threads that might be in both queries)
+      if (!threadIds.has(thread.id)) {
+        groups.backlog.push(thread);
+      }
+    }
+
+    // Add archived threads to Done column if toggle is enabled
+    if (showArchivedInDone) {
+      for (const thread of archivedThreads) {
+        const column = getKanbanColumn(thread);
+        // Only add archived threads that would be in the Done column
+        if (column === "done") {
+          groups.done.push(thread);
+        }
+      }
+    }
+
     // Sort each column by updatedAt (most recent first)
     for (const column of Object.keys(groups) as KanbanColumnType[]) {
       groups[column].sort(
@@ -114,14 +198,18 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     return groups;
-  }, [threads]);
+  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      if (
+        threadIds.has(threadId) ||
+        archivedThreadIds.has(threadId) ||
+        backlogThreadIds.has(threadId)
+      ) {
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
@@ -134,19 +222,38 @@ export const KanbanBoard = memo(function KanbanBoard({
         if (showArchived === data.isThreadArchived) {
           return true;
         }
+        // Also match archived threads when showArchivedInDone is enabled
+        if (showArchivedInDone && data.isThreadArchived) {
+          return true;
+        }
+      }
+      // Match backlog threads
+      if (typeof data.isThreadBacklog === "boolean") {
+        return true;
       }
       if (data.isThreadCreated) {
         return true;
       }
       return false;
     },
-    [threadIds, showArchived, automationId],
+    [
+      threadIds,
+      archivedThreadIds,
+      backlogThreadIds,
+      showArchived,
+      showArchivedInDone,
+      automationId,
+    ],
   );
 
   useRealtimeThreadMatch({
     matchThread,
     onThreadChange: () => {
       refetch();
+      refetchBacklog();
+      if (showArchivedInDone) {
+        refetchArchived();
+      }
     },
   });
 
@@ -159,6 +266,11 @@ export const KanbanBoard = memo(function KanbanBoard({
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
     setActiveTab("feed"); // Reset to feed tab when selecting a new thread
+  }, []);
+
+  const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
+    setSelectedThreadId(thread.id);
+    setActiveTab("comments"); // Open the comments tab directly
   }, []);
 
   const handleCloseDetail = useCallback(() => {
@@ -197,6 +309,25 @@ export const KanbanBoard = memo(function KanbanBoard({
     direction: "rtl",
   });
 
+  // Render mobile version on mobile devices (after all hooks are called)
+  if (platform === "mobile") {
+    return (
+      <KanbanBoardMobile
+        queryFilters={queryFilters}
+        initialSelectedTaskId={initialSelectedTaskId}
+      />
+    );
+  }
+
+  // Show loading state while platform is being determined to avoid flash
+  if (platform === "unknown") {
+    return (
+      <div className="flex flex-col h-full items-center justify-center">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col h-full items-center justify-center">
@@ -217,114 +348,156 @@ export const KanbanBoard = memo(function KanbanBoard({
   }
 
   return (
-    <div ref={containerRef} className="flex h-full w-full overflow-hidden">
-      {/* Kanban columns */}
-      <div
-        className={cn(
-          "flex-1 min-h-0 overflow-hidden transition-all duration-200",
-          selectedThreadId && "min-w-[300px]",
-        )}
-      >
-        <ScrollArea className="h-full w-full">
-          <div className="flex gap-4 p-4 h-full min-h-[500px]">
-            {KANBAN_COLUMNS.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column.id}
-                threads={columnThreads[column.id]}
-                selectedThreadId={selectedThreadId}
-                onThreadSelect={handleThreadSelect}
-              />
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full overflow-hidden"
+    >
+      {/* Header with new task button */}
+      <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Kanban Board
+          </h2>
+        </div>
+        <Button
+          variant="default"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => setNewTaskDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="text-xs">New Task</span>
+        </Button>
       </div>
 
-      {/* Task detail panel */}
-      {selectedThreadId && (
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Kanban columns */}
         <div
-          className="relative flex-shrink-0 border-l bg-background flex flex-col"
-          style={{ width: `${panelWidth}px` }}
+          className={cn(
+            "flex-1 min-h-0 overflow-hidden transition-all duration-200",
+            selectedThreadId && "min-w-[300px]",
+          )}
         >
-          {/* Resize handle */}
-          <div
-            className={cn(
-              "absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
-              isResizing && "bg-primary/50",
-            )}
-            onMouseDown={handleMouseDown}
-          />
-
-          {/* Panel header with tabs and view toggle */}
-          <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
-            {/* Tabs */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant={activeTab === "feed" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 px-3 gap-1.5"
-                onClick={() => setActiveTab("feed")}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span className="text-xs">Feed</span>
-              </Button>
-              <Button
-                variant={activeTab === "changes" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 px-3 gap-1.5"
-                onClick={() => setActiveTab("changes")}
-                disabled={!selectedThread?.gitDiff}
-              >
-                <GitCommit className="h-3.5 w-3.5" />
-                <span className="text-xs">Files Changed</span>
-              </Button>
-              <Button
-                variant={activeTab === "comments" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 px-3 gap-1.5"
-                onClick={() => setActiveTab("comments")}
-                disabled
-                title="Coming soon"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                <span className="text-xs">Comments</span>
-              </Button>
+          <ScrollArea className="h-full w-full">
+            <div className="flex gap-4 p-4 h-full min-h-[500px]">
+              {KANBAN_COLUMNS.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column.id}
+                  threads={columnThreads[column.id]}
+                  selectedThreadId={selectedThreadId}
+                  onThreadSelect={handleThreadSelect}
+                  onThreadCommentsClick={handleThreadCommentsClick}
+                  showArchivedToggle={
+                    column.id === "done" && !queryFilters.archived
+                  }
+                  showArchived={showArchivedInDone}
+                  onToggleArchived={() =>
+                    setShowArchivedInDone(!showArchivedInDone)
+                  }
+                />
+              ))}
             </div>
-
-            {/* View toggle and close button */}
-            <div className="flex items-center gap-1">
-              <TaskViewToggle threadId={selectedThreadId} />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseDetail}
-                className="h-8 w-8"
-                title="Close task details"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 overflow-hidden">
-            {activeTab === "feed" && (
-              <ChatUI threadId={selectedThreadId} isReadOnly={false} />
-            )}
-            {activeTab === "changes" && selectedThread && (
-              <div className="h-full overflow-auto">
-                <GitDiffView thread={selectedThread} />
-              </div>
-            )}
-            {activeTab === "comments" && (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p className="text-sm">Comments coming soon</p>
-              </div>
-            )}
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
-      )}
+
+        {/* Task detail panel */}
+        {selectedThreadId && (
+          <div
+            className="relative flex-shrink-0 border-l bg-background flex flex-col"
+            style={{ width: `${panelWidth}px` }}
+          >
+            {/* Resize handle */}
+            <div
+              className={cn(
+                "absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/50 transition-colors z-30",
+                isResizing && "bg-primary/50",
+              )}
+              onMouseDown={handleMouseDown}
+            />
+
+            {/* Panel header with tabs and view toggle */}
+            <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
+              {/* Tabs */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={activeTab === "feed" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("feed")}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span className="text-xs">Feed</span>
+                </Button>
+                <Button
+                  variant={activeTab === "changes" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("changes")}
+                  disabled={!selectedThread?.gitDiff}
+                >
+                  <GitCommit className="h-3.5 w-3.5" />
+                  <span className="text-xs">Files Changed</span>
+                </Button>
+                <Button
+                  variant={activeTab === "comments" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5"
+                  onClick={() => setActiveTab("comments")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  <span className="text-xs">Comments</span>
+                </Button>
+              </div>
+
+              {/* View toggle and close button */}
+              <div className="flex items-center gap-1">
+                <TaskViewToggle threadId={selectedThreadId} />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseDetail}
+                  className="h-8 w-8"
+                  title="Close task details"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === "feed" && (
+                <ChatUI threadId={selectedThreadId} isReadOnly={false} />
+              )}
+              {activeTab === "changes" && selectedThread && (
+                <div className="h-full overflow-auto">
+                  <GitDiffView thread={selectedThread} />
+                </div>
+              )}
+              {activeTab === "comments" && selectedThread && (
+                <div className="h-full overflow-auto">
+                  <CodeReviewView thread={selectedThread} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* New task dialog */}
+      <KanbanNewTaskDialog
+        open={newTaskDialogOpen}
+        onOpenChange={setNewTaskDialogOpen}
+        queryFilters={queryFilters}
+      />
     </div>
   );
 });

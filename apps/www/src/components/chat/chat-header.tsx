@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { getThreadTitle } from "@/agent/thread-utils";
 import { PRStatusPill } from "../pr-status-pill";
 import { ThreadInfoFull } from "@terragon/shared";
@@ -14,7 +14,14 @@ import { ThreadStatusIndicator } from "@/components/thread-status";
 import { Input } from "@/components/ui/input";
 import { useUpdateThreadNameMutation } from "@/queries/thread-mutations";
 import { AutomationPill } from "@/components/automations/pill";
-import { Eye, CloudOff, PanelRightClose, Split, Copy } from "lucide-react";
+import {
+  Eye,
+  CloudOff,
+  PanelRightClose,
+  Split,
+  Copy,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCollapsibleThreadList } from "../thread-list/use-collapsible-thread-list";
 import { ThreadAgentIcon } from "../thread-agent-icon";
@@ -41,6 +48,16 @@ export const ChatHeader = memo(function ChatHeader({
     isThreadListCollapsed,
     setThreadListCollapsed,
   } = useCollapsibleThreadList();
+
+  // Get the active thread chat's loopConfig
+  const activeLoopConfig = useMemo(() => {
+    if (!thread.threadChats || thread.threadChats.length === 0) {
+      return null;
+    }
+    // Get the first (active) thread chat
+    const activeChat = thread.threadChats[0];
+    return activeChat?.loopConfig ?? null;
+  }, [thread.threadChats]);
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -109,6 +126,13 @@ export const ChatHeader = memo(function ChatHeader({
           <div className="flex flex-col min-w-0 w-full">
             <div className="flex items-center gap-2 w-full">
               <ThreadStatusIndicator thread={thread} />
+              {activeLoopConfig?.isLoopActive && (
+                <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  <RefreshCw className="h-3 w-3" />
+                  {activeLoopConfig.currentIteration}/
+                  {activeLoopConfig.maxIterations}
+                </span>
+              )}
               <div className="flex items-center gap-1.5 min-w-0 flex-1">
                 {isEditing ? (
                   <Input

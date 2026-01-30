@@ -31,7 +31,7 @@ interface ThreadPromptBoxProps {
   agent: AIAgent;
   agentVersion: number;
   lastUsedModel: AIModel | null;
-  permissionMode?: "allowAll" | "plan";
+  permissionMode?: "allowAll" | "plan" | "loop";
   handleStop: HandleStop;
   handleSubmit: HandleSubmit;
   queuedMessages: DBUserMessage[] | null;
@@ -40,7 +40,10 @@ interface ThreadPromptBoxProps {
 }
 
 export const ThreadPromptBox = React.forwardRef<
-  { focus: () => void; setPermissionMode: (mode: "allowAll" | "plan") => void },
+  {
+    focus: () => void;
+    setPermissionMode: (mode: "allowAll" | "plan" | "loop") => void;
+  },
   ThreadPromptBoxProps
 >((props, ref) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -78,6 +81,8 @@ export const ThreadPromptBox = React.forwardRef<
     stopThread,
     permissionMode,
     setPermissionMode,
+    loopConfig,
+    setLoopConfig,
     selectedModel,
     setSelectedModel,
   } = usePromptBox({
@@ -115,7 +120,7 @@ export const ThreadPromptBox = React.forwardRef<
       focus: () => {
         editor?.commands.focus();
       },
-      setPermissionMode: (mode: "allowAll" | "plan") => {
+      setPermissionMode: (mode: "allowAll" | "plan" | "loop") => {
         setPermissionMode(mode);
       },
     }),
@@ -168,6 +173,8 @@ export const ThreadPromptBox = React.forwardRef<
         typeahead={repositoryCache}
         permissionMode={permissionMode}
         onPermissionModeChange={setPermissionMode}
+        loopConfig={loopConfig}
+        onLoopConfigChange={setLoopConfig}
       />
     </div>
   );
