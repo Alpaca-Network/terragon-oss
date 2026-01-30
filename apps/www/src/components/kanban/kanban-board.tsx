@@ -476,46 +476,6 @@ export const KanbanBoard = memo(function KanbanBoard({
         ref={containerRef}
         className="flex flex-col h-full w-full overflow-hidden"
       >
-        {/* Full-screen header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {/* Left arrow */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigateColumn("left")}
-              disabled={fullScreenColumnIndex === 0}
-              className="h-8 w-8"
-              title="Previous column"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-sm font-medium">
-              {currentColumn?.title ?? "Kanban Board"}
-            </h2>
-            {/* Right arrow */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigateColumn("right")}
-              disabled={fullScreenColumnIndex === KANBAN_COLUMNS.length - 1}
-              className="h-8 w-8"
-              title="Next column"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={handleCloseDetail}
-          >
-            <X className="h-4 w-4" />
-            <span className="text-xs">Close</span>
-          </Button>
-        </div>
-
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Single column in full-screen mode */}
           <div className="w-full max-w-[400px] min-h-0 overflow-hidden p-4 border-r">
@@ -532,6 +492,13 @@ export const KanbanBoard = memo(function KanbanBoard({
               onToggleArchived={() =>
                 setShowArchivedInDone(!showArchivedInDone)
               }
+              showNavigation={true}
+              canNavigateLeft={fullScreenColumnIndex > 0}
+              canNavigateRight={
+                fullScreenColumnIndex < KANBAN_COLUMNS.length - 1
+              }
+              onNavigateLeft={() => navigateColumn("left")}
+              onNavigateRight={() => navigateColumn("right")}
             />
           </div>
 
@@ -577,10 +544,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* View toggle */}
-              <div className="flex items-center gap-1">
-                <TaskViewToggle threadId={selectedThreadId} />
-              </div>
+              {/* Close button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseDetail}
+                className="h-8 w-8"
+                title="Close task details"
+                aria-label="Close task details"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
             {/* Tab content */}
@@ -779,19 +753,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* View toggle and close button */}
-              <div className="flex items-center gap-1">
-                <TaskViewToggle threadId={selectedThreadId} />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCloseDetail}
-                  className="h-8 w-8"
-                  title="Close task details"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              {/* Close button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseDetail}
+                className="h-8 w-8"
+                title="Close task details"
+                aria-label="Close task details"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
             {/* Tab content */}
