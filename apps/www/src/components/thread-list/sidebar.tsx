@@ -3,9 +3,10 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState, useCallback, useEffect, useRef } from "react";
-import { SquarePen, PanelLeftClose } from "lucide-react";
+import { SquarePen, PanelLeftClose, Search, X } from "lucide-react";
 import { ThreadListHeader, ThreadListContents, ThreadViewFilter } from "./main";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useCollapsibleThreadList } from "./use-collapsible-thread-list";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { headerClassName } from "../shared/header";
@@ -29,6 +30,7 @@ export function ThreadListSidebar() {
   } = useCollapsibleThreadList();
 
   const [viewFilter, setViewFilter] = useState<ThreadViewFilter>("active");
+  const [searchQuery, setSearchQuery] = useState("");
   const viewMode = useAtomValue(dashboardViewModeAtom);
   const setKanbanNewTaskDialogOpen = useSetAtom(kanbanNewTaskDialogOpenAtom);
   const router = useRouter();
@@ -119,9 +121,37 @@ export function ThreadListSidebar() {
         </div>
         <ThreadListHeader
           viewFilter={viewFilter}
-          setViewFilter={setViewFilter}
+          setViewFilter={(filter) => {
+            setViewFilter(filter);
+            // Clear search when switching away from archived
+            if (filter !== "archived") {
+              setSearchQuery("");
+            }
+          }}
           allowGroupBy={true}
         />
+        {viewFilter === "archived" && (
+          <div className="px-2 pb-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search archived tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 pr-8 text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <div
           className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-border/80"
           style={{
@@ -142,6 +172,7 @@ export function ThreadListSidebar() {
             showSuggestedTasks={false}
             setPromptText={() => {}}
             isSidebar={true}
+            searchQuery={viewFilter === "archived" ? searchQuery : undefined}
           />
         </div>
       </div>

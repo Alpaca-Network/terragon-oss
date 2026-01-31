@@ -430,10 +430,12 @@ function useThreadList({
   viewFilter,
   queryFilters,
   groupBy,
+  searchQuery,
 }: {
   viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   groupBy: ThreadListGroupBy;
+  searchQuery?: string;
 }) {
   const [timeZone] = useAtom(timeZoneAtom);
   const {
@@ -454,6 +456,7 @@ function useThreadList({
     threadIds: Set<string>;
   }>(() => {
     const seenThreadIds = new Set<string>();
+    const normalizedSearchQuery = searchQuery?.toLowerCase().trim() || "";
     const filteredThreads = threads.filter((thread) => {
       // Active (Inbox): not archived and not in backlog
       if (viewFilter === "active" && (thread.archived || thread.isBacklog)) {
@@ -466,6 +469,17 @@ function useThreadList({
       // Archived: archived (regardless of backlog state)
       if (viewFilter === "archived" && !thread.archived) {
         return false;
+      }
+      // Apply search filter if provided
+      if (normalizedSearchQuery) {
+        const threadName = thread.name?.toLowerCase() || "";
+        const repoName = thread.githubRepoFullName?.toLowerCase() || "";
+        if (
+          !threadName.includes(normalizedSearchQuery) &&
+          !repoName.includes(normalizedSearchQuery)
+        ) {
+          return false;
+        }
       }
       if (!seenThreadIds.has(thread.id)) {
         seenThreadIds.add(thread.id);
@@ -565,7 +579,7 @@ function useThreadList({
         };
       }
     }
-  }, [threads, viewFilter, timeZone, groupBy]);
+  }, [threads, viewFilter, timeZone, groupBy, searchQuery]);
 
   const showArchived = viewFilter === "archived";
   const automationId = queryFilters.automationId;
@@ -619,6 +633,7 @@ export const ThreadListContents = memo(function ThreadListContents({
   allowGroupBy,
   isSidebar,
   feedbackFilter = "all",
+  searchQuery,
 }: {
   viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
@@ -627,6 +642,7 @@ export const ThreadListContents = memo(function ThreadListContents({
   allowGroupBy: boolean;
   isSidebar: boolean;
   feedbackFilter?: FeedbackFilter;
+  searchQuery?: string;
 }) {
   const pathname = usePathname();
   const collapsedSections = useAtomValue(threadListCollapsedSectionsAtom);
@@ -647,6 +663,7 @@ export const ThreadListContents = memo(function ThreadListContents({
     viewFilter,
     queryFilters,
     groupBy: allowGroupBy ? groupBy : "lastUpdated",
+    searchQuery,
   });
 
   if (isLoading) {
