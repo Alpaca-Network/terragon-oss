@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import * as googleAIStudioRoute from "./[[...path]]/route";
 import { logGoogleUsage } from "./log-google-usage";
 import { auth } from "@/lib/auth";
-import { getUserCreditBalance } from "@terragon/shared/model/credits";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -13,12 +13,8 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
-vi.mock("@terragon/shared/model/credits", () => ({
-  getUserCreditBalance: vi.fn(),
-}));
-
-vi.mock("@/server-lib/credit-auto-reload", () => ({
-  maybeTriggerCreditAutoReload: vi.fn(),
+vi.mock("@/server-lib/proxy-credit-check", () => ({
+  checkProxyCredits: vi.fn(),
 }));
 
 vi.mock("@terragon/env/apps-www", () => ({
@@ -71,7 +67,7 @@ function createRequest({
 
 describe("Google AI Studio proxy route", () => {
   const verifyApiKeyMock = vi.mocked(auth.api.verifyApiKey);
-  const getUserCreditBalanceMock = vi.mocked(getUserCreditBalance);
+  const checkProxyCreditsMock = vi.mocked(checkProxyCredits);
   const logUsageMock = vi.mocked(logGoogleUsage);
   const { POST } = googleAIStudioRoute;
 
@@ -83,9 +79,9 @@ describe("Google AI Studio proxy route", () => {
       error: null,
       key: { userId: "user-123" } as any,
     });
-    getUserCreditBalanceMock.mockResolvedValue({
-      totalCreditsCents: 1_000,
-      totalUsageCents: 0,
+    checkProxyCreditsMock.mockResolvedValue({
+      allowed: true,
+      userId: "user-123",
       balanceCents: 1_000,
     });
     logUsageMock.mockReset();
@@ -204,11 +200,10 @@ describe("Google AI Studio proxy route", () => {
     expect(fetchUrl.searchParams.get("key")).toBe("test-google-ai-studio-key");
   });
 
-  it("rejects requests when user has no remaining credits", async () => {
-    getUserCreditBalanceMock.mockResolvedValueOnce({
-      totalCreditsCents: 0,
-      totalUsageCents: 0,
-      balanceCents: 0,
+  it("rejects requests when user has no remaining credits and no subscription", async () => {
+    checkProxyCreditsMock.mockResolvedValueOnce({
+      allowed: false,
+      response: new Response("Insufficient credits", { status: 402 }),
     });
 
     const fetchMock = vi.fn();

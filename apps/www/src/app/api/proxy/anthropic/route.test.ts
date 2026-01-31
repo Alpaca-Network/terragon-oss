@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import * as aiSdkRoute from "./[[...path]]/route";
 import { logAnthropicUsage } from "./log-anthropic-usage";
 import { auth } from "@/lib/auth";
-import { getUserCreditBalance } from "@terragon/shared/model/credits";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -13,12 +13,8 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
-vi.mock("@terragon/shared/model/credits", () => ({
-  getUserCreditBalance: vi.fn(),
-}));
-
-vi.mock("@/server-lib/credit-auto-reload", () => ({
-  maybeTriggerCreditAutoReload: vi.fn(),
+vi.mock("@/server-lib/proxy-credit-check", () => ({
+  checkProxyCredits: vi.fn(),
 }));
 
 vi.mock("@terragon/env/apps-www", () => ({
@@ -77,7 +73,7 @@ function createRequest({
 
 describe("Anthropic proxy route", () => {
   const verifyApiKeyMock = vi.mocked(auth.api.verifyApiKey);
-  const getUserCreditBalanceMock = vi.mocked(getUserCreditBalance);
+  const checkProxyCreditsMock = vi.mocked(checkProxyCredits);
   const logUsageMock = vi.mocked(logAnthropicUsage);
   const { POST } = aiSdkRoute;
 
@@ -89,9 +85,9 @@ describe("Anthropic proxy route", () => {
       error: null,
       key: { userId: "user-123" } as any,
     });
-    getUserCreditBalanceMock.mockResolvedValue({
-      totalCreditsCents: 1_000,
-      totalUsageCents: 0,
+    checkProxyCreditsMock.mockResolvedValue({
+      allowed: true,
+      userId: "user-123",
       balanceCents: 1_000,
     });
     logUsageMock.mockReset();
@@ -180,11 +176,10 @@ describe("Anthropic proxy route", () => {
     expect(fetchHeaders.get("Authorization")).toBeNull();
   });
 
-  it("rejects requests when user has no remaining credits", async () => {
-    getUserCreditBalanceMock.mockResolvedValueOnce({
-      totalCreditsCents: 0,
-      totalUsageCents: 0,
-      balanceCents: 0,
+  it("rejects requests when user has no remaining credits and no subscription", async () => {
+    checkProxyCreditsMock.mockResolvedValueOnce({
+      allowed: false,
+      response: new Response("Insufficient credits", { status: 402 }),
     });
 
     const fetchMock = vi.fn();
@@ -196,6 +191,39 @@ describe("Anthropic proxy route", () => {
     expect(response.status).toBe(402);
     expect(await response.text()).toBe("Insufficient credits");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows requests when user has active subscription even with zero credits", async () => {
+    // User has subscription so they're allowed even with 0 credits
+    checkProxyCreditsMock.mockResolvedValueOnce({
+      allowed: true,
+      userId: "user-123",
+      balanceCents: 0,
+    });
+
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = createRequest({
+      body: { model: VALID_MODEL, messages: [] },
+    });
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("logs usage for message_delta events in event streams", async () => {
