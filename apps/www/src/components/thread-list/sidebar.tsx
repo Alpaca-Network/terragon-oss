@@ -4,12 +4,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SquarePen, PanelLeftClose } from "lucide-react";
-import {
-  ThreadListHeader,
-  ThreadListContents,
-  ThreadViewFilter,
-  FeedbackFilter,
-} from "./main";
+import { ThreadListHeader, ThreadListContents, ThreadViewFilter } from "./main";
 import { Button } from "@/components/ui/button";
 import { useCollapsibleThreadList } from "./use-collapsible-thread-list";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
@@ -34,7 +29,6 @@ export function ThreadListSidebar() {
   } = useCollapsibleThreadList();
 
   const [viewFilter, setViewFilter] = useState<ThreadViewFilter>("active");
-  const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>("all");
   const viewMode = useAtomValue(dashboardViewModeAtom);
   const setKanbanNewTaskDialogOpen = useSetAtom(kanbanNewTaskDialogOpenAtom);
   const router = useRouter();
@@ -127,9 +121,6 @@ export function ThreadListSidebar() {
           viewFilter={viewFilter}
           setViewFilter={setViewFilter}
           allowGroupBy={true}
-          feedbackFilter={feedbackFilter}
-          onFeedbackFilterChange={setFeedbackFilter}
-          showFeedbackFilters={true}
         />
         <div
           className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-border/80"
@@ -151,7 +142,6 @@ export function ThreadListSidebar() {
             showSuggestedTasks={false}
             setPromptText={() => {}}
             isSidebar={true}
-            feedbackFilter={feedbackFilter}
           />
         </div>
       </div>
