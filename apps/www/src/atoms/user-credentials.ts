@@ -4,6 +4,7 @@ import { AIAgent } from "@terragon/agent/types";
 import { UserCredentials } from "@terragon/shared";
 import { useUserCreditBalanceQuery } from "@/queries/user-credit-balance-queries";
 import { isAgentSupportedForCredits } from "@terragon/agent/utils";
+import { useAccessInfo } from "@/queries/subscription";
 
 export const userCredentialsAtom = atom<UserCredentials | null>(null);
 
@@ -27,6 +28,7 @@ export function useCredentialInfoForAgent(
   agent: AIAgent,
 ): CredentialInfo | null {
   const credentials = useAtomValue(userCredentialsAtom);
+  const { isActive: hasActiveSubscription } = useAccessInfo();
   const supportsBuiltInCredits = isAgentSupportedForCredits(agent);
   const { data: userCreditBalance } = useUserCreditBalanceQuery({
     enabled: supportsBuiltInCredits,
@@ -59,11 +61,19 @@ export function useCredentialInfoForAgent(
 
   const isOutOfCredits =
     !!userCreditBalance && userCreditBalance.balanceCents <= 0;
+
+  // Users with an active subscription don't need credits - their subscription covers API costs
+  const canInvokeAgent =
+    hasCredentials ||
+    hasActiveSubscription ||
+    (supportsBuiltInCredits && !isOutOfCredits);
+
   return {
-    canInvokeAgent:
-      hasCredentials || (supportsBuiltInCredits && !isOutOfCredits),
+    canInvokeAgent,
     hasCredentials,
     supportsCredits: supportsBuiltInCredits,
-    isOutOfCredits: supportsBuiltInCredits && isOutOfCredits,
+    // Don't show "out of credits" if user has an active subscription
+    isOutOfCredits:
+      supportsBuiltInCredits && isOutOfCredits && !hasActiveSubscription,
   };
 }
