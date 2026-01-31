@@ -28,7 +28,8 @@ export function useCredentialInfoForAgent(
   agent: AIAgent,
 ): CredentialInfo | null {
   const credentials = useAtomValue(userCredentialsAtom);
-  const { isActive: hasActiveSubscription } = useAccessInfo();
+  const { isActive: hasActiveSubscription, isLoading: isLoadingSubscription } =
+    useAccessInfo();
   const supportsBuiltInCredits = isAgentSupportedForCredits(agent);
   const { data: userCreditBalance } = useUserCreditBalanceQuery({
     enabled: supportsBuiltInCredits,
@@ -63,17 +64,22 @@ export function useCredentialInfoForAgent(
     !!userCreditBalance && userCreditBalance.balanceCents <= 0;
 
   // Users with an active subscription don't need credits - their subscription covers API costs
+  // While loading subscription status, assume user may have subscription to prevent UI flash
   const canInvokeAgent =
     hasCredentials ||
     hasActiveSubscription ||
+    isLoadingSubscription ||
     (supportsBuiltInCredits && !isOutOfCredits);
 
   return {
     canInvokeAgent,
     hasCredentials,
     supportsCredits: supportsBuiltInCredits,
-    // Don't show "out of credits" if user has an active subscription
+    // Don't show "out of credits" if user has an active subscription or subscription is loading
     isOutOfCredits:
-      supportsBuiltInCredits && isOutOfCredits && !hasActiveSubscription,
+      supportsBuiltInCredits &&
+      isOutOfCredits &&
+      !hasActiveSubscription &&
+      !isLoadingSubscription,
   };
 }
