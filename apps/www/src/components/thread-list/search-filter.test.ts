@@ -132,10 +132,10 @@ describe("Thread Search Filtering", () => {
       expect(matchesSearchQuery(thread, "fix")).toBe(false);
     });
 
-    it("should handle threads with null repo name", () => {
+    it("should handle threads with empty repo name", () => {
       const thread = createMockThreadInfo({
         name: "Fix bug in login",
-        githubRepoFullName: null,
+        githubRepoFullName: "",
       });
       expect(matchesSearchQuery(thread, "bug")).toBe(true);
       expect(matchesSearchQuery(thread, "acme")).toBe(false);
@@ -185,7 +185,7 @@ describe("Thread Search Filtering", () => {
     it("should filter threads by name", () => {
       const filtered = threads.filter((t) => matchesSearchQuery(t, "login"));
       expect(filtered).toHaveLength(1);
-      expect(filtered[0].id).toBe("2");
+      expect(filtered[0]!.id).toBe("2");
     });
 
     it("should filter threads by repository", () => {
@@ -209,7 +209,7 @@ describe("Thread Search Filtering", () => {
     it("should match threads by multiple criteria", () => {
       const filtered = threads.filter((t) => matchesSearchQuery(t, "doc"));
       expect(filtered).toHaveLength(1);
-      expect(filtered[0].id).toBe("3");
+      expect(filtered[0]!.id).toBe("3");
     });
   });
 });
