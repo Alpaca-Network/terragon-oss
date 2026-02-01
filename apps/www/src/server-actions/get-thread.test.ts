@@ -96,7 +96,10 @@ describe("getThreadAction", () => {
           visibility: "repo",
         });
         await mockLoggedInUser(otherUserSession);
-        vi.mocked(getOctokitForUser).mockResolvedValue(mockOctokit as any);
+        vi.mocked(getOctokitForUser).mockResolvedValue({
+          success: true,
+          octokit: mockOctokit,
+        } as any);
         mockOctokit.rest.repos.get.mockResolvedValue({
           data: {
             permissions: {
@@ -118,13 +121,19 @@ describe("getThreadAction", () => {
 
       it("should throw error when user has no octokit", async () => {
         await mockLoggedInUser(otherUserSession);
-        vi.mocked(getOctokitForUser).mockResolvedValue(null);
+        vi.mocked(getOctokitForUser).mockResolvedValue({
+          success: false,
+          error: new Error("No GitHub access token"),
+        } as any);
         await expect(getThreadAction(threadId)).rejects.toThrow("Unauthorized");
       });
 
       it("should throw error when user has no permissions", async () => {
         await mockLoggedInUser(otherUserSession);
-        vi.mocked(getOctokitForUser).mockResolvedValue(mockOctokit as any);
+        vi.mocked(getOctokitForUser).mockResolvedValue({
+          success: true,
+          octokit: mockOctokit,
+        } as any);
         mockOctokit.rest.repos.get.mockResolvedValue({
           data: {
             permissions: null,

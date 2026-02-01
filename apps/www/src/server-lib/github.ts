@@ -13,6 +13,7 @@ import {
 import { getAutomation } from "@terragon/shared/model/automations";
 import { getThreadMinimal } from "@terragon/shared/model/threads";
 import { publicAppUrl } from "@terragon/env/next-public";
+import { toGitHubError } from "@/lib/github-errors";
 
 type CreateCheckRunParams =
   Endpoints["POST /repos/{owner}/{repo}/check-runs"]["parameters"];
@@ -87,7 +88,15 @@ async function updateGitHubCheckRun({
     });
     console.log(`Updated check run ${checkRunId}`, payload);
   } catch (error) {
-    console.error(`Failed to update check run ${checkRunId}:`, error);
+    console.error(
+      `[github:check-run] Failed to update check run ${checkRunId}:`,
+      {
+        error: error instanceof Error ? error.message : error,
+        repoFullName,
+        checkRunId,
+      },
+    );
+    throw toGitHubError(error);
   }
 }
 
@@ -270,6 +279,15 @@ export async function maybeUpdateGitHubCheckRunForThreadChat({
       },
     });
   } catch (error) {
-    console.error(`Failed to update check run ${checkRun.checkRunId}:`, error);
+    console.error(
+      `[github:check-run] Failed to update check run ${checkRun.checkRunId}:`,
+      {
+        error: error instanceof Error ? error.message : error,
+        threadId,
+        threadChatId,
+        checkRunId: checkRun.checkRunId,
+      },
+    );
+    throw toGitHubError(error);
   }
 }

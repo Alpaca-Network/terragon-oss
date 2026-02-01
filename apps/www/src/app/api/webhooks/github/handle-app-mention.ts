@@ -310,8 +310,9 @@ async function triggerTasksForUser({
   issueContext?: string;
 }): Promise<void> {
   try {
-    const octokit = await getOctokitForUser({ userId });
-    if (!octokit) {
+    // Verify user has GitHub access before proceeding
+    const octokitResult = await getOctokitForUser({ userId });
+    if (!octokitResult.success) {
       console.error(`No github access token found for user ${userId}`);
       return;
     }
