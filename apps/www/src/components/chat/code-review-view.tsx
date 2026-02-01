@@ -96,7 +96,7 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b px-4 py-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <GitMerge className="size-4 flex-shrink-0" />
             <h2 className="text-sm font-medium truncate">Code Review</h2>
@@ -116,7 +116,7 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
         </div>
 
         {/* Merge button row */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
           <div className="text-xs text-muted-foreground truncate min-w-0 flex-1">
             {feedback.prTitle}
           </div>
