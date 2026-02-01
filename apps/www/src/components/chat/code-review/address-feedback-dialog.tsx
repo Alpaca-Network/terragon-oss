@@ -157,7 +157,7 @@ export function AddressFeedbackDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="default" size="sm">
+          <Button variant="default" size="sm" className="whitespace-nowrap">
             <MessageSquarePlus className="size-4 mr-2" />
             Address Feedback
             {issueCount > 0 && (

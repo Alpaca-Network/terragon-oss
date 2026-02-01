@@ -96,38 +96,40 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b px-4 py-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <GitMerge className="size-4 flex-shrink-0" />
             <h2 className="text-sm font-medium truncate">Code Review</h2>
             <a
               href={feedback.prUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0"
             >
               #{feedback.prNumber}
               <ExternalLink className="size-3" />
             </a>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <AddressFeedbackDialog feedback={feedback} thread={thread} />
           </div>
         </div>
 
         {/* Merge button row */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
           <div className="text-xs text-muted-foreground truncate min-w-0 flex-1">
             {feedback.prTitle}
           </div>
-          <MergeButton
-            repoFullName={feedback.repoFullName}
-            prNumber={feedback.prNumber}
-            prTitle={feedback.prTitle}
-            isMergeable={feedback.isMergeable}
-            threadId={thread.id}
-            onMerged={() => setRefreshKey((k) => k + 1)}
-          />
+          <div className="shrink-0">
+            <MergeButton
+              repoFullName={feedback.repoFullName}
+              prNumber={feedback.prNumber}
+              prTitle={feedback.prTitle}
+              isMergeable={feedback.isMergeable}
+              threadId={thread.id}
+              onMerged={() => setRefreshKey((k) => k + 1)}
+            />
+          </div>
         </div>
       </div>
 

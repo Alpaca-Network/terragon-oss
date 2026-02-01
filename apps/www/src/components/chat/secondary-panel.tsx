@@ -298,20 +298,20 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
       {/* Header with PR info */}
       {hasPR && feedback && (
         <div className="border-b px-4 py-3 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center justify-between gap-2 overflow-hidden">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <GitMerge className="size-4 flex-shrink-0" />
               <a
                 href={feedback.prUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium hover:underline flex items-center gap-1"
+                className="text-sm font-medium hover:underline flex items-center gap-1 shrink-0"
               >
                 #{feedback.prNumber}
                 <ExternalLink className="size-3" />
               </a>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <AddressFeedbackDialog feedback={feedback} thread={thread} />
               <MergeButton
                 repoFullName={feedback.repoFullName}
