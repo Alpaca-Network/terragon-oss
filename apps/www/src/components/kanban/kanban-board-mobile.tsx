@@ -99,6 +99,8 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   useEffect(() => {
     if (initialSelectedTaskId) {
       setSelectedThreadId(initialSelectedTaskId);
+      // Reset to default tab when opening via deep link
+      setDrawerInitialTab("feed");
     }
   }, [initialSelectedTaskId]);
   const [activeColumn, setActiveColumn] =
