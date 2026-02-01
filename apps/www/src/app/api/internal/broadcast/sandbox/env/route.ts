@@ -11,7 +11,7 @@ import {
   getDecryptedEnvironmentVariables,
   getOrCreateEnvironment,
 } from "@terragon/shared/model/environments";
-import { getGitHubUserAccessTokenOrThrow } from "@terragon/shared/model/user";
+import { getGitHubUserAccessTokenWithRefresh } from "@/lib/github-oauth";
 import { getEnv } from "@terragon/sandbox/env";
 import { getAndVerifyCredentials } from "@/agent/credentials";
 import { isSandboxTerminalSupported } from "@/lib/sandbox-terminal";
@@ -56,10 +56,12 @@ export async function POST(request: Request) {
         environmentId: environment.id,
         encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
       }),
-      getGitHubUserAccessTokenOrThrow({
+      getGitHubUserAccessTokenWithRefresh({
         db,
         userId,
         encryptionKey: env.ENCRYPTION_MASTER_KEY,
+        githubClientId: env.GITHUB_CLIENT_ID,
+        githubClientSecret: env.GITHUB_CLIENT_SECRET,
       }),
       (async () => {
         const threadChat = getPrimaryThreadChat(thread);
