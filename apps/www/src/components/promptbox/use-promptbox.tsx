@@ -157,8 +157,13 @@ export function usePromptBox({
   }, [selectedModel]);
 
   // Ref to hold handleFilesAttached so it can be accessed in the paste handler
+  // Initialize with a fallback that queues attachments until the real handler is set
+  const pendingAttachmentsRef = useRef<Attachment[]>([]);
   const handleFilesAttachedRef = useRef<(files: Attachment[]) => void>(
-    () => {},
+    (files) => {
+      // Queue attachments if the real handler isn't set yet
+      pendingAttachmentsRef.current.push(...files);
+    },
   );
 
   // Threshold for converting pasted text to a file attachment
@@ -596,8 +601,16 @@ export function usePromptBox({
   );
 
   // Update the ref so handlePaste can use handleFilesAttached
+  // Also process any queued attachments from early pastes
   useEffect(() => {
     handleFilesAttachedRef.current = handleFilesAttached;
+
+    // Process any attachments that were queued before the handler was ready
+    if (pendingAttachmentsRef.current.length > 0) {
+      const pending = pendingAttachmentsRef.current;
+      pendingAttachmentsRef.current = [];
+      handleFilesAttached(pending);
+    }
   }, [handleFilesAttached]);
 
   const removeFile = useCallback(
