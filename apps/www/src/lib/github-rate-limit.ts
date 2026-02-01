@@ -140,11 +140,28 @@ export async function getTimeUntilReset(
 }
 
 /**
+ * Known GitHub rate limit resources.
+ * These are the main resource types tracked by the GitHub API.
+ */
+const KNOWN_RESOURCES = [
+  "core",
+  "search",
+  "graphql",
+  "integration_manifest",
+  "code_scanning_upload",
+  "actions_runner_registration",
+  "scim",
+  "dependency_snapshots",
+  "audit_log",
+  "code_search",
+] as const;
+
+/**
  * Clear rate limit tracking for an identifier.
  * Useful for testing or when tokens are refreshed.
  *
  * @param identifier - Unique identifier for the rate limit bucket
- * @param resource - Rate limit resource type (optional, clears all if not specified)
+ * @param resource - Rate limit resource type (optional, clears all known resources if not specified)
  */
 export async function clearRateLimitInfo(
   identifier: string,
@@ -154,11 +171,11 @@ export async function clearRateLimitInfo(
     const key = `${RATE_LIMIT_KEY_PREFIX}${identifier}:${resource}`;
     await redis.del(key);
   } else {
-    // Clear all resources for this identifier
-    const pattern = `${RATE_LIMIT_KEY_PREFIX}${identifier}:*`;
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await Promise.all(keys.map((key) => redis.del(key)));
-    }
+    // Clear all known resources for this identifier
+    // Using explicit key deletion instead of KEYS/SCAN for better performance
+    const keys = KNOWN_RESOURCES.map(
+      (res) => `${RATE_LIMIT_KEY_PREFIX}${identifier}:${res}`,
+    );
+    await Promise.all(keys.map((key) => redis.del(key)));
   }
 }

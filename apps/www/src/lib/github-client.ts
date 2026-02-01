@@ -7,6 +7,30 @@ import { updateRateLimitFromHeaders } from "./github-rate-limit";
 import { toGitHubError } from "./github-errors";
 
 /**
+ * Simple in-memory counter for rate limit tracking failures.
+ * This helps monitor if Redis connectivity issues are causing loss of visibility.
+ */
+let rateLimitTrackingFailureCount = 0;
+let lastFailureLogTime = 0;
+const FAILURE_LOG_INTERVAL_MS = 60000; // Log at most once per minute
+
+/**
+ * Get the current rate limit tracking failure count.
+ * Useful for monitoring/health checks.
+ */
+export function getRateLimitTrackingFailureCount(): number {
+  return rateLimitTrackingFailureCount;
+}
+
+/**
+ * Reset the rate limit tracking failure count.
+ * Useful for testing.
+ */
+export function resetRateLimitTrackingFailureCount(): void {
+  rateLimitTrackingFailureCount = 0;
+}
+
+/**
  * Options for creating a GitHub client.
  */
 export interface GitHubClientOptions {
@@ -50,10 +74,19 @@ export function createGitHubClient(options: GitHubClientOptions): Octokit {
       await updateRateLimitFromHeaders(options.identifier, headers);
     } catch (error) {
       // Don't fail requests due to rate limit tracking errors
-      console.warn(
-        `[github:client] Failed to update rate limit tracking for ${options.identifier}:`,
-        error,
-      );
+      // Track failures for monitoring purposes
+      rateLimitTrackingFailureCount++;
+
+      // Log periodically to avoid log spam during outages
+      const now = Date.now();
+      if (now - lastFailureLogTime > FAILURE_LOG_INTERVAL_MS) {
+        lastFailureLogTime = now;
+        console.warn(`[github:client] Rate limit tracking failures detected`, {
+          identifier: options.identifier,
+          totalFailures: rateLimitTrackingFailureCount,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   });
 
