@@ -57,16 +57,19 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   threadId,
   open,
   onClose,
+  initialTab = "feed",
 }: {
   threadId: string | null;
   open: boolean;
   onClose: () => void;
+  initialTab?: TabType;
 }) {
-  const [activeTab, setActiveTab] = useState<TabType>("feed");
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentSnap, setCurrentSnap] = useState<number | string | null>(
     DEFAULT_SNAP_POINT,
   );
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevOpenRef = useRef(false);
 
   const { data: thread } = useQuery({
     ...threadQueryOptions(threadId ?? ""),
@@ -91,6 +94,15 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   const feedback = prFeedbackData?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
   const commentCount = summary?.unresolvedCommentCount ?? 0;
+
+  // Sync activeTab with initialTab only when drawer transitions from closed to open
+  // This prevents overriding user's manual tab selection while drawer is already open
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      setActiveTab(initialTab);
+    }
+    prevOpenRef.current = open;
+  }, [open, initialTab]);
 
   // Clear any pending reset timeout on unmount or when drawer opens
   useEffect(() => {
