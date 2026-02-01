@@ -105,6 +105,9 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     useState<KanbanColumnType>("in_progress");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
+  const [drawerInitialTab, setDrawerInitialTab] = useState<
+    "feed" | "changes" | "comments"
+  >("feed");
 
   // Ref for tab list to scroll to center
   const tabsListRef = useRef<HTMLDivElement>(null);
@@ -268,6 +271,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   });
 
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
+    setDrawerInitialTab("feed");
+    setSelectedThreadId(thread.id);
+  }, []);
+
+  const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
+    setDrawerInitialTab("comments");
     setSelectedThreadId(thread.id);
   }, []);
 
@@ -559,6 +568,9 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                           thread={thread}
                           isSelected={selectedThreadId === thread.id}
                           onClick={() => handleThreadSelect(thread)}
+                          onCommentsClick={() =>
+                            handleThreadCommentsClick(thread)
+                          }
                         />
                       </div>
                     ))}
@@ -575,6 +587,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         threadId={selectedThreadId}
         open={!!selectedThreadId}
         onClose={handleCloseDrawer}
+        initialTab={drawerInitialTab}
       />
 
       {/* New task drawer */}
