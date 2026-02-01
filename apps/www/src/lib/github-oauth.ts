@@ -10,10 +10,8 @@ import {
 // We use a 1-hour buffer to ensure we refresh before expiration
 const TOKEN_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour
 
-// In-memory map to track ongoing refresh operations per user
-// This prevents race conditions where multiple concurrent requests
-// try to refresh the same user's token simultaneously
-const refreshInProgress = new Map<string, Promise<string>>();
+// Maximum number of retries for optimistic locking conflicts
+const MAX_REFRESH_RETRIES = 3;
 
 interface GitHubTokenResponse {
   access_token: string;
@@ -94,11 +92,12 @@ export function isTokenExpiredOrExpiringSoon(
  * 1. Retrieves the current token from the database
  * 2. Checks if it's expired or expiring soon
  * 3. If expired and refresh token exists, refreshes the token
- * 4. Updates the database with new tokens
+ * 4. Updates the database with new tokens using optimistic locking
  * 5. Returns the valid access token
  *
- * Uses an in-memory lock to prevent race conditions when multiple
- * concurrent requests try to refresh the same user's token.
+ * Uses optimistic locking with the updatedAt field to handle concurrent
+ * refresh attempts across serverless instances. If another instance refreshed
+ * the token first, we re-read and use the newly refreshed token.
  */
 export async function getGitHubUserAccessTokenWithRefresh({
   db,
@@ -113,7 +112,84 @@ export async function getGitHubUserAccessTokenWithRefresh({
   githubClientId: string;
   githubClientSecret: string;
 }): Promise<string> {
-  const githubAccounts = await db
+  for (let attempt = 0; attempt < MAX_REFRESH_RETRIES; attempt++) {
+    const githubAccounts = await db
+      .select()
+      .from(schema.account)
+      .where(
+        and(
+          eq(schema.account.userId, userId),
+          eq(schema.account.providerId, "github"),
+        ),
+      )
+      .execute();
+
+    if (githubAccounts.length === 0) {
+      throw new Error("No GitHub account found");
+    }
+
+    const githubAccount = githubAccounts[0]!;
+
+    if (!githubAccount.accessToken) {
+      throw new Error("No GitHub access token found");
+    }
+
+    // Decrypt tokens
+    const accessToken = decryptTokenWithBackwardsCompatibility(
+      githubAccount.accessToken,
+      encryptionKey,
+    );
+
+    // Check if token is expired or expiring soon
+    const isExpired = isTokenExpiredOrExpiringSoon(
+      githubAccount.accessTokenExpiresAt,
+    );
+
+    if (!isExpired) {
+      // Token is still valid, return it
+      return accessToken;
+    }
+
+    // Token is expired or expiring soon, try to refresh
+    if (!githubAccount.refreshToken) {
+      // No refresh token available - this could be a classic OAuth app token
+      // or the token was created before refresh tokens were enabled.
+      // Return the existing token and hope it's still valid.
+      console.warn(
+        "GitHub access token is expired but no refresh token available",
+      );
+      return accessToken;
+    }
+
+    // Attempt to refresh with optimistic locking
+    const result = await performTokenRefresh({
+      db,
+      userId,
+      githubAccount,
+      encryptionKey,
+      githubClientId,
+      githubClientSecret,
+      accessToken,
+    });
+
+    if (result.success) {
+      return result.token;
+    }
+
+    if (result.reason === "error") {
+      // Refresh API call failed - return existing token and hope it's still valid
+      return accessToken;
+    }
+
+    // Optimistic lock conflict - another instance refreshed first
+    // Loop will re-read and get the new token
+    console.log(
+      `Token refresh conflict for user ${userId}, attempt ${attempt + 1}/${MAX_REFRESH_RETRIES}`,
+    );
+  }
+
+  // After max retries, re-read once more to get whatever token is there
+  const finalAccounts = await db
     .select()
     .from(schema.account)
     .where(
@@ -124,74 +200,25 @@ export async function getGitHubUserAccessTokenWithRefresh({
     )
     .execute();
 
-  if (githubAccounts.length === 0) {
-    throw new Error("No GitHub account found");
+  if (finalAccounts.length === 0 || !finalAccounts[0]!.accessToken) {
+    throw new Error("No GitHub access token found after refresh attempts");
   }
 
-  const githubAccount = githubAccounts[0]!;
-
-  if (!githubAccount.accessToken) {
-    throw new Error("No GitHub access token found");
-  }
-
-  // Decrypt tokens
-  const accessToken = decryptTokenWithBackwardsCompatibility(
-    githubAccount.accessToken,
+  return decryptTokenWithBackwardsCompatibility(
+    finalAccounts[0]!.accessToken,
     encryptionKey,
   );
-
-  // Check if token is expired or expiring soon
-  const isExpired = isTokenExpiredOrExpiringSoon(
-    githubAccount.accessTokenExpiresAt,
-  );
-
-  if (!isExpired) {
-    // Token is still valid, return it
-    return accessToken;
-  }
-
-  // Token is expired or expiring soon, try to refresh
-  if (!githubAccount.refreshToken) {
-    // No refresh token available - this could be a classic OAuth app token
-    // or the token was created before refresh tokens were enabled.
-    // Return the existing token and hope it's still valid.
-    console.warn(
-      "GitHub access token is expired but no refresh token available",
-    );
-    return accessToken;
-  }
-
-  // Check if a refresh is already in progress for this user
-  const existingRefresh = refreshInProgress.get(userId);
-  if (existingRefresh) {
-    // Wait for the existing refresh to complete and return its result
-    return existingRefresh;
-  }
-
-  // Create the refresh promise and store it to prevent concurrent refreshes
-  const refreshPromise = performTokenRefresh({
-    db,
-    userId,
-    githubAccount,
-    encryptionKey,
-    githubClientId,
-    githubClientSecret,
-    accessToken,
-  });
-
-  refreshInProgress.set(userId, refreshPromise);
-
-  try {
-    return await refreshPromise;
-  } finally {
-    // Clean up the in-progress marker
-    refreshInProgress.delete(userId);
-  }
 }
+
+type TokenRefreshResult =
+  | { success: true; token: string }
+  | { success: false; reason: "conflict" | "error" };
 
 /**
  * Internal function that performs the actual token refresh.
- * Separated to allow the main function to handle concurrency control.
+ * Uses optimistic locking with updatedAt to prevent race conditions
+ * in serverless environments where multiple instances may try to
+ * refresh the same token simultaneously.
  */
 async function performTokenRefresh({
   db,
@@ -204,12 +231,16 @@ async function performTokenRefresh({
 }: {
   db: DB;
   userId: string;
-  githubAccount: { id: string; refreshToken: string | null };
+  githubAccount: {
+    id: string;
+    refreshToken: string | null;
+    updatedAt: Date;
+  };
   encryptionKey: string;
   githubClientId: string;
   githubClientSecret: string;
   accessToken: string;
-}): Promise<string> {
+}): Promise<TokenRefreshResult> {
   const refreshToken = decryptTokenWithBackwardsCompatibility(
     githubAccount.refreshToken!,
     encryptionKey,
@@ -244,8 +275,9 @@ async function performTokenRefresh({
       encryptionKey,
     );
 
-    // Update the database with new tokens
-    await db
+    // Update the database with new tokens using optimistic locking.
+    // Only update if updatedAt matches what we read, preventing concurrent updates.
+    const updateResult = await db
       .update(schema.account)
       .set({
         accessToken: encryptedAccessToken,
@@ -254,15 +286,33 @@ async function performTokenRefresh({
         refreshTokenExpiresAt,
         updatedAt: now,
       })
-      .where(eq(schema.account.id, githubAccount.id));
+      .where(
+        and(
+          eq(schema.account.id, githubAccount.id),
+          eq(schema.account.updatedAt, githubAccount.updatedAt),
+        ),
+      );
+
+    // Check if the update succeeded (row was modified)
+    const rowsAffected =
+      "rowCount" in updateResult ? (updateResult.rowCount ?? 0) : 0;
+
+    if (rowsAffected === 0) {
+      // Another instance already refreshed the token
+      console.log(
+        "Token refresh conflict detected - another instance refreshed first for user:",
+        userId,
+      );
+      return { success: false, reason: "conflict" };
+    }
 
     console.log("Successfully refreshed GitHub access token for user:", userId);
 
-    return newTokens.access_token;
+    return { success: true, token: newTokens.access_token };
   } catch (error) {
-    // If refresh fails, log the error and return the existing token
-    // This allows operations to continue if the token is actually still valid
+    // If refresh fails, log the error and return failure
+    // The caller can decide to use the existing token
     console.error("Failed to refresh GitHub token:", error);
-    return accessToken;
+    return { success: false, reason: "error" };
   }
 }
