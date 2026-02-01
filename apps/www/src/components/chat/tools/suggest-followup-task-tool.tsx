@@ -66,9 +66,9 @@ export function SuggestFollowupTaskTool({
   return (
     <div className="flex flex-col gap-2 border border-border rounded-md p-3 sm:p-4 bg-card">
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2 sm:gap-4">
-        <div className="flex items-start sm:items-baseline gap-2 min-w-0">
+        <div className="flex items-start sm:items-baseline gap-2 min-w-0 flex-1">
           <Sparkles className="size-3 text-yellow-600 shrink-0 mt-0.5 sm:mt-0" />
-          <span className="font-semibold text-sm sm:text-base text-foreground leading-tight break-words">
+          <span className="font-semibold text-sm sm:text-base text-foreground leading-tight break-words min-w-0">
             {toolPart.parameters.title}
           </span>
         </div>
