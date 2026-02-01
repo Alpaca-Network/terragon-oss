@@ -420,15 +420,26 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             Failed to load tasks. Please try again.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          className="gap-1.5 tap-highlight soft-glow"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Retry
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="gap-1.5 tap-highlight soft-glow"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setNewTaskDialogOpen(true)}
+            className="gap-1.5 tap-highlight soft-glow"
+          >
+            <SquarePen className="h-3.5 w-3.5" />
+            New Task
+          </Button>
+        </div>
       </div>
     );
   }
