@@ -281,6 +281,10 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
               isMergeable={feedback.isMergeable}
               baseBranch={feedback.baseBranch}
               headBranch={feedback.headBranch}
+              prUrl={feedback.prUrl}
+              prNumber={feedback.prNumber}
+              repoFullName={feedback.repoFullName}
+              thread={thread}
             />
           </div>
         );
