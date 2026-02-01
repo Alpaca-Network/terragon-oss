@@ -124,7 +124,7 @@ export function usePromptBox({
     "allowAll" | "plan" | "loop"
   >(initialPermissionMode);
   const [loopConfig, setLoopConfig] = useState<LoopConfigInput>({
-    maxIterations: 10,
+    maxIterations: 3,
     completionPromise: "DONE",
     useRegex: false,
     requireApproval: false,
