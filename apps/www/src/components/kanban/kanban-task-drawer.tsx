@@ -49,9 +49,9 @@ const GitDiffView = dynamic(
 
 type TabType = "feed" | "changes" | "comments";
 
-// Snap points: 75% and 100% of viewport height
-const SNAP_POINTS = [0.75, 1] as const;
-const DEFAULT_SNAP_POINT = 0.75;
+// Snap points: 80% and 100% of viewport height
+const SNAP_POINTS = [0.8, 1] as const;
+const DEFAULT_SNAP_POINT = 0.8;
 
 export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   threadId,
@@ -126,7 +126,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   const isMaximized = currentSnap === 1;
 
   const toggleMaximize = useCallback(() => {
-    setCurrentSnap(isMaximized ? 0.75 : 1);
+    setCurrentSnap(isMaximized ? 0.8 : 1);
   }, [isMaximized]);
 
   // Determine height class based on current snap point
@@ -134,7 +134,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
     if (currentSnap === 1) {
       return "h-[100dvh] max-h-[100dvh]";
     }
-    return "h-[75dvh] max-h-[75dvh]";
+    return "h-[80dvh] max-h-[80dvh]";
   };
 
   return (
@@ -155,9 +155,9 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
           "dark:shadow-[0_-10px_40px_rgba(0,0,0,0.3)]",
         )}
       >
-        {/* Futuristic drawer handle */}
+        {/* Drawer handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-12 h-1 rounded-full bg-gradient-to-r from-primary/30 via-primary/60 to-primary/30" />
+          <div className="w-12 h-1 rounded-full bg-muted-foreground/30" />
         </div>
 
         <DrawerHeader className="flex flex-row items-center justify-between border-b border-border/50 py-2 px-3 flex-shrink-0 bg-background/50">
@@ -201,7 +201,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               disabled={!hasPR}
             >
               <MessageCircle className="h-4 w-4" />
-              <span className="text-xs font-medium">Comments</span>
+              <span className="text-xs font-medium">Code Review</span>
               {commentCount > 0 && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                   {commentCount}

@@ -1,12 +1,9 @@
 import { NextRequest } from "next/server";
 import { env } from "@terragon/env/apps-www";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { getUserCreditBalance } from "@terragon/shared/model/credits";
-import { maybeTriggerCreditAutoReload } from "@/server-lib/credit-auto-reload";
 import { logAnthropicUsage } from "../log-anthropic-usage";
-import { waitUntil } from "@vercel/functions";
 import { validateProxyRequestModel } from "@/server-lib/proxy-model-validation";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 
 const ANTHROPIC_API_BASE = "https://api.anthropic.com/";
 const DEFAULT_ANTHROPIC_PATH = "v1/messages";
@@ -421,20 +418,9 @@ async function authorize(
       return { response: new Response("Unauthorized", { status: 401 }) };
     }
 
-    const { balanceCents } = await getUserCreditBalance({
-      db,
-      userId,
-      skipAggCache: false,
-    });
-    waitUntil(maybeTriggerCreditAutoReload({ userId, balanceCents }));
-    if (balanceCents <= 0) {
-      console.log("Anthropic proxy access denied: insufficient credits", {
-        userId,
-        balanceCents,
-      });
-      return {
-        response: new Response("Insufficient credits", { status: 402 }),
-      };
+    const creditCheck = await checkProxyCredits(userId, "Anthropic");
+    if (!creditCheck.allowed) {
+      return { response: creditCheck.response };
     }
     return { response: null, userId };
   } catch (err) {

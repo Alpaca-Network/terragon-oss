@@ -289,7 +289,9 @@ function groupCommentsIntoThreads(
 
     if (graphqlStatus !== undefined) {
       // Use actual GitHub resolution status from GraphQL
-      isResolved = graphqlStatus.isResolved;
+      // Treat outdated comments (where code has changed) as resolved since
+      // they no longer apply to the current code
+      isResolved = graphqlStatus.isResolved || graphqlStatus.isOutdated;
     } else {
       // Fall back to heuristic: if the last comment mentions resolution keywords
       const lastComment = threadComments[threadComments.length - 1];

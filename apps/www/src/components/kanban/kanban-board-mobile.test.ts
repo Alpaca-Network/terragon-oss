@@ -77,19 +77,19 @@ describe("Kanban Mobile Components", () => {
 
   describe("Mobile drawer configuration", () => {
     // Constants that should match the drawer implementation
-    const SNAP_POINTS = [0.75, 1] as const;
-    const DEFAULT_SNAP_POINT = 0.75;
+    const SNAP_POINTS = [0.8, 1] as const;
+    const DEFAULT_SNAP_POINT = 0.8;
     const DEFAULT_TAB = "feed";
     const AVAILABLE_TABS = ["feed", "changes", "comments"];
 
-    it("should have snap points at 75% and 100% for mobile", () => {
-      expect(SNAP_POINTS).toContain(0.75);
+    it("should have snap points at 80% and 100% for mobile", () => {
+      expect(SNAP_POINTS).toContain(0.8);
       expect(SNAP_POINTS).toContain(1);
       expect(SNAP_POINTS.length).toBe(2);
     });
 
-    it("should default to 75% snap point (not maximized)", () => {
-      expect(DEFAULT_SNAP_POINT).toBe(0.75);
+    it("should default to 80% snap point (not maximized)", () => {
+      expect(DEFAULT_SNAP_POINT).toBe(0.8);
     });
 
     it("should have snap points in ascending order", () => {
@@ -116,7 +116,7 @@ describe("Kanban Mobile Components", () => {
   });
 
   describe("Mobile drawer maximize/minimize", () => {
-    const DEFAULT_SNAP_POINT = 0.75;
+    const DEFAULT_SNAP_POINT = 0.8;
     const MAXIMIZED_SNAP_POINT = 1;
 
     // Helper to simulate toggle maximize logic
@@ -131,22 +131,22 @@ describe("Kanban Mobile Components", () => {
       if (currentSnap === MAXIMIZED_SNAP_POINT) {
         return "h-[100dvh] max-h-[100dvh]";
       }
-      return "h-[75dvh] max-h-[75dvh]";
+      return "h-[80dvh] max-h-[80dvh]";
     };
 
-    it("should toggle from default (75%) to maximized (100%)", () => {
+    it("should toggle from default (80%) to maximized (100%)", () => {
       const newSnap = toggleMaximize(DEFAULT_SNAP_POINT);
       expect(newSnap).toBe(MAXIMIZED_SNAP_POINT);
     });
 
-    it("should toggle from maximized (100%) back to default (75%)", () => {
+    it("should toggle from maximized (100%) back to default (80%)", () => {
       const newSnap = toggleMaximize(MAXIMIZED_SNAP_POINT);
       expect(newSnap).toBe(DEFAULT_SNAP_POINT);
     });
 
-    it("should return 75dvh height class for default snap point", () => {
+    it("should return 80dvh height class for default snap point", () => {
       const heightClass = getHeightClass(DEFAULT_SNAP_POINT);
-      expect(heightClass).toContain("75dvh");
+      expect(heightClass).toContain("80dvh");
     });
 
     it("should return 100dvh height class for maximized snap point", () => {
