@@ -8,7 +8,7 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 import { ThreadStatusIndicator } from "../thread-status";
 import { PRStatusPill } from "../pr-status-pill";
 import { ThreadAgentIcon } from "../thread-agent-icon";
-import { PRCommentCountBadge } from "./pr-comment-count-badge";
+import { PRFeedbackBadge } from "./pr-feedback-badge";
 import { ThreadMenuDropdown } from "../thread-menu-dropdown";
 import { Button } from "@/components/ui/button";
 import { GitBranch, EllipsisVertical, Play, LoaderCircle } from "lucide-react";
@@ -180,11 +180,19 @@ export const KanbanCard = memo(function KanbanCard({
           </span>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {thread.githubPRNumber && (
-              <PRCommentCountBadge
+              <PRFeedbackBadge
                 threadId={thread.id}
                 repoFullName={thread.githubRepoFullName}
                 prNumber={thread.githubPRNumber}
-                onClick={(e) => {
+                onCommentsClick={(e) => {
+                  e.stopPropagation();
+                  onCommentsClick?.();
+                }}
+                onChecksClick={(e) => {
+                  e.stopPropagation();
+                  onCommentsClick?.();
+                }}
+                onConflictsClick={(e) => {
                   e.stopPropagation();
                   onCommentsClick?.();
                 }}
