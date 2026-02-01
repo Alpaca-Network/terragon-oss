@@ -2,6 +2,9 @@
 builder = "NIXPACKS"
 buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @terragon/www build"
 
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs_20", "pnpm-9_x", "openssl"]
+
 [deploy]
 startCommand = "cd apps/www && pnpm start"
 healthcheckPath = "/api/health"
