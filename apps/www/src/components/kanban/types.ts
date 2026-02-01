@@ -163,6 +163,14 @@ export type KanbanThreadGroup = {
 };
 
 /**
+ * Checks if a thread has an error status (error or working-error)
+ */
+export function isErrorThread(thread: ThreadInfo): boolean {
+  const status = getCombinedStatus(thread);
+  return status === "error" || status === "working-error";
+}
+
+/**
  * Checks if a thread is a draft (can be started)
  */
 export function isDraftThread(thread: ThreadInfo): boolean {
