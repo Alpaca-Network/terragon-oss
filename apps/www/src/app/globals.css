@@ -219,8 +219,8 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Override color variables within sidebar context for light mode */
-  /* This ensures sidebar components use dark-theme colors even in light mode */
+  /* Override semantic color variables within sidebar context */
+  /* This ensures sidebar components always use sidebar-specific tokens in both themes */
   [data-slot="sidebar"],
   [data-slot="sidebar-wrapper"] [data-sidebar],
   .bg-sidebar {
