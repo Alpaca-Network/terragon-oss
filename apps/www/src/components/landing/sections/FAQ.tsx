@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { publicDocsUrl } from "@terragon/env/next-public";
 
 const faqs = [
   {
@@ -53,7 +54,7 @@ const faqs = [
         encryption.
         <Link
           target="_blank"
-          href="https://beta.gatewayz.ai/inbox/docs/security-permissions"
+          href={`${publicDocsUrl()}/security-permissions`}
           className="underline hover:no-underline"
         >
           Learn more →
