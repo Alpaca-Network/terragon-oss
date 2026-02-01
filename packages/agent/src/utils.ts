@@ -1097,12 +1097,9 @@ export function normalizedModelForDaemon(model: AIModel): string {
   // Handle Gatewayz models - extract the underlying model and normalize it
   // The daemon will use the Gatewayz proxy based on the useGatewayz flag
   if (model.startsWith("gatewayz/")) {
-    const parts = model.split("/");
-    if (parts.length >= 3) {
-      const underlyingModel = parts[2] as AIModel;
-      // Recursively normalize the underlying model
-      return normalizedModelForDaemon(underlyingModel);
-    }
+    const underlyingModel = getUnderlyingModelForGatewayz(model);
+    // Recursively normalize the underlying model
+    return normalizedModelForDaemon(underlyingModel);
   }
   // Switch to using the google proxy
   // For now, just switch gemini-3-pro to the google proxy

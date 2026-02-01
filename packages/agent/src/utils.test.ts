@@ -8,6 +8,7 @@ import {
   isGatewayzModel,
   getUnderlyingAgentForGatewayzModel,
   getUnderlyingModelForGatewayz,
+  normalizedModelForDaemon,
 } from "./utils";
 import { AIModel, AIAgent } from "./types";
 import { AGENT_VERSION } from "./versions";
@@ -306,6 +307,51 @@ describe("model-to-agent", () => {
         expect(gatewayzModels).toContain("gatewayz/codex/gpt-5.2-codex-high");
         expect(gatewayzModels).toContain("gatewayz/gemini/gemini-3-pro");
         expect(gatewayzModels).toContain("gatewayz/opencode/glm-4.7");
+      });
+    });
+
+    describe("normalizedModelForDaemon for Gatewayz models", () => {
+      it("should normalize Gatewayz Claude Code models", () => {
+        expect(normalizedModelForDaemon("gatewayz/claude-code/opus")).toBe(
+          "opus",
+        );
+        expect(normalizedModelForDaemon("gatewayz/claude-code/sonnet")).toBe(
+          "sonnet",
+        );
+        expect(normalizedModelForDaemon("gatewayz/claude-code/haiku")).toBe(
+          "haiku",
+        );
+      });
+
+      it("should normalize Gatewayz Codex models", () => {
+        expect(
+          normalizedModelForDaemon("gatewayz/codex/gpt-5.2-codex-high"),
+        ).toBe("gpt-5.2-codex-high");
+        expect(
+          normalizedModelForDaemon("gatewayz/codex/gpt-5.1-codex-max"),
+        ).toBe("gpt-5.1-codex-max");
+      });
+
+      it("should normalize Gatewayz Gemini models", () => {
+        expect(normalizedModelForDaemon("gatewayz/gemini/gemini-3-pro")).toBe(
+          "gemini-3-pro-preview",
+        );
+        expect(normalizedModelForDaemon("gatewayz/gemini/gemini-2.5-pro")).toBe(
+          "gemini-2.5-pro",
+        );
+      });
+
+      it("should normalize Gatewayz OpenCode models with opencode prefix", () => {
+        // OpenCode models need to keep the opencode/ prefix and be normalized to terry/
+        expect(normalizedModelForDaemon("gatewayz/opencode/glm-4.7")).toBe(
+          "terry/glm-4.7",
+        );
+        expect(normalizedModelForDaemon("gatewayz/opencode/glm-4.6")).toBe(
+          "terry/glm-4.6",
+        );
+        expect(normalizedModelForDaemon("gatewayz/opencode/kimi-k2")).toBe(
+          "terry/kimi-k2",
+        );
       });
     });
   });
