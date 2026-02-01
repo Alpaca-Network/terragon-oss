@@ -328,6 +328,14 @@ function ChatContent({
         />
       );
     }
+    case "gatewayz-subscription-required": {
+      return (
+        <ChatErrorContentsWithPre
+          header="Gatewayz subscription required to use Gatewayz Router models."
+          errorStr={errorInfo}
+        />
+      );
+    }
     default: {
       const _exhaustiveCheck: never = errorTypeStrict;
       console.log("Unhandled error", _exhaustiveCheck);

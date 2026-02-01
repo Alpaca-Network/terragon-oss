@@ -1,6 +1,26 @@
 import * as z from "zod/v4";
 
 export const AIModelSchema = z.enum([
+  // gatewayz router - Claude Code models
+  "gatewayz/claude-code/opus",
+  "gatewayz/claude-code/sonnet",
+  "gatewayz/claude-code/haiku",
+
+  // gatewayz router - Codex models
+  "gatewayz/codex/gpt-5.2-codex-high",
+  "gatewayz/codex/gpt-5.2-codex-medium",
+  "gatewayz/codex/gpt-5.1-codex-max",
+  "gatewayz/codex/gpt-5.1-codex-high",
+
+  // gatewayz router - Gemini models
+  "gatewayz/gemini/gemini-3-pro",
+  "gatewayz/gemini/gemini-2.5-pro",
+
+  // gatewayz router - OpenCode models
+  "gatewayz/opencode/glm-4.7",
+  "gatewayz/opencode/glm-4.6",
+  "gatewayz/opencode/kimi-k2",
+
   // claude code
   "opus",
   "sonnet",
@@ -80,6 +100,7 @@ export type AIModel = z.infer<typeof AIModelSchema>;
 export type AIModelExternal = z.infer<typeof AIModelExternalSchema>;
 
 export const AIAgentSchema = z.enum([
+  "gatewayz",
   "claudeCode",
   "gemini",
   "amp",

@@ -36,6 +36,9 @@ export function useCredentialInfoForAgent(
   }
   let hasCredentials = false;
   switch (agent) {
+    case "gatewayz":
+      hasCredentials = credentials.hasGatewayz;
+      break;
     case "claudeCode":
       hasCredentials = credentials.hasClaude;
       break;

@@ -11,6 +11,17 @@ export function AgentIcon({
   sessionId: string | null;
 }) {
   switch (agent) {
+    case "gatewayz":
+      return (
+        <span className="flex-shrink-0 inline-flex items-center">
+          <Image
+            src="/gatewayz-logo-icon.png"
+            alt="Gatewayz Router"
+            width={18}
+            height={18}
+          />
+        </span>
+      );
     case "amp":
       return sessionId ? (
         <a

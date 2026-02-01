@@ -83,6 +83,13 @@ export async function getAndVerifyCredentials({
         type: "built-in-credits",
       };
     }
+    case "gatewayz": {
+      // Gatewayz is a meta-agent that routes to underlying agents.
+      // Credentials should be fetched for the underlying agent, not "gatewayz".
+      throw new Error(
+        "Gatewayz agent should not be passed directly to getAgentCredentialsOrNull. Fetch credentials for the underlying agent.",
+      );
+    }
     default: {
       const _exhaustiveCheck: never = agent;
       throw new Error(`Unknown agent: ${_exhaustiveCheck}`);

@@ -41,6 +41,8 @@ import {
   normalizedModelForDaemon,
   isConnectedCredentialsSupported,
   modelRequiresChatGptOAuth,
+  isGatewayzModel,
+  getUnderlyingAgentForGatewayzModel,
 } from "@terragon/agent/utils";
 import { handleSlashCommand } from "@/agent/slash-command-handler";
 import { tryAutoCompactThread } from "@/server-lib/compact";
@@ -451,7 +453,22 @@ export async function startAgentMessage({
             );
           }
 
-          const agentForModel = modelToAgent(model);
+          // Check if this is a Gatewayz model
+          const isGatewayzModelSelected = isGatewayzModel(model);
+
+          // If it's a Gatewayz model and user doesn't have Gatewayz subscription, error
+          if (isGatewayzModelSelected && !userCredentials.hasGatewayz) {
+            throw new ThreadError(
+              "gatewayz-subscription-required",
+              "A Gatewayz subscription is required to use Gatewayz Router models.",
+              null,
+            );
+          }
+
+          // For Gatewayz models, get the underlying agent for execution
+          const agentForModel = isGatewayzModelSelected
+            ? (getUnderlyingAgentForGatewayzModel(model) ?? modelToAgent(model))
+            : modelToAgent(model);
           const { prompt: finalPrompt } = await preparePromptForModel({
             model,
             agent: threadChat.agent,
@@ -485,14 +502,15 @@ export async function startAgentMessage({
             (agentForModel === "claudeCode" && userCredentials.hasClaude) ||
             (agentForModel === "amp" && userCredentials.hasAmp);
 
-          // Gatewayz is the default provider when:
-          // 1. User has an active Gatewayz subscription (pro/max)
-          // 2. User doesn't have their own credentials for this agent
+          // Gatewayz is used when:
+          // 1. User explicitly selected a Gatewayz model, OR
+          // 2. User has an active Gatewayz subscription (pro/max) AND doesn't have their own credentials
           const shouldUseGatewayz =
-            userCredentials.hasGatewayz && !hasOwnCredentials;
+            isGatewayzModelSelected ||
+            (userCredentials.hasGatewayz && !hasOwnCredentials);
 
           // Fall back to built-in credits only when:
-          // 1. User doesn't have Gatewayz subscription
+          // 1. Not using Gatewayz
           // 2. User doesn't have their own credentials
           // 3. Agent doesn't support connected credentials
           const shouldUseCredits =
@@ -501,11 +519,16 @@ export async function startAgentMessage({
               (agentForModel === "claudeCode" && !userCredentials.hasClaude) ||
               !isConnectedCredentialsSupported(agentForModel));
 
+          // For Gatewayz models, use the underlying agent for daemon execution
+          const agentForDaemon = isGatewayzModelSelected
+            ? agentForModel
+            : threadChat.agent;
+
           await sendDaemonMessage({
             message: {
               type: "claude",
               model: normalizedModelForDaemon(model),
-              agent: threadChat.agent,
+              agent: agentForDaemon,
               agentVersion: threadChat.agentVersion,
               prompt: finalFinalPrompt,
               sessionId,
@@ -580,6 +603,7 @@ async function preparePromptForModel({
       }
       break;
     }
+    case "gatewayz":
     case "amp":
     case "gemini":
     case "opencode":

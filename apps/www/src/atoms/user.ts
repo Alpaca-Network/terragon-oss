@@ -73,6 +73,7 @@ export const allAgentsAtom = atom<AIAgent[]>((get) => {
   const allAgentTypes = getAllAgentTypes();
   return allAgentTypes.filter((agent) => {
     switch (agent) {
+      case "gatewayz":
       case "claudeCode":
       case "codex":
       case "opencode":
