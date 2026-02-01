@@ -57,12 +57,14 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   threadId,
   open,
   onClose,
+  initialTab = "feed",
 }: {
   threadId: string | null;
   open: boolean;
   onClose: () => void;
+  initialTab?: TabType;
 }) {
-  const [activeTab, setActiveTab] = useState<TabType>("feed");
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentSnap, setCurrentSnap] = useState<number | string | null>(
     DEFAULT_SNAP_POINT,
   );
@@ -91,6 +93,13 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   const feedback = prFeedbackData?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
   const commentCount = summary?.unresolvedCommentCount ?? 0;
+
+  // Sync activeTab with initialTab when drawer opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
 
   // Clear any pending reset timeout on unmount or when drawer opens
   useEffect(() => {
