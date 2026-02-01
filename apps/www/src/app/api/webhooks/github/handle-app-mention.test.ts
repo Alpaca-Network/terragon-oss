@@ -88,7 +88,10 @@ describe("handleAppMention", () => {
       },
     };
     vi.clearAllMocks();
-    vi.mocked(getOctokitForUser).mockResolvedValue(mockOctokit as any);
+    vi.mocked(getOctokitForUser).mockResolvedValue({
+      success: true,
+      octokit: mockOctokit,
+    } as any);
     vi.mocked(getOctokitForApp).mockResolvedValue(mockOctokit as any);
     // Reset newThreadInternal to successful state
     vi.mocked(newThreadInternal).mockResolvedValue({
@@ -126,7 +129,10 @@ describe("handleAppMention", () => {
   });
 
   it("should not create thread when user has no GitHub access token", async () => {
-    vi.mocked(getOctokitForUser).mockResolvedValue(null);
+    vi.mocked(getOctokitForUser).mockResolvedValue({
+      success: false,
+      error: new Error("No GitHub access token"),
+    } as any);
     await handleAppMention({
       repoFullName: pr.repoFullName,
       issueOrPrNumber: pr.number,

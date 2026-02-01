@@ -94,7 +94,10 @@ export async function handlePullRequestUpdated(
           handlePullRequestAutomation(event, automation),
         ),
       );
-      const failed = results.filter((result) => result.status === "rejected");
+      const failed = results.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected",
+      );
       const succeeded = results.filter(
         (result) => result.status === "fulfilled",
       );
@@ -102,9 +105,16 @@ export async function handlePullRequestUpdated(
         `Successfully handled ${succeeded.length} pull request automations`,
       );
       if (failed.length > 0) {
-        console.error(
-          `Error handling ${failed.length} pull request automations: ${failed.map((result) => result.reason).join(", ")}`,
-        );
+        for (const failure of failed) {
+          console.error(`[webhook:pr-automation] Batch automation failed:`, {
+            prNumber,
+            repoFullName,
+            reason:
+              failure.reason instanceof Error
+                ? failure.reason.message
+                : String(failure.reason),
+          });
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
@@ -192,10 +202,15 @@ async function handlePullRequestAutomation(
     prNumber,
     source: "automated",
   }).catch((error) => {
-    console.error(
-      `Error running automation ${automation.id} for PR #${prNumber} in ${repoFullName}:`,
-      error,
-    );
+    console.error(`[webhook:pr-automation] Failed to run automation:`, {
+      automationId: automation.id,
+      automationName: automation.name,
+      prNumber,
+      repoFullName,
+      action: event.action,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
   });
 }
 
@@ -551,9 +566,14 @@ async function handleIssueAutomation(
     issueNumber,
     source: "automated",
   }).catch((error) => {
-    console.error(
-      `Error running automation ${automation.id} for issue #${issueNumber} in ${repoFullName}:`,
-      error,
-    );
+    console.error(`[webhook:issue-automation] Failed to run automation:`, {
+      automationId: automation.id,
+      automationName: automation.name,
+      issueNumber,
+      repoFullName,
+      action: event.action,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
   });
 }
