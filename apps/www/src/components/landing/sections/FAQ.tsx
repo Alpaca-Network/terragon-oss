@@ -54,7 +54,7 @@ const faqs = [
         encryption.
         <Link
           target="_blank"
-          href={`${publicDocsUrl()}/docs/security-permissions`}
+          href={`${publicDocsUrl()}/security-permissions`}
           className="underline hover:no-underline"
         >
           Learn more →
