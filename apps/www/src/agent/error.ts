@@ -40,6 +40,7 @@ export const allThreadErrors: Record<ThreadErrorType, boolean> = {
   "missing-gemini-credentials": true,
   "missing-amp-credentials": true,
   "chatgpt-sub-required": true,
+  "gatewayz-subscription-required": true,
   "invalid-codex-credentials": true,
   "invalid-claude-credentials": true,
   "agent-not-responding": true,

@@ -5,6 +5,10 @@ import {
   sortByAgents,
   getAgentModelGroups,
   parseModelOrNull,
+  isGatewayzModel,
+  getUnderlyingAgentForGatewayzModel,
+  getUnderlyingModelForGatewayz,
+  normalizedModelForDaemon,
 } from "./utils";
 import { AIModel, AIAgent } from "./types";
 import { AGENT_VERSION } from "./versions";
@@ -57,6 +61,18 @@ describe("model-to-agent", () => {
       const agents: AIAgent[] = ["claudeCode", "gemini", "amp", "codex"];
       const sortedAgents = agents.sort(sortByAgents);
       expect(sortedAgents).toEqual(["claudeCode", "codex", "gemini", "amp"]);
+    });
+
+    it("should sort gatewayz first", () => {
+      const agents: AIAgent[] = [
+        "claudeCode",
+        "gatewayz",
+        "codex",
+        "gemini",
+        "amp",
+      ];
+      const sortedAgents = agents.sort(sortByAgents);
+      expect(sortedAgents[0]).toBe("gatewayz");
     });
   });
 
@@ -150,6 +166,193 @@ describe("model-to-agent", () => {
       expect(parseModelOrNull({ modelName: "invalid-model" })).toBe(null);
       expect(parseModelOrNull({ modelName: "" })).toBe(null);
       expect(parseModelOrNull({ modelName: "gpt-4" })).toBe(null);
+    });
+  });
+
+  describe("gatewayz model utilities", () => {
+    describe("isGatewayzModel", () => {
+      it("should return true for Gatewayz models", () => {
+        expect(isGatewayzModel("gatewayz/claude-code/opus")).toBe(true);
+        expect(isGatewayzModel("gatewayz/claude-code/sonnet")).toBe(true);
+        expect(isGatewayzModel("gatewayz/codex/gpt-5.1-codex-max")).toBe(true);
+        expect(isGatewayzModel("gatewayz/gemini/gemini-3-pro")).toBe(true);
+        expect(isGatewayzModel("gatewayz/opencode/glm-4.7")).toBe(true);
+      });
+
+      it("should return false for non-Gatewayz models", () => {
+        expect(isGatewayzModel("opus")).toBe(false);
+        expect(isGatewayzModel("sonnet")).toBe(false);
+        expect(isGatewayzModel("gpt-5")).toBe(false);
+        expect(isGatewayzModel("gemini-2.5-pro")).toBe(false);
+        expect(isGatewayzModel("opencode/grok-code")).toBe(false);
+      });
+
+      it("should return false for null", () => {
+        expect(isGatewayzModel(null)).toBe(false);
+      });
+    });
+
+    describe("getUnderlyingAgentForGatewayzModel", () => {
+      it("should return the underlying agent for Gatewayz Claude Code models", () => {
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/claude-code/opus"),
+        ).toBe("claudeCode");
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/claude-code/sonnet"),
+        ).toBe("claudeCode");
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/claude-code/haiku"),
+        ).toBe("claudeCode");
+      });
+
+      it("should return the underlying agent for Gatewayz Codex models", () => {
+        expect(
+          getUnderlyingAgentForGatewayzModel(
+            "gatewayz/codex/gpt-5.2-codex-high",
+          ),
+        ).toBe("codex");
+        expect(
+          getUnderlyingAgentForGatewayzModel(
+            "gatewayz/codex/gpt-5.1-codex-max",
+          ),
+        ).toBe("codex");
+      });
+
+      it("should return the underlying agent for Gatewayz Gemini models", () => {
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/gemini/gemini-3-pro"),
+        ).toBe("gemini");
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/gemini/gemini-2.5-pro"),
+        ).toBe("gemini");
+      });
+
+      it("should return the underlying agent for Gatewayz OpenCode models", () => {
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/opencode/glm-4.7"),
+        ).toBe("opencode");
+        expect(
+          getUnderlyingAgentForGatewayzModel("gatewayz/opencode/kimi-k2"),
+        ).toBe("opencode");
+      });
+
+      it("should return null for non-Gatewayz models", () => {
+        expect(getUnderlyingAgentForGatewayzModel("opus")).toBe(null);
+        expect(getUnderlyingAgentForGatewayzModel("gpt-5")).toBe(null);
+      });
+    });
+
+    describe("getUnderlyingModelForGatewayz", () => {
+      it("should return the underlying model for Gatewayz Claude Code models", () => {
+        expect(getUnderlyingModelForGatewayz("gatewayz/claude-code/opus")).toBe(
+          "opus",
+        );
+        expect(
+          getUnderlyingModelForGatewayz("gatewayz/claude-code/sonnet"),
+        ).toBe("sonnet");
+        expect(
+          getUnderlyingModelForGatewayz("gatewayz/claude-code/haiku"),
+        ).toBe("haiku");
+      });
+
+      it("should return the underlying model for Gatewayz Codex models", () => {
+        expect(
+          getUnderlyingModelForGatewayz("gatewayz/codex/gpt-5.2-codex-high"),
+        ).toBe("gpt-5.2-codex-high");
+        expect(
+          getUnderlyingModelForGatewayz("gatewayz/codex/gpt-5.1-codex-max"),
+        ).toBe("gpt-5.1-codex-max");
+      });
+
+      it("should return the underlying model for Gatewayz Gemini models", () => {
+        expect(
+          getUnderlyingModelForGatewayz("gatewayz/gemini/gemini-3-pro"),
+        ).toBe("gemini-3-pro");
+        expect(
+          getUnderlyingModelForGatewayz("gatewayz/gemini/gemini-2.5-pro"),
+        ).toBe("gemini-2.5-pro");
+      });
+
+      it("should return the underlying model for Gatewayz OpenCode models", () => {
+        expect(getUnderlyingModelForGatewayz("gatewayz/opencode/glm-4.7")).toBe(
+          "opencode/glm-4.7",
+        );
+        expect(getUnderlyingModelForGatewayz("gatewayz/opencode/kimi-k2")).toBe(
+          "opencode/kimi-k2",
+        );
+      });
+
+      it("should return the original model for non-Gatewayz models", () => {
+        expect(getUnderlyingModelForGatewayz("opus")).toBe("opus");
+        expect(getUnderlyingModelForGatewayz("gpt-5")).toBe("gpt-5");
+      });
+    });
+
+    describe("modelToAgent for Gatewayz models", () => {
+      it("should return gatewayz for all Gatewayz models", () => {
+        expect(modelToAgent("gatewayz/claude-code/opus")).toBe("gatewayz");
+        expect(modelToAgent("gatewayz/codex/gpt-5.2-codex-high")).toBe(
+          "gatewayz",
+        );
+        expect(modelToAgent("gatewayz/gemini/gemini-3-pro")).toBe("gatewayz");
+        expect(modelToAgent("gatewayz/opencode/glm-4.7")).toBe("gatewayz");
+      });
+    });
+
+    describe("agentToModels for Gatewayz", () => {
+      it("should return all Gatewayz models", () => {
+        const gatewayzModels = agentToModels("gatewayz", options);
+        expect(gatewayzModels).toContain("gatewayz/claude-code/opus");
+        expect(gatewayzModels).toContain("gatewayz/claude-code/sonnet");
+        expect(gatewayzModels).toContain("gatewayz/codex/gpt-5.2-codex-high");
+        expect(gatewayzModels).toContain("gatewayz/gemini/gemini-3-pro");
+        expect(gatewayzModels).toContain("gatewayz/opencode/glm-4.7");
+      });
+    });
+
+    describe("normalizedModelForDaemon for Gatewayz models", () => {
+      it("should normalize Gatewayz Claude Code models", () => {
+        expect(normalizedModelForDaemon("gatewayz/claude-code/opus")).toBe(
+          "opus",
+        );
+        expect(normalizedModelForDaemon("gatewayz/claude-code/sonnet")).toBe(
+          "sonnet",
+        );
+        expect(normalizedModelForDaemon("gatewayz/claude-code/haiku")).toBe(
+          "haiku",
+        );
+      });
+
+      it("should normalize Gatewayz Codex models", () => {
+        expect(
+          normalizedModelForDaemon("gatewayz/codex/gpt-5.2-codex-high"),
+        ).toBe("gpt-5.2-codex-high");
+        expect(
+          normalizedModelForDaemon("gatewayz/codex/gpt-5.1-codex-max"),
+        ).toBe("gpt-5.1-codex-max");
+      });
+
+      it("should normalize Gatewayz Gemini models", () => {
+        expect(normalizedModelForDaemon("gatewayz/gemini/gemini-3-pro")).toBe(
+          "gemini-3-pro-preview",
+        );
+        expect(normalizedModelForDaemon("gatewayz/gemini/gemini-2.5-pro")).toBe(
+          "gemini-2.5-pro",
+        );
+      });
+
+      it("should normalize Gatewayz OpenCode models with opencode prefix", () => {
+        // OpenCode models need to keep the opencode/ prefix and be normalized to terry/
+        expect(normalizedModelForDaemon("gatewayz/opencode/glm-4.7")).toBe(
+          "terry/glm-4.7",
+        );
+        expect(normalizedModelForDaemon("gatewayz/opencode/glm-4.6")).toBe(
+          "terry/glm-4.6",
+        );
+        expect(normalizedModelForDaemon("gatewayz/opencode/kimi-k2")).toBe(
+          "terry/kimi-k2",
+        );
+      });
     });
   });
 });

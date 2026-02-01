@@ -23,6 +23,7 @@ import {
 } from "@terragon/agent/utils";
 import { useAtomValue } from "jotai";
 import { useAgentsToDisplay, userSettingsAtom } from "@/atoms/user";
+import { userCredentialsAtom } from "@/atoms/user-credentials";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -39,6 +40,8 @@ import { Switch } from "@/components/ui/switch";
 import { AgentIcon } from "@/components/chat/agent-icon";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
 import { AGENT_VERSION } from "@terragon/agent/versions";
+import { GatewayzConnectDialog } from "@/components/gatewayz/gatewayz-connect-dialog";
+import { isGatewayzModel } from "@terragon/agent/utils";
 
 function MultiAgentModeToggle({
   isMultiAgentMode,
@@ -91,12 +94,34 @@ function ModelSelectorInner({
 }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [showGatewayzConnectDialog, setShowGatewayzConnectDialog] =
+    useState(false);
   const openCodeOpenAIAnthropicModel = useFeatureFlag(
     "opencodeOpenAIAnthropicModelOption",
   );
   const openCodeGemini3ProModel = useFeatureFlag(
     "opencodeGemini3ProModelOption",
   );
+
+  // Check if user has Gatewayz connected
+  const userCredentials = useAtomValue(userCredentialsAtom);
+  const isGatewayzConnected = userCredentials?.hasGatewayz ?? false;
+
+  // Handler to check Gatewayz connection before selecting model
+  const handleModelSelect = (
+    model: AIModel,
+    options?: { action?: "toggle"; closeDrawer?: boolean },
+  ) => {
+    // If selecting a Gatewayz model and not connected, show dialog
+    if (isGatewayzModel(model) && !isGatewayzConnected) {
+      setShowGatewayzConnectDialog(true);
+      return;
+    }
+    setSelectedModel({ model, action: options?.action });
+    if (options?.closeDrawer) {
+      setIsDrawerOpen(false);
+    }
+  };
   const currentlySelectedModels = useMemo(() => {
     const models: AIModel[] = [];
     if (selectedModel) {
@@ -199,6 +224,10 @@ function ModelSelectorInner({
 
   return (
     <>
+      <GatewayzConnectDialog
+        open={showGatewayzConnectDialog}
+        onOpenChange={setShowGatewayzConnectDialog}
+      />
       <Drawer
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
@@ -250,7 +279,7 @@ function ModelSelectorInner({
                               id={checkboxId}
                               checked={isSelected}
                               onClick={() => {
-                                setSelectedModel({ model, action: "toggle" });
+                                handleModelSelect(model, { action: "toggle" });
                               }}
                             />
                             <div className="flex flex-col gap-1">
@@ -264,8 +293,7 @@ function ModelSelectorInner({
                           key={model}
                           type="button"
                           onClick={() => {
-                            setSelectedModel({ model });
-                            setIsDrawerOpen(false);
+                            handleModelSelect(model, { closeDrawer: true });
                           }}
                           className="flex w-full gap-2 items-start justify-start rounded-md border border-transparent px-3 py-2 text-left text-sm transition-colors"
                         >
@@ -297,7 +325,7 @@ function ModelSelectorInner({
         onOpenChange={setIsSelectorOpen}
         onValueChange={(value) => {
           if (!isMultiAgentMode) {
-            setSelectedModel({ model: value as AIModel });
+            handleModelSelect(value as AIModel);
           }
         }}
       >
@@ -328,7 +356,7 @@ function ModelSelectorInner({
                 group={group}
                 isMultiAgentMode={isMultiAgentMode}
                 selectedModels={selectedModels}
-                setSelectedModel={setSelectedModel}
+                onModelSelect={handleModelSelect}
               />
               {index < agentGroups.length - 1 && <SelectSeparator />}
             </React.Fragment>
@@ -359,18 +387,15 @@ function ModelGroup({
   group,
   isMultiAgentMode,
   selectedModels,
-  setSelectedModel,
+  onModelSelect,
 }: {
   group: AgentModelGroup;
   isMultiAgentMode: boolean;
   selectedModels: SelectedAIModels;
-  setSelectedModel: ({
-    model,
-    action,
-  }: {
-    model: AIModel;
-    action?: "toggle";
-  }) => void;
+  onModelSelect: (
+    model: AIModel,
+    options?: { action?: "toggle"; closeDrawer?: boolean },
+  ) => void;
 }) {
   return (
     <SelectGroup>
@@ -384,7 +409,7 @@ function ModelGroup({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setSelectedModel({ model, action: "toggle" });
+                onModelSelect(model, { action: "toggle" });
               }}
               className={cn(
                 "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none transition-colors",

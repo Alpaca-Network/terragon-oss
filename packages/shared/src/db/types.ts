@@ -165,6 +165,7 @@ export type ThreadErrorType =
   | "missing-gemini-credentials"
   | "missing-amp-credentials"
   | "chatgpt-sub-required"
+  | "gatewayz-subscription-required"
   | "invalid-codex-credentials"
   | "invalid-claude-credentials"
   | "agent-not-responding"

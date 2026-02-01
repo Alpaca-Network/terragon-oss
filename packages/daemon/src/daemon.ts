@@ -349,6 +349,13 @@ export class TerragonDaemon {
       case "opencode":
         await this.runOpencodeCommand(input);
         break;
+      case "gatewayz":
+        // Gatewayz is a meta-agent that routes to underlying agents.
+        // The server should pass the underlying agent to the daemon, not "gatewayz".
+        // If we receive "gatewayz" here, it's a server bug.
+        throw new Error(
+          "Gatewayz agent should not be sent directly to daemon. Server should pass the underlying agent.",
+        );
       default: {
         // This ensures we handle all model types exhaustively
         const _exhaustiveCheck: never = input.agent;

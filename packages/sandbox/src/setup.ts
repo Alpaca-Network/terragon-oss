@@ -444,6 +444,13 @@ async function updateAgentFiles({
       });
       break;
     }
+    case "gatewayz": {
+      // Gatewayz is a meta-agent that routes to underlying agents.
+      // The server should pass the underlying agent for file setup, not "gatewayz".
+      throw new Error(
+        "Gatewayz agent should not be passed directly to updateAgentFiles. Server should pass the underlying agent.",
+      );
+    }
     default: {
       const _exhaustiveCheck: never = agent;
       console.warn("Unknown agent", _exhaustiveCheck);
