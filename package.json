@@ -27,7 +27,8 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "e2b@1.5.3": "patches/e2b.patch"
+      "e2b@1.5.3": "patches/e2b.patch",
+      "e2b@1.2.0-beta.4": "patches/e2b@1.2.0-beta.4.patch"
     },
     "overrides": {
       "next": "15.5.9",
