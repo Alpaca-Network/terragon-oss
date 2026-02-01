@@ -459,11 +459,27 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   if (isError) {
     return (
-      <div className="flex flex-col h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          Failed to load tasks. Please try again.
-        </p>
-      </div>
+      <>
+        <div className="flex flex-col h-full items-center justify-center gap-4">
+          <p className="text-sm text-muted-foreground">
+            Failed to load tasks. Please try again.
+          </p>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setNewTaskDialogOpen(true)}
+            className="gap-1.5"
+          >
+            <SquarePen className="h-3.5 w-3.5" />
+            New Task
+          </Button>
+        </div>
+        <KanbanNewTaskDialog
+          open={newTaskDialogOpen}
+          onOpenChange={setNewTaskDialogOpen}
+          queryFilters={queryFilters}
+        />
+      </>
     );
   }
 
