@@ -595,6 +595,71 @@ describe("aggregatePRFeedback", () => {
     expect(feedback.comments.unresolved.length).toBe(0);
   });
 
+  it("should treat outdated comments as resolved", async () => {
+    const prDetails = {
+      html_url: "https://github.com/owner/repo/pull/123",
+      title: "Test PR",
+      draft: false,
+      closed_at: null,
+      merged_at: null,
+      base: { ref: "main" },
+      head: { ref: "feature", sha: "abc123" },
+      mergeable: true,
+      mergeable_state: "clean",
+    };
+
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "This code needs refactoring",
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer", avatar_url: "https://example.com" },
+          created_at: "2024-01-01T00:00:00Z",
+          updated_at: "2024-01-01T00:00:00Z",
+          in_reply_to_id: null,
+          html_url: "https://github.com",
+        },
+      ],
+    });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    // GraphQL says thread is outdated (code has changed) but not explicitly resolved
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread1",
+                isResolved: false,
+                isOutdated: true,
+                comments: { nodes: [{ databaseId: 1 }] },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    // Thread should be treated as resolved because it's outdated (code has changed)
+    expect(feedback.comments.resolved.length).toBe(1);
+    expect(feedback.comments.unresolved.length).toBe(0);
+  });
+
   it("should fall back to heuristics when GraphQL fails", async () => {
     const prDetails = {
       html_url: "https://github.com/owner/repo/pull/123",
