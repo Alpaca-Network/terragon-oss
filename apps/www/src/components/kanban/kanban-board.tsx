@@ -130,7 +130,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   // Check scroll state
   const updateScrollState = useCallback(() => {
     const scrollContainer = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]",
+      '[data-slot="scroll-area-viewport"]',
     );
     if (scrollContainer) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainer;
@@ -142,7 +142,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   // Scroll handlers
   const scrollLeft = useCallback(() => {
     const scrollContainer = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]",
+      '[data-slot="scroll-area-viewport"]',
     );
     if (scrollContainer) {
       scrollContainer.scrollBy({ left: -320, behavior: "smooth" });
@@ -151,7 +151,7 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   const scrollRight = useCallback(() => {
     const scrollContainer = scrollAreaRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]",
+      '[data-slot="scroll-area-viewport"]',
     );
     if (scrollContainer) {
       scrollContainer.scrollBy({ left: 320, behavior: "smooth" });
@@ -169,7 +169,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     // Set up a MutationObserver to detect when the scroll container becomes available
     const observer = new MutationObserver(() => {
       const scrollContainer = scrollAreaElement?.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        '[data-slot="scroll-area-viewport"]',
       );
       if (scrollContainer) {
         updateScrollState();
@@ -185,7 +185,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     const scrollContainer = scrollAreaElement?.querySelector(
-      "[data-radix-scroll-area-viewport]",
+      '[data-slot="scroll-area-viewport"]',
     );
     if (scrollContainer) {
       scrollContainer.addEventListener("scroll", updateScrollState);
@@ -195,7 +195,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     return () => {
       observer.disconnect();
       const scrollContainer = scrollAreaElement?.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        '[data-slot="scroll-area-viewport"]',
       );
       if (scrollContainer) {
         scrollContainer.removeEventListener("scroll", updateScrollState);
