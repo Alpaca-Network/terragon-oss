@@ -4,17 +4,21 @@ import {
   isTokenExpiredOrExpiringSoon,
 } from "./github-oauth";
 
+// Save original fetch to restore after tests
+const originalFetch = global.fetch;
+
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 describe("github-oauth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.fetch = mockFetch;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    global.fetch = originalFetch;
   });
 
   describe("refreshGitHubToken", () => {

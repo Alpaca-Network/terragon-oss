@@ -10,6 +10,11 @@ import {
 // We use a 1-hour buffer to ensure we refresh before expiration
 const TOKEN_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour
 
+// In-memory map to track ongoing refresh operations per user
+// This prevents race conditions where multiple concurrent requests
+// try to refresh the same user's token simultaneously
+const refreshInProgress = new Map<string, Promise<string>>();
+
 interface GitHubTokenResponse {
   access_token: string;
   expires_in: number;
@@ -21,7 +26,7 @@ interface GitHubTokenResponse {
 
 interface GitHubTokenErrorResponse {
   error: string;
-  error_description: string;
+  error_description?: string;
 }
 
 /**
@@ -61,7 +66,7 @@ export async function refreshGitHubToken({
 
   if ("error" in data) {
     throw new Error(
-      `GitHub token refresh error: ${data.error} - ${data.error_description}`,
+      `GitHub token refresh error: ${data.error}${data.error_description ? ` - ${data.error_description}` : ""}`,
     );
   }
 
@@ -91,6 +96,9 @@ export function isTokenExpiredOrExpiringSoon(
  * 3. If expired and refresh token exists, refreshes the token
  * 4. Updates the database with new tokens
  * 5. Returns the valid access token
+ *
+ * Uses an in-memory lock to prevent race conditions when multiple
+ * concurrent requests try to refresh the same user's token.
  */
 export async function getGitHubUserAccessTokenWithRefresh({
   db,
@@ -153,8 +161,57 @@ export async function getGitHubUserAccessTokenWithRefresh({
     return accessToken;
   }
 
+  // Check if a refresh is already in progress for this user
+  const existingRefresh = refreshInProgress.get(userId);
+  if (existingRefresh) {
+    // Wait for the existing refresh to complete and return its result
+    return existingRefresh;
+  }
+
+  // Create the refresh promise and store it to prevent concurrent refreshes
+  const refreshPromise = performTokenRefresh({
+    db,
+    userId,
+    githubAccount,
+    encryptionKey,
+    githubClientId,
+    githubClientSecret,
+    accessToken,
+  });
+
+  refreshInProgress.set(userId, refreshPromise);
+
+  try {
+    return await refreshPromise;
+  } finally {
+    // Clean up the in-progress marker
+    refreshInProgress.delete(userId);
+  }
+}
+
+/**
+ * Internal function that performs the actual token refresh.
+ * Separated to allow the main function to handle concurrency control.
+ */
+async function performTokenRefresh({
+  db,
+  userId,
+  githubAccount,
+  encryptionKey,
+  githubClientId,
+  githubClientSecret,
+  accessToken,
+}: {
+  db: DB;
+  userId: string;
+  githubAccount: { id: string; refreshToken: string | null };
+  encryptionKey: string;
+  githubClientId: string;
+  githubClientSecret: string;
+  accessToken: string;
+}): Promise<string> {
   const refreshToken = decryptTokenWithBackwardsCompatibility(
-    githubAccount.refreshToken,
+    githubAccount.refreshToken!,
     encryptionKey,
   );
 
