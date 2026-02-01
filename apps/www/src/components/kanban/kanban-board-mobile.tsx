@@ -433,7 +433,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           <Button
             variant="default"
             size="sm"
-            onClick={() => setNewTaskDialogOpen(true)}
+            onClick={() => setNewTaskDrawerOpen(true)}
             className="gap-1.5 tap-highlight soft-glow"
           >
             <SquarePen className="h-3.5 w-3.5" />
