@@ -78,6 +78,11 @@ export function AttachedFiles({
                 <span className="text-xs text-muted-foreground mt-1 px-1 truncate w-full text-center">
                   {file.fileName || "PDF"}
                 </span>
+                {file.lineCount !== undefined && (
+                  <span className="text-[10px] text-muted-foreground/70">
+                    {file.lineCount} lines
+                  </span>
+                )}
                 {/* Upload status overlay */}
                 {file.uploadStatus === "pending" ||
                 file.uploadStatus === "uploading" ? (
