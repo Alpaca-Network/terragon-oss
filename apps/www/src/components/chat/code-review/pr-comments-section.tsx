@@ -158,7 +158,7 @@ function CommentThread({ thread, isResolved }: CommentThreadProps) {
                   {formatRelativeTime(comment.createdAt)}
                 </span>
               </div>
-              <div className="text-sm text-foreground whitespace-pre-wrap break-words overflow-x-auto pl-7">
+              <div className="text-sm text-foreground whitespace-pre-wrap [overflow-wrap:anywhere] pl-7">
                 {comment.body}
               </div>
             </div>
