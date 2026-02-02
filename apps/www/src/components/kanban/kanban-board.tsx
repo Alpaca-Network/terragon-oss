@@ -579,6 +579,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                 threads={columnThreads[currentColumn.id]}
                 selectedThreadId={selectedThreadId}
                 onThreadSelect={handleThreadSelect}
+                onAddToBacklog={
+                  currentColumn.id === "backlog"
+                    ? handleOpenQuickAddBacklog
+                    : undefined
+                }
                 onThreadCommentsClick={handleThreadCommentsClick}
                 showArchivedToggle={
                   currentColumn.id === "done" && !queryFilters.archived

@@ -20,6 +20,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+export const shouldShowAddToBacklog = (
+  column: KanbanColumnType,
+  onAddToBacklog?: () => void,
+) => column === "backlog" && Boolean(onAddToBacklog);
+
 export const KanbanColumn = memo(function KanbanColumn({
   column,
   threads,
@@ -74,6 +79,8 @@ export const KanbanColumn = memo(function KanbanColumn({
     }
   };
 
+  const showAddToBacklog = shouldShowAddToBacklog(column, onAddToBacklog);
+
   return (
     <div className="flex flex-col h-full min-w-[280px] max-w-[320px] flex-1">
       {/* Column header */}
@@ -116,7 +123,7 @@ export const KanbanColumn = memo(function KanbanColumn({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {column === "backlog" && onAddToBacklog && (
+          {showAddToBacklog && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
