@@ -93,6 +93,109 @@ describe("Kanban Board Desktop", () => {
     });
   });
 
+  describe("Keyboard navigation in full-screen mode", () => {
+    // Helper to simulate keyboard navigation logic matching the component
+    const simulateArrowKey = (
+      currentIndex: number,
+      key: "ArrowLeft" | "ArrowRight",
+    ): number => {
+      if (key === "ArrowLeft" && currentIndex > 0) {
+        return Math.max(0, currentIndex - 1);
+      } else if (
+        key === "ArrowRight" &&
+        currentIndex < KANBAN_COLUMNS.length - 1
+      ) {
+        return Math.min(KANBAN_COLUMNS.length - 1, currentIndex + 1);
+      }
+      return currentIndex;
+    };
+
+    it("should navigate left with ArrowLeft key from middle column", () => {
+      const newIndex = simulateArrowKey(2, "ArrowLeft"); // in_review -> in_progress
+      expect(newIndex).toBe(1);
+    });
+
+    it("should navigate right with ArrowRight key from middle column", () => {
+      const newIndex = simulateArrowKey(2, "ArrowRight"); // in_review -> done
+      expect(newIndex).toBe(3);
+    });
+
+    it("should not navigate left from first column (backlog)", () => {
+      const newIndex = simulateArrowKey(0, "ArrowLeft");
+      expect(newIndex).toBe(0); // stays at backlog
+    });
+
+    it("should not navigate right from last column (failed)", () => {
+      const lastIndex = KANBAN_COLUMNS.length - 1;
+      const newIndex = simulateArrowKey(lastIndex, "ArrowRight");
+      expect(newIndex).toBe(lastIndex); // stays at failed
+    });
+
+    it("should navigate through all columns with right arrow keys", () => {
+      let currentIndex = 0; // Start at backlog
+      const expectedPath = [0, 1, 2, 3, 4]; // All column indices
+
+      expectedPath.forEach((expectedIndex) => {
+        expect(currentIndex).toBe(expectedIndex);
+        currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+      });
+
+      // Final position should be at last column
+      expect(currentIndex).toBe(KANBAN_COLUMNS.length - 1);
+    });
+
+    it("should navigate through all columns with left arrow keys", () => {
+      let currentIndex = KANBAN_COLUMNS.length - 1; // Start at failed
+      const expectedPath = [4, 3, 2, 1, 0]; // All column indices in reverse
+
+      expectedPath.forEach((expectedIndex) => {
+        expect(currentIndex).toBe(expectedIndex);
+        currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+      });
+
+      // Final position should be at first column
+      expect(currentIndex).toBe(0);
+    });
+
+    it("should stay in bounds when rapidly pressing left arrow at start", () => {
+      let currentIndex = 0;
+      for (let i = 0; i < 10; i++) {
+        currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+        expect(currentIndex).toBe(0);
+        expect(currentIndex).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it("should stay in bounds when rapidly pressing right arrow at end", () => {
+      let currentIndex = KANBAN_COLUMNS.length - 1;
+      for (let i = 0; i < 10; i++) {
+        currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+        expect(currentIndex).toBe(KANBAN_COLUMNS.length - 1);
+        expect(currentIndex).toBeLessThan(KANBAN_COLUMNS.length);
+      }
+    });
+
+    it("should navigate bidirectionally without losing position", () => {
+      let currentIndex = 2; // Start at in_review
+
+      // Go right
+      currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+      expect(currentIndex).toBe(3); // done
+
+      // Go left
+      currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+      expect(currentIndex).toBe(2); // back to in_review
+
+      // Go left again
+      currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+      expect(currentIndex).toBe(1); // in_progress
+
+      // Go right
+      currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+      expect(currentIndex).toBe(2); // back to in_review
+    });
+  });
+
   describe("Scroll arrow visibility", () => {
     // Helper to check scroll visibility logic matching the component
     const checkScrollVisibility = (

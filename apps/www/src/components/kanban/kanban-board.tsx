@@ -438,6 +438,30 @@ export const KanbanBoard = memo(function KanbanBoard({
     });
   }, []);
 
+  // Add keyboard event listener for arrow key navigation in full-screen mode
+  useEffect(() => {
+    if (!isFullScreenTask) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (fullScreenColumnIndex > 0) {
+          navigateColumn("left");
+        }
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (fullScreenColumnIndex < KANBAN_COLUMNS.length - 1) {
+          navigateColumn("right");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullScreenTask, fullScreenColumnIndex, navigateColumn]);
+
   const handleOpenQuickAddBacklog = useCallback(() => {
     setIsQuickAddBacklogOpen(true);
   }, [setIsQuickAddBacklogOpen]);
