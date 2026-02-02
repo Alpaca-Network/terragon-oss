@@ -88,18 +88,24 @@ export function Onboarding({ forceIsDone }: { forceIsDone?: boolean }) {
       ]);
 
       // Check if in embed mode (GatewayZ iframe)
+      // NOTE: This is deprecated as we now use redirect-based auth instead of iframes
       const isEmbedMode =
         typeof window !== "undefined" &&
         sessionStorage.getItem("gw_embed_mode") === "true";
 
       if (isEmbedMode && window.parent !== window) {
         // Notify parent (GatewayZ) that setup is complete
+        // Use the referrer origin for security (only send to the page that embedded us)
+        const targetOrigin = document.referrer
+          ? new URL(document.referrer).origin
+          : "*";
+
         window.parent.postMessage(
           {
             type: "TERRAGON_SETUP_COMPLETE",
             success: true,
           },
-          "*",
+          targetOrigin,
         );
       }
 
