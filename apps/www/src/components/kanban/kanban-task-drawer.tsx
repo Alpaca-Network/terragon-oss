@@ -215,18 +215,18 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               <MessageCircle className="h-4 w-4" />
               <span className="text-xs font-medium">Code Review</span>
               {hasConflicts && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-0.5">
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
                   <AlertCircle className="h-3 w-3" />
                 </span>
               )}
               {failingCheckCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-0.5">
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
                   <XCircle className="h-3 w-3" />
                   {failingCheckCount}
                 </span>
               )}
               {commentCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border border-yellow-500/20">
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                   {commentCount}
                 </span>
               )}

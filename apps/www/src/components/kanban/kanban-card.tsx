@@ -190,10 +190,12 @@ export const KanbanCard = memo(function KanbanCard({
                 }}
                 onChecksClick={(e) => {
                   e.stopPropagation();
+                  // All feedback indicators open the code review view
                   onCommentsClick?.();
                 }}
                 onConflictsClick={(e) => {
                   e.stopPropagation();
+                  // All feedback indicators open the code review view
                   onCommentsClick?.();
                 }}
               />

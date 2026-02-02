@@ -78,8 +78,8 @@ export function PRFeedbackBadge({
               onClick={onConflictsClick}
               className={cn(
                 "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs",
-                "bg-red-500/10 text-red-600 dark:text-red-400",
-                "hover:bg-red-500/20 transition-colors",
+                "bg-destructive/10 text-destructive",
+                "hover:bg-destructive/20 transition-colors",
                 "cursor-pointer",
               )}
               aria-label="Has merge conflicts"
@@ -103,7 +103,7 @@ export function PRFeedbackBadge({
                 "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs",
                 "transition-colors cursor-pointer",
                 hasFailingChecks
-                  ? "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20"
+                  ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
                   : hasPendingChecks
                     ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-500/20"
                     : "bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20",
@@ -150,8 +150,8 @@ export function PRFeedbackBadge({
               onClick={onCommentsClick}
               className={cn(
                 "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs",
-                "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
-                "hover:bg-yellow-500/20 transition-colors",
+                "bg-accent/10 text-accent-foreground",
+                "hover:bg-accent/20 transition-colors",
                 "cursor-pointer",
               )}
               aria-label={`${unresolvedCommentCount} unresolved comment${unresolvedCommentCount !== 1 ? "s" : ""}`}
