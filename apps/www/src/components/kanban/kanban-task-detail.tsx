@@ -112,8 +112,6 @@ const TaskDetailContent = memo(function TaskDetailContent({
         return "bg-accent/10 text-accent-foreground border border-accent/20";
       case "done":
         return "bg-primary/10 text-primary border border-primary/20";
-      case "failed":
-        return "bg-destructive/10 text-destructive border border-destructive/20";
       default:
         return "bg-muted text-muted-foreground";
     }
