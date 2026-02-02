@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { ThreadInfo } from "@terragon/shared";
 
 describe("Kanban Search Filtering", () => {
   // Helper function to match how the search filter works in the components

@@ -34,6 +34,7 @@ export const KanbanSearchBar = memo(function KanbanSearchBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={placeholder}
         className={cn(
           "pr-8",
           compact ? "h-8 pl-8 text-xs" : "h-9 pl-9 text-sm",

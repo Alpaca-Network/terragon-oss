@@ -520,9 +520,9 @@ export const KanbanBoard = memo(function KanbanBoard({
       >
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Single column in full-screen mode */}
-          <div className="w-full max-w-[400px] min-h-0 overflow-hidden border-r flex flex-col">
+          <div className="w-full max-w-[400px] min-h-0 overflow-hidden border-r border-border flex flex-col">
             {/* Search bar at top of column */}
-            <div className="p-3 border-b flex-shrink-0">
+            <div className="p-3 border-b border-border flex-shrink-0">
               <KanbanSearchBar
                 value={searchQuery}
                 onChange={setSearchQuery}
