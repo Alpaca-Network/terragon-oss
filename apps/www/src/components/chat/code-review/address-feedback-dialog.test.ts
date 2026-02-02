@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { PRFeedback, PRCheckRun } from "@terragon/shared/db/types";
+import type { AIModel } from "@terragon/agent/types";
+import { resolveFeedbackTaskModel } from "./address-feedback-dialog";
 
 /**
  * Tests for the AddressFeedbackDialog component logic.
@@ -124,6 +126,29 @@ describe("AddressFeedbackDialog component logic", () => {
       });
       // 2 unresolved + 3 failures + 1 timed_out + 1 conflict = 7
       expect(calculateIssueCount(feedback)).toBe(7);
+    });
+  });
+
+  describe("model selection behavior", () => {
+    const defaultModel: AIModel = "sonnet";
+    const taskModel: AIModel = "gpt-5.1";
+
+    it("should use the task model for new tasks", () => {
+      const result = resolveFeedbackTaskModel({
+        mode: "new-task",
+        defaultModel,
+        taskModel,
+      });
+      expect(result).toBe(taskModel);
+    });
+
+    it("should use the default model when adding to the queue", () => {
+      const result = resolveFeedbackTaskModel({
+        mode: "integrate",
+        defaultModel,
+        taskModel,
+      });
+      expect(result).toBe(defaultModel);
     });
   });
 
