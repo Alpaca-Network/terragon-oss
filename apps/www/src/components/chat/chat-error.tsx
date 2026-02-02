@@ -158,6 +158,25 @@ function ChatContent({
         />
       );
     }
+    case "invalid-gemini-credentials": {
+      return (
+        <ChatErrorContents
+          header="Gemini credentials expired"
+          body={
+            <>
+              Please update your Gemini credentials to continue. Go to{" "}
+              <Link
+                href="/settings/agent#agent-providers"
+                className="underline"
+              >
+                settings
+              </Link>{" "}
+              to update your credentials.
+            </>
+          }
+        />
+      );
+    }
     case "missing-amp-credentials": {
       return (
         <ChatErrorContents

@@ -163,6 +163,7 @@ export type ThreadErrorType =
   | "sandbox-creation-failed"
   | "sandbox-resume-failed"
   | "missing-gemini-credentials"
+  | "invalid-gemini-credentials"
   | "missing-amp-credentials"
   | "chatgpt-sub-required"
   | "gatewayz-subscription-required"
