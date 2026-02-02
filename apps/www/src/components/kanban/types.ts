@@ -44,9 +44,7 @@ export const KANBAN_COLUMNS: {
  */
 export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
   const status = getCombinedStatus(thread);
-  const hasOpenPR = thread.githubPRNumber && thread.prStatus === "open";
   const hasMergedPR = thread.prStatus === "merged";
-  const hasPRChecksFailure = thread.prChecksStatus === "failure";
 
   // Tasks explicitly marked as backlog go to backlog column
   if (thread.isBacklog) {
