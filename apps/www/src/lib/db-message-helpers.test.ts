@@ -9,6 +9,7 @@ import {
   getUserMessageToSend,
   convertToPrompt,
   richTextToPlainText,
+  getImageExtensionFromMimeType,
 } from "./db-message-helpers";
 
 describe("getPendingToolCallErrorMessages", () => {
@@ -775,6 +776,54 @@ describe("richTextToPlainText", () => {
   });
 });
 
+describe("getImageExtensionFromMimeType", () => {
+  it("should return .png for image/png", () => {
+    expect(getImageExtensionFromMimeType("image/png")).toBe(".png");
+  });
+
+  it("should return .jpg for image/jpeg", () => {
+    expect(getImageExtensionFromMimeType("image/jpeg")).toBe(".jpg");
+  });
+
+  it("should return .jpg for image/jpg", () => {
+    expect(getImageExtensionFromMimeType("image/jpg")).toBe(".jpg");
+  });
+
+  it("should return .gif for image/gif", () => {
+    expect(getImageExtensionFromMimeType("image/gif")).toBe(".gif");
+  });
+
+  it("should return .webp for image/webp", () => {
+    expect(getImageExtensionFromMimeType("image/webp")).toBe(".webp");
+  });
+
+  it("should return .svg for image/svg+xml", () => {
+    expect(getImageExtensionFromMimeType("image/svg+xml")).toBe(".svg");
+  });
+
+  it("should return .heic for image/heic", () => {
+    expect(getImageExtensionFromMimeType("image/heic")).toBe(".heic");
+  });
+
+  it("should return .avif for image/avif", () => {
+    expect(getImageExtensionFromMimeType("image/avif")).toBe(".avif");
+  });
+
+  it("should handle case-insensitive mime types", () => {
+    expect(getImageExtensionFromMimeType("IMAGE/PNG")).toBe(".png");
+    expect(getImageExtensionFromMimeType("Image/Jpeg")).toBe(".jpg");
+  });
+
+  it("should return .png for undefined mime type", () => {
+    expect(getImageExtensionFromMimeType(undefined)).toBe(".png");
+  });
+
+  it("should return .png for unknown mime type", () => {
+    expect(getImageExtensionFromMimeType("image/unknown")).toBe(".png");
+    expect(getImageExtensionFromMimeType("video/mp4")).toBe(".png");
+  });
+});
+
 describe("convertToPrompt", () => {
   it("should convert simple text message", async () => {
     const message: DBUserMessage = {
@@ -861,6 +910,103 @@ describe("convertToPrompt", () => {
       content: mockImageBuffer,
     });
     expect(result).toMatch(/^Look at this: \/tmp\/images\/image-.*\.png$/);
+  });
+
+  it("should handle JPEG images with correct extension", async () => {
+    const message: DBUserMessage = {
+      type: "user",
+      model: null,
+      parts: [
+        { type: "text", text: "Look at this:" },
+        {
+          type: "image",
+          mime_type: "image/jpeg",
+          image_url: "https://example.com/photo.jpg",
+        },
+      ],
+    };
+
+    const mockImageBuffer = Buffer.from("fake-jpeg-data");
+    const fetchFileBuffer = vi.fn().mockResolvedValue(mockImageBuffer);
+    const writeFileBuffer = vi
+      .fn()
+      .mockImplementation(({ fileName }) => Promise.resolve(fileName));
+
+    const result = await convertToPrompt(message, {
+      writeFileBuffer,
+      fetchFileBuffer,
+    });
+
+    expect(fetchFileBuffer).toHaveBeenCalledWith(
+      "https://example.com/photo.jpg",
+    );
+    expect(writeFileBuffer).toHaveBeenCalledWith({
+      fileName: expect.stringMatching(/^\/tmp\/images\/image-.*\.jpg$/),
+      content: mockImageBuffer,
+    });
+    expect(result).toMatch(/^Look at this: \/tmp\/images\/image-.*\.jpg$/);
+  });
+
+  it("should handle WebP images with correct extension", async () => {
+    const message: DBUserMessage = {
+      type: "user",
+      model: null,
+      parts: [
+        {
+          type: "image",
+          mime_type: "image/webp",
+          image_url: "https://example.com/image.webp",
+        },
+      ],
+    };
+
+    const mockImageBuffer = Buffer.from("fake-webp-data");
+    const fetchFileBuffer = vi.fn().mockResolvedValue(mockImageBuffer);
+    const writeFileBuffer = vi
+      .fn()
+      .mockImplementation(({ fileName }) => Promise.resolve(fileName));
+
+    const result = await convertToPrompt(message, {
+      writeFileBuffer,
+      fetchFileBuffer,
+    });
+
+    expect(writeFileBuffer).toHaveBeenCalledWith({
+      fileName: expect.stringMatching(/^\/tmp\/images\/image-.*\.webp$/),
+      content: mockImageBuffer,
+    });
+    expect(result).toMatch(/^\/tmp\/images\/image-.*\.webp$/);
+  });
+
+  it("should default to .png when mime_type is missing", async () => {
+    const message: DBUserMessage = {
+      type: "user",
+      model: null,
+      parts: [
+        {
+          type: "image",
+          mime_type: "", // empty mime type
+          image_url: "https://example.com/image",
+        },
+      ],
+    };
+
+    const mockImageBuffer = Buffer.from("fake-data");
+    const fetchFileBuffer = vi.fn().mockResolvedValue(mockImageBuffer);
+    const writeFileBuffer = vi
+      .fn()
+      .mockImplementation(({ fileName }) => Promise.resolve(fileName));
+
+    const result = await convertToPrompt(message, {
+      writeFileBuffer,
+      fetchFileBuffer,
+    });
+
+    expect(writeFileBuffer).toHaveBeenCalledWith({
+      fileName: expect.stringMatching(/^\/tmp\/images\/image-.*\.png$/),
+      content: mockImageBuffer,
+    });
+    expect(result).toMatch(/^\/tmp\/images\/image-.*\.png$/);
   });
 
   it("should handle multiple images", async () => {

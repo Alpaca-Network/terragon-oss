@@ -8,6 +8,32 @@ import {
 
 import { nanoid } from "nanoid/non-secure";
 
+/**
+ * Gets the file extension for an image based on its MIME type.
+ * Defaults to .png if the mime type is unknown.
+ */
+export function getImageExtensionFromMimeType(
+  mimeType: string | undefined,
+): string {
+  if (!mimeType) return ".png";
+
+  const mimeToExtension: Record<string, string> = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+    "image/bmp": ".bmp",
+    "image/tiff": ".tiff",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
+    "image/avif": ".avif",
+  };
+
+  return mimeToExtension[mimeType.toLowerCase()] ?? ".png";
+}
+
 export function getPendingToolCallErrorMessages({
   messages,
   interruptionReason,
@@ -239,7 +265,8 @@ export async function convertToPrompt(
   await Promise.all(
     message.parts.map(async (part) => {
       if (part.type === "image") {
-        const fileName = `/tmp/images/image-${nanoid()}.png`;
+        const extension = getImageExtensionFromMimeType(part.mime_type);
+        const fileName = `/tmp/images/image-${nanoid()}${extension}`;
         const content = await fetchFileBuffer(part.image_url);
         const filePath = await writeFileBuffer({ fileName, content });
         imageUrlToFilePath[part.image_url] = filePath;
