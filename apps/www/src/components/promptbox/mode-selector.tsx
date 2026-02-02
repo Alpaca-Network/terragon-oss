@@ -12,6 +12,7 @@ import { memo } from "react";
 import {
   NotebookPen,
   FileCode,
+  FileText,
   Check,
   RefreshCw,
   ChevronDown,
@@ -30,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-export type PermissionMode = "allowAll" | "plan" | "loop";
+import type { TaskMode } from "./task-mode";
 
 export type LoopConfigInput = {
   maxIterations: number;
@@ -40,15 +41,15 @@ export type LoopConfigInput = {
 };
 
 interface ModeSelectorProps {
-  mode: PermissionMode;
-  onChange: (mode: PermissionMode) => void;
+  mode: TaskMode;
+  onChange: (mode: TaskMode) => void;
   loopConfig?: LoopConfigInput;
   onLoopConfigChange?: (config: LoopConfigInput) => void;
   className?: string;
 }
 
 const modeConfig = {
-  allowAll: {
+  execute: {
     icon: FileCode,
     label: "Execute",
     description: "Implement immediately",
@@ -62,6 +63,11 @@ const modeConfig = {
     icon: RefreshCw,
     label: "Loop",
     description: "Iterate until completion",
+  },
+  template: {
+    icon: FileText,
+    label: "Template",
+    description: "Start from a structured template",
   },
 } as const;
 
@@ -251,8 +257,8 @@ function ModeSelectorInner({
           <div className="px-4 pb-6 space-y-1">
             {(
               Object.entries(modeConfig) as [
-                PermissionMode,
-                (typeof modeConfig)[PermissionMode],
+                TaskMode,
+                (typeof modeConfig)[TaskMode],
               ][]
             ).map(([modeKey, config]) => {
               const isSelected = mode === modeKey;
@@ -307,7 +313,7 @@ function ModeSelectorInner({
           <Select
             value={mode}
             onValueChange={(value) => {
-              onChange(value as PermissionMode);
+              onChange(value as TaskMode);
               if (value === "loop") {
                 setShowLoopConfig(true);
               }
@@ -324,7 +330,7 @@ function ModeSelectorInner({
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="w-fit">
-              <SelectItem value="allowAll">
+              <SelectItem value="execute">
                 <span className="flex flex-col items-start">
                   <span className="text-sm text-foreground/90 flex items-center gap-1">
                     <FileCode className="h-2.5 w-2.5 text-inherit" />
@@ -354,6 +360,17 @@ function ModeSelectorInner({
                   </span>
                   <span className="text-xs text-muted-foreground/60">
                     Iterate until completion
+                  </span>
+                </span>
+              </SelectItem>
+              <SelectItem value="template">
+                <span className="flex flex-col items-start">
+                  <span className="text-sm text-foreground/90 flex items-center gap-1">
+                    <FileText className="h-2.5 w-2.5 text-inherit" />
+                    Template
+                  </span>
+                  <span className="text-xs text-muted-foreground/60">
+                    Start from a structured template
                   </span>
                 </span>
               </SelectItem>
