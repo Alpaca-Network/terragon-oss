@@ -502,6 +502,8 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                     "flex-shrink-0 gap-1.5 px-3 py-2 rounded-lg transition-all duration-200",
                     "tap-highlight futuristic-tab-indicator",
                     "data-[state=active]:scale-[1.02]",
+                    // Remove the default TabsTrigger border since futuristic-tab-indicator provides the line
+                    "border-b-0",
                     getColumnHeaderColor(col.id),
                   )}
                 >
