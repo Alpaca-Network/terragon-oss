@@ -107,7 +107,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const [drawerInitialTab, setDrawerInitialTab] = useState<
-    "feed" | "changes" | "comments"
+    "feed" | "changes" | "code-review"
   >("feed");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -302,7 +302,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   }, []);
 
   const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
-    setDrawerInitialTab("comments");
+    setDrawerInitialTab("code-review");
     setSelectedThreadId(thread.id);
   }, []);
 
