@@ -30,6 +30,12 @@ import { TSubmitForm } from "./send-button";
 import { mentionPillStyle } from "@/components/shared/mention-pill-styles";
 import { toast } from "sonner";
 import { getDynamicSlashCommands } from "./add-context-button";
+import {
+  type TaskMode,
+  type PermissionMode,
+  permissionModeFromTaskMode,
+  taskModeFromPermissionMode,
+} from "./task-mode";
 
 export type HandleSubmitArgs = {
   userMessage: DBUserMessage;
@@ -78,7 +84,7 @@ interface UsePromptBoxProps {
   isQueueingEnabled?: boolean;
   initialFiles?: Attachment[];
   isRecording?: boolean;
-  initialPermissionMode?: "allowAll" | "plan" | "loop";
+  initialPermissionMode?: PermissionMode;
   supportsMultiAgentPromptSubmission: boolean;
   disableLocalStorage?: boolean;
 }
@@ -120,15 +126,27 @@ export function usePromptBox({
       disableLocalStorage,
     });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [permissionMode, setPermissionMode] = useState<
-    "allowAll" | "plan" | "loop"
-  >(initialPermissionMode);
+  const [taskMode, setTaskMode] = useState<TaskMode>(
+    taskModeFromPermissionMode(initialPermissionMode),
+  );
+  const [permissionMode, setPermissionMode] = useState<PermissionMode>(
+    permissionModeFromTaskMode(taskMode),
+  );
   const [loopConfig, setLoopConfig] = useState<LoopConfigInput>({
     maxIterations: 3,
     completionPromise: "DONE",
     useRegex: false,
     requireApproval: false,
   });
+  const setTaskModeAndPermission = useCallback((mode: TaskMode) => {
+    setTaskMode(mode);
+    setPermissionMode(permissionModeFromTaskMode(mode));
+  }, []);
+
+  const setPermissionModeAndTask = useCallback((mode: PermissionMode) => {
+    setPermissionMode(mode);
+    setTaskMode(taskModeFromPermissionMode(mode));
+  }, []);
 
   // Store the query string for the current results so that we can display a
   // different message when the query string changes and the previous query
@@ -813,8 +831,10 @@ export function usePromptBox({
     removeFile,
     stopThread,
     submitForm,
+    taskMode,
+    setTaskMode: setTaskModeAndPermission,
     permissionMode,
-    setPermissionMode,
+    setPermissionMode: setPermissionModeAndTask,
     loopConfig,
     setLoopConfig,
     selectedModel,
