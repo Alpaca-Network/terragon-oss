@@ -131,7 +131,7 @@ describe("AddressFeedbackDialog component logic", () => {
 
   describe("model selection behavior", () => {
     const defaultModel: AIModel = "sonnet";
-    const taskModel: AIModel = "gpt-5.1";
+    const taskModel: AIModel = "opus";
 
     it("should use the task model for new tasks", () => {
       const result = resolveFeedbackTaskModel({
