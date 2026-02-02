@@ -286,8 +286,10 @@ describe("Kanban Board Desktop", () => {
       deltaX: number,
       deltaY: number,
       hasNestedScrollable: boolean,
+      nestedOverflowPx: number,
+      nestedOverflowThresholdPx = 16,
     ): { shouldScroll: boolean; shouldPreventDefault: boolean } => {
-      if (hasNestedScrollable) {
+      if (hasNestedScrollable && nestedOverflowPx > nestedOverflowThresholdPx) {
         return { shouldScroll: false, shouldPreventDefault: false };
       }
       const hasHorizontalOverflow = scrollWidth > clientWidth + 1;
@@ -305,7 +307,7 @@ describe("Kanban Board Desktop", () => {
     };
 
     it("should not hijack wheel when columns fit", () => {
-      const result = getWheelBehavior(600, 600, 0, 120, false);
+      const result = getWheelBehavior(600, 600, 0, 120, false, 0);
       expect(result).toEqual({
         shouldScroll: false,
         shouldPreventDefault: false,
@@ -313,7 +315,7 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should not hijack wheel when horizontal intent is stronger", () => {
-      const result = getWheelBehavior(900, 600, 120, 80, false);
+      const result = getWheelBehavior(900, 600, 120, 80, false, 0);
       expect(result).toEqual({
         shouldScroll: false,
         shouldPreventDefault: false,
@@ -321,7 +323,7 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should convert vertical wheel to horizontal scroll when overflowing", () => {
-      const result = getWheelBehavior(900, 600, 10, 140, false);
+      const result = getWheelBehavior(900, 600, 10, 140, false, 0);
       expect(result).toEqual({
         shouldScroll: true,
         shouldPreventDefault: true,
@@ -329,10 +331,18 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should allow nested column scroll to handle wheel", () => {
-      const result = getWheelBehavior(900, 600, 0, 140, true);
+      const result = getWheelBehavior(900, 600, 0, 140, true, 32);
       expect(result).toEqual({
         shouldScroll: false,
         shouldPreventDefault: false,
+      });
+    });
+
+    it("should allow kanban scroll when nested overflow is tiny", () => {
+      const result = getWheelBehavior(900, 600, 0, 140, true, 8);
+      expect(result).toEqual({
+        shouldScroll: true,
+        shouldPreventDefault: true,
       });
     });
   });

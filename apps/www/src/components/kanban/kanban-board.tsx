@@ -169,9 +169,11 @@ export const KanbanBoard = memo(function KanbanBoard({
       ) as HTMLElement | null;
       const isNestedViewport =
         closestViewport && closestViewport !== scrollContainer;
+      const nestedOverflowThresholdPx = 16;
       if (
         isNestedViewport &&
-        closestViewport.scrollHeight > closestViewport.clientHeight + 1
+        closestViewport.scrollHeight >
+          closestViewport.clientHeight + nestedOverflowThresholdPx
       ) {
         return;
       }
