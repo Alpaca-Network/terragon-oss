@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { PRFeedback, PRCheckRun } from "@terragon/shared/db/types";
+import { createFeedbackSignature } from "./address-feedback-dialog";
 
 /**
  * Tests for the AddressFeedbackDialog component logic.
@@ -158,6 +159,108 @@ describe("AddressFeedbackDialog component logic", () => {
     it("should show badge when issueCount is greater than 0", () => {
       expect(shouldShowBadge(1)).toBe(true);
       expect(shouldShowBadge(5)).toBe(true);
+    });
+  });
+
+  describe("feedback signature", () => {
+    const createSignatureFeedback = ({
+      unresolvedThreadIds = [],
+      checkRuns = [],
+      hasConflicts = false,
+    }: {
+      unresolvedThreadIds?: string[];
+      checkRuns?: Array<{
+        id: number;
+        conclusion: PRCheckRun["conclusion"];
+      }>;
+      hasConflicts?: boolean;
+    }): PRFeedback => {
+      return {
+        prNumber: 123,
+        repoFullName: "owner/repo",
+        prUrl: "https://example.com/pr/123",
+        prTitle: "Test PR",
+        prState: "open",
+        baseBranch: "main",
+        headBranch: "feature",
+        headSha: "abc123",
+        comments: {
+          unresolved: unresolvedThreadIds.map((id) => ({
+            id,
+            isResolved: false,
+            comments: [],
+          })),
+          resolved: [],
+        },
+        checks: checkRuns.map((check) => ({
+          id: check.id,
+          name: `check-${check.id}`,
+          status: "completed",
+          conclusion: check.conclusion,
+          startedAt: null,
+          completedAt: null,
+          detailsUrl: null,
+        })),
+        coverageCheck: null,
+        mergeableState: "clean",
+        hasConflicts,
+        isMergeable: true,
+      };
+    };
+
+    it("should be stable for identical feedback", () => {
+      const feedback = createSignatureFeedback({
+        unresolvedThreadIds: ["t1", "t2"],
+        checkRuns: [{ id: 1, conclusion: "failure" }],
+        hasConflicts: true,
+      });
+      expect(createFeedbackSignature(feedback)).toBe(
+        createFeedbackSignature(feedback),
+      );
+    });
+
+    it("should change when unresolved threads change", () => {
+      const base = createSignatureFeedback({
+        unresolvedThreadIds: ["t1"],
+        checkRuns: [{ id: 1, conclusion: "failure" }],
+      });
+      const updated = createSignatureFeedback({
+        unresolvedThreadIds: ["t1", "t2"],
+        checkRuns: [{ id: 1, conclusion: "failure" }],
+      });
+      expect(createFeedbackSignature(base)).not.toBe(
+        createFeedbackSignature(updated),
+      );
+    });
+
+    it("should change when failing checks change", () => {
+      const base = createSignatureFeedback({
+        unresolvedThreadIds: ["t1"],
+        checkRuns: [{ id: 1, conclusion: "failure" }],
+      });
+      const updated = createSignatureFeedback({
+        unresolvedThreadIds: ["t1"],
+        checkRuns: [{ id: 2, conclusion: "failure" }],
+      });
+      expect(createFeedbackSignature(base)).not.toBe(
+        createFeedbackSignature(updated),
+      );
+    });
+
+    it("should change when conflict status changes", () => {
+      const base = createSignatureFeedback({
+        unresolvedThreadIds: ["t1"],
+        checkRuns: [{ id: 1, conclusion: "failure" }],
+        hasConflicts: false,
+      });
+      const updated = createSignatureFeedback({
+        unresolvedThreadIds: ["t1"],
+        checkRuns: [{ id: 1, conclusion: "failure" }],
+        hasConflicts: true,
+      });
+      expect(createFeedbackSignature(base)).not.toBe(
+        createFeedbackSignature(updated),
+      );
     });
   });
 });

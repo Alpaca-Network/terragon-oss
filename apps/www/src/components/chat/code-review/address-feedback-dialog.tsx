@@ -31,6 +31,38 @@ import { generateFeedbackTaskDescription } from "@/lib/feedback-task-template";
 
 type ActionMode = "new-task" | "integrate";
 
+const FEEDBACK_SIGNATURE_STORAGE_PREFIX = "terragon:address-feedback:signature";
+
+export function createFeedbackSignature(feedback: PRFeedback): string {
+  const unresolvedThreadIds = feedback.comments.unresolved
+    .map((thread) => thread.id)
+    .sort()
+    .join(",");
+  const failingCheckIds = feedback.checks
+    .filter(
+      (check) =>
+        check.conclusion === "failure" || check.conclusion === "timed_out",
+    )
+    .map((check) => String(check.id))
+    .sort()
+    .join(",");
+  const conflicts = feedback.hasConflicts ? "1" : "0";
+
+  return `unresolved:${unresolvedThreadIds}|failing:${failingCheckIds}|conflicts:${conflicts}`;
+}
+
+function getFeedbackSignatureStorageKey(
+  threadId: string,
+  feedback: PRFeedback,
+): string {
+  return [
+    FEEDBACK_SIGNATURE_STORAGE_PREFIX,
+    threadId,
+    feedback.repoFullName,
+    String(feedback.prNumber),
+  ].join(":");
+}
+
 interface AddressFeedbackDialogProps {
   feedback: PRFeedback;
   thread: ThreadInfoFull;
@@ -47,8 +79,23 @@ export function AddressFeedbackDialog({
   const [includeMergeInstructions, setIncludeMergeInstructions] =
     useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAlreadyQueued, setIsAlreadyQueued] = useState(false);
   const { isActive } = useAccessInfo();
   const selectedModel = useAtomValue(selectedModelAtom);
+
+  const feedbackSignature = useMemo(
+    () => createFeedbackSignature(feedback),
+    [feedback],
+  );
+  const feedbackSignatureStorageKey = useMemo(
+    () => getFeedbackSignatureStorageKey(thread.id, feedback),
+    [thread.id, feedback],
+  );
+
+  React.useEffect(() => {
+    const storedSignature = localStorage.getItem(feedbackSignatureStorageKey);
+    setIsAlreadyQueued(storedSignature === feedbackSignature);
+  }, [feedbackSignature, feedbackSignatureStorageKey]);
 
   // Generate the task description
   const generatedDescription = useMemo(
@@ -81,6 +128,8 @@ export function AddressFeedbackDialog({
     mutationFn: queueFollowUp,
     onSuccess: () => {
       toast.success("Feedback added to current task queue");
+      localStorage.setItem(feedbackSignatureStorageKey, feedbackSignature);
+      setIsAlreadyQueued(true);
       setOpen(false);
     },
   });
@@ -157,7 +206,17 @@ export function AddressFeedbackDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="default" size="sm" className="whitespace-nowrap">
+          <Button
+            variant="default"
+            size="sm"
+            className="whitespace-nowrap"
+            disabled={isPending || isAlreadyQueued}
+            title={
+              isAlreadyQueued
+                ? "No new feedback since this was added to the queue."
+                : undefined
+            }
+          >
             <MessageSquarePlus className="size-4 mr-2" />
             Address Feedback
             {issueCount > 0 && (
