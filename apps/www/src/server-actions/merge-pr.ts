@@ -29,6 +29,54 @@ type MergePRResult = {
   message: string;
 };
 
+const MERGEABLE_STATE_POLL_ATTEMPTS = 5;
+const MERGEABLE_STATE_POLL_DELAY_MS = 500;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchPRWithMergeablePolling({
+  octokit,
+  owner,
+  repo,
+  prNumber,
+}: {
+  octokit: Awaited<ReturnType<typeof getOctokitForApp>>;
+  owner: string;
+  repo: string;
+  prNumber: number;
+}) {
+  let lastData:
+    | ({ mergeable: boolean | null; mergeable_state: string | null } & Record<
+        string,
+        any
+      >)
+    | null = null;
+
+  for (let attempt = 0; attempt < MERGEABLE_STATE_POLL_ATTEMPTS; attempt += 1) {
+    const { data } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+    lastData = data;
+
+    const isComputingMergeableState =
+      data.mergeable_state == null && data.mergeable == null;
+
+    if (!isComputingMergeableState) {
+      return data;
+    }
+
+    if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
+      await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+    }
+  }
+
+  return lastData as NonNullable<typeof lastData>;
+}
+
 /**
  * Merges a PR on GitHub
  */
@@ -52,10 +100,11 @@ export const mergePR = userOnlyAction(
       const octokit = await getOctokitForApp({ owner, repo });
 
       // First check if PR is mergeable
-      const { data: pr } = await octokit.rest.pulls.get({
+      const pr = await fetchPRWithMergeablePolling({
+        octokit,
         owner,
         repo,
-        pull_number: prNumber,
+        prNumber,
       });
 
       if (pr.merged) {
@@ -181,10 +230,11 @@ export const canMergePR = userOnlyAction(
 
     try {
       const octokit = await getOctokitForApp({ owner, repo });
-      const { data: pr } = await octokit.rest.pulls.get({
+      const pr = await fetchPRWithMergeablePolling({
+        octokit,
         owner,
         repo,
-        pull_number: prNumber,
+        prNumber,
       });
 
       if (pr.merged) {

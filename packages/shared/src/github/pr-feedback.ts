@@ -174,18 +174,42 @@ export async function fetchPRReviews(
 /**
  * Fetches PR details including mergeable state
  */
+const MERGEABLE_STATE_POLL_ATTEMPTS = 5;
+const MERGEABLE_STATE_POLL_DELAY_MS = 500;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchPRDetails(
   octokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
 ): Promise<PRGetResponse> {
-  const { data } = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: prNumber,
-  });
-  return data;
+  let lastData: PRGetResponse | null = null;
+
+  for (let attempt = 0; attempt < MERGEABLE_STATE_POLL_ATTEMPTS; attempt += 1) {
+    const { data } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+    lastData = data;
+
+    const isComputingMergeableState =
+      data.mergeable_state == null && data.mergeable == null;
+
+    if (!isComputingMergeableState) {
+      return data;
+    }
+
+    if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
+      await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+    }
+  }
+
+  return lastData as PRGetResponse;
 }
 
 /**

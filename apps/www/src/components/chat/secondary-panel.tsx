@@ -30,6 +30,10 @@ import { MergeStatusSection } from "./code-review/merge-status-section";
 import { MergeButton } from "./code-review/merge-button";
 import { AddressFeedbackDialog } from "./code-review/address-feedback-dialog";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import {
+  getMergeablePollingInterval,
+  nextMergeablePollingState,
+} from "@/lib/mergeable-polling";
 
 const SECONDARY_PANEL_MIN_WIDTH = 300;
 const SECONDARY_PANEL_MAX_WIDTH_PERCENTAGE = 0.7;
@@ -123,17 +127,24 @@ function ViewTab({
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const mergeablePollingRef = React.useRef({ until: null, count: 0 });
 
   const hasPR =
     thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
 
   // Fetch PR feedback data when thread has a PR
-  const { data, isLoading, error } = useServerActionQuery({
+  const { data, isLoading, error, dataUpdatedAt } = useServerActionQuery({
     queryKey: ["pr-feedback", thread?.id, refreshKey],
     queryFn: () => getPRFeedback({ threadId: thread!.id }),
     enabled: hasPR && !!thread,
     staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: () =>
+      getMergeablePollingInterval({
+        mergeableState: data?.feedback?.mergeableState,
+        now: Date.now(),
+        state: mergeablePollingRef.current,
+        defaultIntervalMs: 60000,
+      }),
   });
 
   if (!thread) {
@@ -142,6 +153,14 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
 
   const feedback = data?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
+
+  React.useEffect(() => {
+    mergeablePollingRef.current = nextMergeablePollingState({
+      mergeableState: feedback?.mergeableState,
+      now: Date.now(),
+      state: mergeablePollingRef.current,
+    });
+  }, [feedback?.mergeableState, dataUpdatedAt]);
 
   // Calculate badge counts
   const commentCount = summary?.unresolvedCommentCount ?? 0;
