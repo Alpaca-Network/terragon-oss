@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
+import { KanbanSearchBar } from "./kanban-search-bar";
 
 export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
@@ -108,6 +109,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const [drawerInitialTab, setDrawerInitialTab] = useState<
     "feed" | "changes" | "comments"
   >("feed");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Ref for tab list to scroll to center
   const tabsListRef = useRef<HTMLDivElement>(null);
@@ -170,6 +172,21 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     [backlogThreads],
   );
 
+  // Filter function for search query
+  const matchesSearchQuery = useCallback(
+    (thread: ThreadInfo) => {
+      if (!searchQuery.trim()) return true;
+      const normalizedQuery = searchQuery.toLowerCase().trim();
+      const threadName = thread.name?.toLowerCase() || "";
+      const repoName = thread.githubRepoFullName?.toLowerCase() || "";
+      return (
+        threadName.includes(normalizedQuery) ||
+        repoName.includes(normalizedQuery)
+      );
+    },
+    [searchQuery],
+  );
+
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
     const groups: Record<KanbanColumnType, ThreadInfo[]> = {
@@ -181,6 +198,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     };
 
     for (const thread of threads) {
+      if (!matchesSearchQuery(thread)) continue;
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
     }
@@ -188,7 +206,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     // Add backlog threads to the Backlog column
     for (const thread of backlogThreads) {
       // Avoid duplicates (threads that might be in both queries)
-      if (!threadIds.has(thread.id)) {
+      if (!threadIds.has(thread.id) && matchesSearchQuery(thread)) {
         groups.backlog.push(thread);
       }
     }
@@ -196,6 +214,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     // Add archived threads to Done column if toggle is enabled
     if (showArchivedInDone) {
       for (const thread of archivedThreads) {
+        if (!matchesSearchQuery(thread)) continue;
         const column = getKanbanColumn(thread);
         // Only add archived threads that would be in the Done column
         if (column === "done") {
@@ -213,7 +232,14 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
 
     return groups;
-  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
+  }, [
+    threads,
+    backlogThreads,
+    threadIds,
+    archivedThreads,
+    showArchivedInDone,
+    matchesSearchQuery,
+  ]);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
@@ -514,12 +540,21 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           <TabsContent
             key={col.id}
             value={col.id}
-            className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden animate-page-enter"
+            className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden animate-page-enter flex flex-col"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <ScrollArea className="h-full futuristic-scrollbar">
+            {/* Search bar at top of column */}
+            <div className="px-2 pt-2 flex-shrink-0">
+              <KanbanSearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search tasks..."
+                compact
+              />
+            </div>
+            <ScrollArea className="flex-1 min-h-0 futuristic-scrollbar">
               <div className={cn("p-2 space-y-2", CONTENT_BOTTOM_PADDING)}>
                 {/* Show archived toggle for Done column */}
                 {shouldShowArchiveToggle(
