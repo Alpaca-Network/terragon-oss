@@ -18,6 +18,7 @@ import { PRCommentCountBadge } from "../kanban/pr-comment-count-badge";
 import { useSetAtom } from "jotai";
 import { secondaryPanelViewAtom } from "@/atoms/user-cookies";
 import { useLongPress } from "@/hooks/useLongPress";
+import { isErrorThread } from "../kanban/types";
 
 export const ThreadListItem = memo(function ThreadListItem({
   thread,
@@ -32,6 +33,7 @@ export const ThreadListItem = memo(function ThreadListItem({
 }) {
   const router = useRouter();
   const title = useMemo(() => getThreadTitle(thread), [thread]);
+  const isError = useMemo(() => isErrorThread(thread), [thread]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const relativeTime = useMemo(
     () => formatRelativeTime(thread.updatedAt),
@@ -112,6 +114,7 @@ export const ThreadListItem = memo(function ThreadListItem({
               ? "bg-muted"
               : "hover:bg-muted/50",
             isMenuOpen && "bg-muted/50",
+            isError && "bg-destructive/10",
             className,
           )}
           onClick={(e) => {

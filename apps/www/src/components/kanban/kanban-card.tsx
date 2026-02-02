@@ -12,7 +12,7 @@ import { PRCommentCountBadge } from "./pr-comment-count-badge";
 import { ThreadMenuDropdown } from "../thread-menu-dropdown";
 import { Button } from "@/components/ui/button";
 import { GitBranch, EllipsisVertical, Play, LoaderCircle } from "lucide-react";
-import { isDraftThread } from "./types";
+import { isDraftThread, isErrorThread } from "./types";
 import { useSubmitDraftThreadMutation } from "@/queries/thread-mutations";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,7 @@ export const KanbanCard = memo(function KanbanCard({
   const [isStarting, setIsStarting] = useState(false);
   const submitDraftMutation = useSubmitDraftThreadMutation();
   const isDraft = useMemo(() => isDraftThread(thread), [thread]);
+  const isError = useMemo(() => isErrorThread(thread), [thread]);
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const relativeTime = useMemo(
     () => formatRelativeTime(thread.updatedAt),
@@ -96,6 +97,7 @@ export const KanbanCard = memo(function KanbanCard({
         "hover:border-primary/40 active:scale-[0.98]",
         isSelected &&
           "ring-2 ring-primary border-primary shadow-[0_0_20px_rgba(99,102,241,0.15)]",
+        isError && "bg-destructive/10 border-destructive/30",
       )}
     >
       {/* Three dots menu - show when not a draft or when menu is open */}
