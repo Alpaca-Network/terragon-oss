@@ -19,8 +19,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  BarChart3,
+  GitMerge,
+  AlertCircle,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
+import { PRHeader } from "./pr-header";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
@@ -32,7 +36,7 @@ import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
@@ -68,11 +72,11 @@ const GitDiffView = dynamic(
   },
 );
 
-// Dynamically import CodeReviewView for the Comments tab
-const CodeReviewView = dynamic(
+// Dynamically import PR feedback sections
+const PRCommentsSection = dynamic(
   () =>
-    import("@/components/chat/code-review-view").then(
-      (mod) => mod.CodeReviewView,
+    import("@/components/chat/code-review/pr-comments-section").then(
+      (mod) => mod.PRCommentsSection,
     ),
   {
     ssr: false,
@@ -84,7 +88,58 @@ const CodeReviewView = dynamic(
   },
 );
 
-type TaskPanelTab = "feed" | "changes" | "comments";
+const ChecksSection = dynamic(
+  () =>
+    import("@/components/chat/code-review/checks-section").then(
+      (mod) => mod.ChecksSection,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+const CoverageSection = dynamic(
+  () =>
+    import("@/components/chat/code-review/coverage-section").then(
+      (mod) => mod.CoverageSection,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+const MergeStatusSection = dynamic(
+  () =>
+    import("@/components/chat/code-review/merge-status-section").then(
+      (mod) => mod.MergeStatusSection,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+type TaskPanelTab =
+  | "feed"
+  | "changes"
+  | "comments"
+  | "checks"
+  | "coverage"
+  | "merge";
 
 const TASK_PANEL_MIN_WIDTH = 500;
 const TASK_PANEL_MAX_WIDTH_PERCENT = 75;
@@ -383,7 +438,10 @@ export const KanbanBoard = memo(function KanbanBoard({
     enabled: !!selectedThreadId,
   });
 
-  // Fetch PR feedback summary for the Code Review tab badge
+  // Query client for invalidating PR feedback
+  const queryClient = useQueryClient();
+
+  // Fetch PR feedback for the PR-related tabs
   const { data: prFeedbackData } = useServerActionQuery({
     queryKey: ["pr-feedback-kanban", selectedThreadId],
     queryFn: () => getPRFeedback({ threadId: selectedThreadId! }),
@@ -392,19 +450,12 @@ export const KanbanBoard = memo(function KanbanBoard({
     refetchInterval: 60000, // Refetch every minute
   });
 
-  // Calculate code review status
-  const codeReviewStatus = useMemo(() => {
-    if (!prFeedbackData?.feedback) return null;
-    const summary = createFeedbackSummary(prFeedbackData.feedback);
-    const unresolvedCount =
-      summary.unresolvedCommentCount +
-      summary.failingCheckCount +
-      (summary.hasConflicts ? 1 : 0);
-    return {
-      unresolvedCount,
-      isAllPassing: unresolvedCount === 0,
-    };
-  }, [prFeedbackData]);
+  // Callback to refresh PR feedback after merge
+  const handlePRMerged = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ["pr-feedback-kanban", selectedThreadId],
+    });
+  }, [queryClient, selectedThreadId]);
 
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
@@ -575,14 +626,28 @@ export const KanbanBoard = memo(function KanbanBoard({
 
           {/* Task detail panel - full width */}
           <div className="relative flex-1 bg-background flex flex-col min-w-0">
+            {/* PR Header - only show when on PR tabs */}
+            {selectedThread?.githubPRNumber &&
+              prFeedbackData?.feedback &&
+              (activeTab === "comments" ||
+                activeTab === "checks" ||
+                activeTab === "coverage" ||
+                activeTab === "merge") && (
+                <PRHeader
+                  feedback={prFeedbackData.feedback}
+                  thread={selectedThread}
+                  onMerged={handlePRMerged}
+                />
+              )}
+
             {/* Panel header with tabs and view toggle */}
             <div className="flex items-center justify-between border-b px-3 py-2 flex-shrink-0">
               {/* Tabs */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
                 <Button
                   variant={activeTab === "feed" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-8 px-3 gap-1.5"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
                   onClick={() => setActiveTab("feed")}
                 >
                   <MessageSquare className="h-3.5 w-3.5" />
@@ -591,17 +656,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                 <Button
                   variant={activeTab === "changes" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-8 px-3 gap-1.5"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
                   onClick={() => setActiveTab("changes")}
                   disabled={!selectedThread?.gitDiff}
                 >
                   <GitCommit className="h-3.5 w-3.5" />
-                  <span className="text-xs">Files Changed</span>
+                  <span className="text-xs">Files</span>
                 </Button>
                 <Button
                   variant={activeTab === "comments" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-8 px-3 gap-1.5"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
                   onClick={() => setActiveTab("comments")}
                   disabled={!selectedThread?.githubPRNumber}
                   title={
@@ -611,16 +676,84 @@ export const KanbanBoard = memo(function KanbanBoard({
                   }
                 >
                   <GitPullRequest className="h-3.5 w-3.5" />
-                  <span className="text-xs">Code Review</span>
-                  {selectedThread?.githubPRNumber &&
-                    codeReviewStatus &&
-                    (codeReviewStatus.isAllPassing ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
-                        {codeReviewStatus.unresolvedCount}
+                  <span className="text-xs">Comments</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .unresolvedCommentCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground">
+                        {
+                          createFeedbackSummary(prFeedbackData.feedback)
+                            .unresolvedCommentCount
+                        }
                       </span>
-                    ))}
+                    )}
+                </Button>
+                <Button
+                  variant={activeTab === "checks" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
+                  onClick={() => setActiveTab("checks")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="text-xs">Checks</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .failingCheckCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive-foreground">
+                        {
+                          createFeedbackSummary(prFeedbackData.feedback)
+                            .failingCheckCount
+                        }
+                      </span>
+                    )}
+                </Button>
+                <Button
+                  variant={activeTab === "coverage" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
+                  onClick={() => setActiveTab("coverage")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span className="text-xs">Coverage</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .hasCoverageCheck &&
+                    !createFeedbackSummary(prFeedbackData.feedback)
+                      .coverageCheckPassed && (
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
+                    )}
+                </Button>
+                <Button
+                  variant={activeTab === "merge" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
+                  onClick={() => setActiveTab("merge")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <GitMerge className="h-3.5 w-3.5" />
+                  <span className="text-xs">Merge</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .hasConflicts && (
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
+                    )}
                 </Button>
               </div>
 
@@ -629,7 +762,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 variant="ghost"
                 size="icon"
                 onClick={handleCloseDetail}
-                className="h-8 w-8"
+                className="h-8 w-8 flex-shrink-0"
                 title="Close task details"
                 aria-label="Close task details"
               >
@@ -648,8 +781,66 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </div>
               )}
               {activeTab === "comments" && selectedThread && (
-                <div className="h-full overflow-auto">
-                  <CodeReviewView thread={selectedThread} />
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <PRCommentsSection
+                      unresolved={prFeedbackData.feedback.comments.unresolved}
+                      resolved={prFeedbackData.feedback.comments.resolved}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "checks" && selectedThread && (
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <ChecksSection checks={prFeedbackData.feedback.checks} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "coverage" && selectedThread && (
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <CoverageSection
+                      coverageCheck={prFeedbackData.feedback.coverageCheck}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "merge" && selectedThread && (
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <MergeStatusSection
+                      mergeableState={prFeedbackData.feedback.mergeableState}
+                      hasConflicts={prFeedbackData.feedback.hasConflicts}
+                      isMergeable={prFeedbackData.feedback.isMergeable}
+                      baseBranch={prFeedbackData.feedback.baseBranch}
+                      headBranch={prFeedbackData.feedback.headBranch}
+                      prUrl={prFeedbackData.feedback.prUrl}
+                      prNumber={prFeedbackData.feedback.prNumber}
+                      repoFullName={prFeedbackData.feedback.repoFullName}
+                      thread={selectedThread}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -788,14 +979,28 @@ export const KanbanBoard = memo(function KanbanBoard({
               onMouseDown={handleMouseDown}
             />
 
+            {/* PR Header - only show when on PR tabs */}
+            {selectedThread?.githubPRNumber &&
+              prFeedbackData?.feedback &&
+              (activeTab === "comments" ||
+                activeTab === "checks" ||
+                activeTab === "coverage" ||
+                activeTab === "merge") && (
+                <PRHeader
+                  feedback={prFeedbackData.feedback}
+                  thread={selectedThread}
+                  onMerged={handlePRMerged}
+                />
+              )}
+
             {/* Panel header with tabs and view toggle */}
             <div className="flex items-center justify-between border-b border-border px-3 py-2 flex-shrink-0">
               {/* Tabs */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
                 <Button
                   variant={activeTab === "feed" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-8 px-3 gap-1.5"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
                   onClick={() => setActiveTab("feed")}
                 >
                   <MessageSquare className="h-3.5 w-3.5" />
@@ -804,17 +1009,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                 <Button
                   variant={activeTab === "changes" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-8 px-3 gap-1.5"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
                   onClick={() => setActiveTab("changes")}
                   disabled={!selectedThread?.gitDiff}
                 >
                   <GitCommit className="h-3.5 w-3.5" />
-                  <span className="text-xs">Files Changed</span>
+                  <span className="text-xs">Files</span>
                 </Button>
                 <Button
                   variant={activeTab === "comments" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-8 px-3 gap-1.5"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
                   onClick={() => setActiveTab("comments")}
                   disabled={!selectedThread?.githubPRNumber}
                   title={
@@ -824,16 +1029,84 @@ export const KanbanBoard = memo(function KanbanBoard({
                   }
                 >
                   <GitPullRequest className="h-3.5 w-3.5" />
-                  <span className="text-xs">Code Review</span>
-                  {selectedThread?.githubPRNumber &&
-                    codeReviewStatus &&
-                    (codeReviewStatus.isAllPassing ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
-                        {codeReviewStatus.unresolvedCount}
+                  <span className="text-xs">Comments</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .unresolvedCommentCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground">
+                        {
+                          createFeedbackSummary(prFeedbackData.feedback)
+                            .unresolvedCommentCount
+                        }
                       </span>
-                    ))}
+                    )}
+                </Button>
+                <Button
+                  variant={activeTab === "checks" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
+                  onClick={() => setActiveTab("checks")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="text-xs">Checks</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .failingCheckCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive-foreground">
+                        {
+                          createFeedbackSummary(prFeedbackData.feedback)
+                            .failingCheckCount
+                        }
+                      </span>
+                    )}
+                </Button>
+                <Button
+                  variant={activeTab === "coverage" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
+                  onClick={() => setActiveTab("coverage")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span className="text-xs">Coverage</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .hasCoverageCheck &&
+                    !createFeedbackSummary(prFeedbackData.feedback)
+                      .coverageCheckPassed && (
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
+                    )}
+                </Button>
+                <Button
+                  variant={activeTab === "merge" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 flex-shrink-0"
+                  onClick={() => setActiveTab("merge")}
+                  disabled={!selectedThread?.githubPRNumber}
+                  title={
+                    !selectedThread?.githubPRNumber
+                      ? "No PR associated"
+                      : undefined
+                  }
+                >
+                  <GitMerge className="h-3.5 w-3.5" />
+                  <span className="text-xs">Merge</span>
+                  {prFeedbackData?.feedback &&
+                    createFeedbackSummary(prFeedbackData.feedback)
+                      .hasConflicts && (
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
+                    )}
                 </Button>
               </div>
 
@@ -842,7 +1115,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 variant="ghost"
                 size="icon"
                 onClick={handleCloseDetail}
-                className="h-8 w-8"
+                className="h-8 w-8 flex-shrink-0"
                 title="Close task details"
                 aria-label="Close task details"
               >
@@ -861,8 +1134,66 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </div>
               )}
               {activeTab === "comments" && selectedThread && (
-                <div className="h-full overflow-auto">
-                  <CodeReviewView thread={selectedThread} />
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <PRCommentsSection
+                      unresolved={prFeedbackData.feedback.comments.unresolved}
+                      resolved={prFeedbackData.feedback.comments.resolved}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "checks" && selectedThread && (
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <ChecksSection checks={prFeedbackData.feedback.checks} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "coverage" && selectedThread && (
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <CoverageSection
+                      coverageCheck={prFeedbackData.feedback.coverageCheck}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "merge" && selectedThread && (
+                <div className="h-full overflow-auto p-4">
+                  {prFeedbackData?.feedback ? (
+                    <MergeStatusSection
+                      mergeableState={prFeedbackData.feedback.mergeableState}
+                      hasConflicts={prFeedbackData.feedback.hasConflicts}
+                      isMergeable={prFeedbackData.feedback.isMergeable}
+                      baseBranch={prFeedbackData.feedback.baseBranch}
+                      headBranch={prFeedbackData.feedback.headBranch}
+                      prUrl={prFeedbackData.feedback.prUrl}
+                      prNumber={prFeedbackData.feedback.prNumber}
+                      repoFullName={prFeedbackData.feedback.repoFullName}
+                      thread={selectedThread}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <AlertCircle className="size-8 mb-2 opacity-50" />
+                      <p className="text-sm">Loading PR feedback...</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

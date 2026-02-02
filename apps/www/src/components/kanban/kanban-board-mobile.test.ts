@@ -80,7 +80,17 @@ describe("Kanban Mobile Components", () => {
     const SNAP_POINTS = [0.8, 1] as const;
     const DEFAULT_SNAP_POINT = 0.8;
     const DEFAULT_TAB = "feed";
-    const AVAILABLE_TABS = ["feed", "changes", "comments"];
+    // Available tabs when there's a PR - full code review tabs
+    const AVAILABLE_TABS = [
+      "feed",
+      "changes",
+      "comments",
+      "checks",
+      "coverage",
+      "merge",
+    ];
+    // PR-related tabs for swipe navigation
+    const PR_TABS = ["comments", "checks", "coverage", "merge"];
 
     it("should have snap points at 80% and 100% for mobile", () => {
       expect(SNAP_POINTS).toContain(0.8);
@@ -107,11 +117,22 @@ describe("Kanban Mobile Components", () => {
       expect(DEFAULT_TAB).toBe("feed");
     });
 
-    it("should have feed, changes, and comments tabs available", () => {
+    it("should have all tabs available for full code review", () => {
       expect(AVAILABLE_TABS).toContain("feed");
       expect(AVAILABLE_TABS).toContain("changes");
-      // Comments tab is enabled when thread has a PR associated
+      // PR tabs are enabled when thread has a PR associated
       expect(AVAILABLE_TABS).toContain("comments");
+      expect(AVAILABLE_TABS).toContain("checks");
+      expect(AVAILABLE_TABS).toContain("coverage");
+      expect(AVAILABLE_TABS).toContain("merge");
+    });
+
+    it("should have PR-related tabs for swipeable code review", () => {
+      expect(PR_TABS).toContain("comments");
+      expect(PR_TABS).toContain("checks");
+      expect(PR_TABS).toContain("coverage");
+      expect(PR_TABS).toContain("merge");
+      expect(PR_TABS.length).toBe(4);
     });
   });
 
