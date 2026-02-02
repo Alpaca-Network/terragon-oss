@@ -22,6 +22,7 @@ import {
   BarChart3,
   GitMerge,
   AlertCircle,
+  LayoutGrid,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import { PRHeader } from "./pr-header";
@@ -757,17 +758,29 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* Close button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseDetail}
-                className="h-8 w-8 flex-shrink-0"
-                title="Close task details"
-                aria-label="Close task details"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {/* View toggle and close button */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsFullScreenTask(false)}
+                  className="h-8 w-8 flex-shrink-0"
+                  title="Show all columns"
+                  aria-label="Show all columns"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseDetail}
+                  className="h-8 w-8 flex-shrink-0"
+                  title="Close task details"
+                  aria-label="Close task details"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Tab content */}
