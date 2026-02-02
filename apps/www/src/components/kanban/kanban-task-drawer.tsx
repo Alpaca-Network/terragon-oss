@@ -9,7 +9,9 @@ import {
   GitCommit,
   Maximize2,
   Minimize2,
-  MessageCircle,
+  GitPullRequest,
+  AlertCircle,
+  XCircle,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -66,12 +68,14 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   threadId,
   open,
   onClose,
+  initialTab = "feed",
 }: {
   threadId: string | null;
   open: boolean;
   onClose: () => void;
+  initialTab?: TabType;
 }) {
-  const [activeTab, setActiveTab] = useState<TabType>("feed");
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentSnap, setCurrentSnap] = useState<number | string | null>(
     DEFAULT_SNAP_POINT,
   );
@@ -97,7 +101,14 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   const summary = feedback ? createFeedbackSummary(feedback) : null;
   const commentCount = summary?.unresolvedCommentCount ?? 0;
   const failingCheckCount = summary?.failingCheckCount ?? 0;
-  const totalIssues = commentCount + failingCheckCount;
+  const hasConflicts = summary?.hasConflicts ?? false;
+
+  // Sync activeTab with initialTab when drawer opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
 
   // Clear any pending reset timeout on unmount or when drawer opens
   useEffect(() => {
@@ -207,11 +218,22 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               onClick={() => setActiveTab("code-review")}
               disabled={!hasPR}
             >
-              <MessageCircle className="h-4 w-4" />
+              <GitPullRequest className="h-4 w-4" />
               <span className="text-xs font-medium">Code Review</span>
-              {totalIssues > 0 && (
+              {hasConflicts && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
+                  <AlertCircle className="h-3 w-3" />
+                </span>
+              )}
+              {failingCheckCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
+                  <XCircle className="h-3 w-3" />
+                  {failingCheckCount}
+                </span>
+              )}
+              {commentCount > 0 && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
-                  {totalIssues}
+                  {commentCount}
                 </span>
               )}
             </Button>

@@ -12,6 +12,7 @@ import {
   uploadTextFileToR2,
 } from "@/lib/r2-file-upload-client";
 import { Attachment } from "@/lib/attachment-types";
+import { nanoid } from "nanoid/non-secure";
 import StarterKit from "@tiptap/starter-kit";
 import {
   FolderAwareMention,
@@ -123,7 +124,7 @@ export function usePromptBox({
     "allowAll" | "plan" | "loop"
   >(initialPermissionMode);
   const [loopConfig, setLoopConfig] = useState<LoopConfigInput>({
-    maxIterations: 10,
+    maxIterations: 3,
     completionPromise: "DONE",
     useRegex: false,
     requireApproval: false,
@@ -154,6 +155,15 @@ export function usePromptBox({
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
+
+  // Ref to hold handleFilesAttached so it can be accessed in the paste handler
+  const handleFilesAttachedRef = useRef<(files: Attachment[]) => void>(
+    () => {},
+  );
+
+  // Threshold for converting pasted text to a file attachment
+  const LARGE_PASTE_LINE_THRESHOLD = 10;
+  const LARGE_PASTE_CHAR_THRESHOLD = 500;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -388,10 +398,39 @@ export function usePromptBox({
         if (!clipboardData) {
           return false;
         }
-        // Check if we have HTML content
         const textContent = clipboardData.getData("text/plain");
         if (textContent) {
           event.preventDefault();
+
+          const lines = textContent.split("\n");
+          const isLargePaste =
+            lines.length > LARGE_PASTE_LINE_THRESHOLD ||
+            textContent.length > LARGE_PASTE_CHAR_THRESHOLD;
+
+          // For large pastes, add as a text file attachment instead
+          if (isLargePaste) {
+            const file = new File([textContent], "pasted-text.txt", {
+              type: "text/plain",
+            });
+            const id = nanoid();
+            const reader = new FileReader();
+            reader.onload = () => {
+              const base64 = reader.result as string;
+              const attachment: Attachment = {
+                id,
+                mimeType: "text/plain",
+                fileType: "text-file",
+                fileName: "pasted-text.txt",
+                base64,
+                file,
+                uploadStatus: "pending",
+              };
+              handleFilesAttachedRef.current([attachment]);
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+
           // Use editor commands to insert content
           // This ensures all TipTap extensions process the content
           if (editor) {
@@ -401,7 +440,6 @@ export function usePromptBox({
             // If you edit this, please test pasting a string with newlines and then
             // editing it via backspace.
             // See also: https://github.com/ueberdosis/tiptap/issues/5501
-            const lines = textContent.split("\n");
             for (let i = 0; i < lines.length; i++) {
               const line = lines[i]!;
               // Only insert text content if the line is non-empty
@@ -556,6 +594,11 @@ export function usePromptBox({
     },
     [setAttachedFiles],
   );
+
+  // Update the ref so handlePaste can use handleFilesAttached
+  useEffect(() => {
+    handleFilesAttachedRef.current = handleFilesAttached;
+  }, [handleFilesAttached]);
 
   const removeFile = useCallback(
     (id: string) => {

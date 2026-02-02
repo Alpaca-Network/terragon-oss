@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
+import { KanbanSearchBar } from "./kanban-search-bar";
 
 export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
@@ -47,7 +48,7 @@ export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
       return "data-[state=active]:bg-accent/10 data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm";
     case "done":
       return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_12px_rgba(99,102,241,0.15)]";
-    case "cancelled":
+    case "failed":
       return "data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-sm";
     default:
       return "data-[state=active]:bg-muted";
@@ -105,6 +106,10 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     useState<KanbanColumnType>("in_progress");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
+  const [drawerInitialTab, setDrawerInitialTab] = useState<
+    "feed" | "changes" | "comments"
+  >("feed");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Ref for tab list to scroll to center
   const tabsListRef = useRef<HTMLDivElement>(null);
@@ -167,6 +172,21 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     [backlogThreads],
   );
 
+  // Filter function for search query
+  const matchesSearchQuery = useCallback(
+    (thread: ThreadInfo) => {
+      if (!searchQuery.trim()) return true;
+      const normalizedQuery = searchQuery.toLowerCase().trim();
+      const threadName = thread.name?.toLowerCase() || "";
+      const repoName = thread.githubRepoFullName?.toLowerCase() || "";
+      return (
+        threadName.includes(normalizedQuery) ||
+        repoName.includes(normalizedQuery)
+      );
+    },
+    [searchQuery],
+  );
+
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
     const groups: Record<KanbanColumnType, ThreadInfo[]> = {
@@ -174,10 +194,11 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       in_progress: [],
       in_review: [],
       done: [],
-      cancelled: [],
+      failed: [],
     };
 
     for (const thread of threads) {
+      if (!matchesSearchQuery(thread)) continue;
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
     }
@@ -185,7 +206,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     // Add backlog threads to the Backlog column
     for (const thread of backlogThreads) {
       // Avoid duplicates (threads that might be in both queries)
-      if (!threadIds.has(thread.id)) {
+      if (!threadIds.has(thread.id) && matchesSearchQuery(thread)) {
         groups.backlog.push(thread);
       }
     }
@@ -193,6 +214,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     // Add archived threads to Done column if toggle is enabled
     if (showArchivedInDone) {
       for (const thread of archivedThreads) {
+        if (!matchesSearchQuery(thread)) continue;
         const column = getKanbanColumn(thread);
         // Only add archived threads that would be in the Done column
         if (column === "done") {
@@ -210,7 +232,14 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
 
     return groups;
-  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
+  }, [
+    threads,
+    backlogThreads,
+    threadIds,
+    archivedThreads,
+    showArchivedInDone,
+    matchesSearchQuery,
+  ]);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
@@ -268,6 +297,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   });
 
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
+    setDrawerInitialTab("feed");
+    setSelectedThreadId(thread.id);
+  }, []);
+
+  const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
+    setDrawerInitialTab("comments");
     setSelectedThreadId(thread.id);
   }, []);
 
@@ -411,15 +446,26 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             Failed to load tasks. Please try again.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          className="gap-1.5 tap-highlight soft-glow"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Retry
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="gap-1.5 tap-highlight soft-glow"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setNewTaskDrawerOpen(true)}
+            className="gap-1.5 tap-highlight soft-glow"
+          >
+            <SquarePen className="h-3.5 w-3.5" />
+            New Task
+          </Button>
+        </div>
       </div>
     );
   }
@@ -456,6 +502,8 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                     "flex-shrink-0 gap-1.5 px-3 py-2 rounded-lg transition-all duration-200",
                     "tap-highlight futuristic-tab-indicator",
                     "data-[state=active]:scale-[1.02]",
+                    // Remove the default TabsTrigger border since futuristic-tab-indicator provides the line
+                    "border-b-0",
                     getColumnHeaderColor(col.id),
                   )}
                 >
@@ -494,12 +542,21 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
           <TabsContent
             key={col.id}
             value={col.id}
-            className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden animate-page-enter"
+            className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden animate-page-enter flex flex-col"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <ScrollArea className="h-full futuristic-scrollbar">
+            {/* Search bar at top of column */}
+            <div className="px-2 pt-2 flex-shrink-0">
+              <KanbanSearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search tasks..."
+                compact
+              />
+            </div>
+            <ScrollArea className="flex-1 min-h-0 futuristic-scrollbar">
               <div className={cn("p-2 space-y-2", CONTENT_BOTTOM_PADDING)}>
                 {/* Show archived toggle for Done column */}
                 {shouldShowArchiveToggle(
@@ -559,6 +616,9 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                           thread={thread}
                           isSelected={selectedThreadId === thread.id}
                           onClick={() => handleThreadSelect(thread)}
+                          onCommentsClick={() =>
+                            handleThreadCommentsClick(thread)
+                          }
                         />
                       </div>
                     ))}
@@ -575,6 +635,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         threadId={selectedThreadId}
         open={!!selectedThreadId}
         onClose={handleCloseDrawer}
+        initialTab={drawerInitialTab}
       />
 
       {/* New task drawer */}

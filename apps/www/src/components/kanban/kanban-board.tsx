@@ -14,11 +14,11 @@ import {
   X,
   MessageSquare,
   GitCommit,
-  MessageCircle,
+  GitPullRequest,
   SquarePen,
   ChevronLeft,
   ChevronRight,
-  PanelRightClose,
+  CheckCircle2,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
@@ -33,13 +33,16 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
+import { useServerActionQuery } from "@/queries/server-action-helpers";
+import { getPRFeedback } from "@/server-actions/get-pr-feedback";
+import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 import { useAtom } from "jotai";
 import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
 import { usePlatform } from "@/hooks/use-platform";
 import { KanbanBoardMobile } from "./kanban-board-mobile";
-import { useCollapsibleThreadList } from "@/components/thread-list/use-collapsible-thread-list";
 import { QuickAddBacklogDialog } from "./quick-add-backlog";
+import { KanbanSearchBar } from "./kanban-search-bar";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -115,17 +118,11 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const [isFullScreenTask, setIsFullScreenTask] = useState(false);
   const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
-  // Sidebar collapse state
-  const {
-    canCollapseThreadList,
-    isThreadListCollapsed,
-    setThreadListCollapsed,
-  } = useCollapsibleThreadList();
 
   // Check scroll state
   const updateScrollState = useCallback(() => {
@@ -254,6 +251,21 @@ export const KanbanBoard = memo(function KanbanBoard({
     [backlogThreads],
   );
 
+  // Filter function for search query
+  const matchesSearchQuery = useCallback(
+    (thread: ThreadInfo) => {
+      if (!searchQuery.trim()) return true;
+      const normalizedQuery = searchQuery.toLowerCase().trim();
+      const threadName = thread.name?.toLowerCase() || "";
+      const repoName = thread.githubRepoFullName?.toLowerCase() || "";
+      return (
+        threadName.includes(normalizedQuery) ||
+        repoName.includes(normalizedQuery)
+      );
+    },
+    [searchQuery],
+  );
+
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
     const groups: Record<KanbanColumnType, ThreadInfo[]> = {
@@ -261,10 +273,11 @@ export const KanbanBoard = memo(function KanbanBoard({
       in_progress: [],
       in_review: [],
       done: [],
-      cancelled: [],
+      failed: [],
     };
 
     for (const thread of threads) {
+      if (!matchesSearchQuery(thread)) continue;
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
     }
@@ -272,7 +285,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     // Add backlog threads to the Backlog column
     for (const thread of backlogThreads) {
       // Avoid duplicates (threads that might be in both queries)
-      if (!threadIds.has(thread.id)) {
+      if (!threadIds.has(thread.id) && matchesSearchQuery(thread)) {
         groups.backlog.push(thread);
       }
     }
@@ -280,6 +293,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     // Add archived threads to Done column if toggle is enabled
     if (showArchivedInDone) {
       for (const thread of archivedThreads) {
+        if (!matchesSearchQuery(thread)) continue;
         const column = getKanbanColumn(thread);
         // Only add archived threads that would be in the Done column
         if (column === "done") {
@@ -297,7 +311,14 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     return groups;
-  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
+  }, [
+    threads,
+    backlogThreads,
+    threadIds,
+    archivedThreads,
+    showArchivedInDone,
+    matchesSearchQuery,
+  ]);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -361,6 +382,29 @@ export const KanbanBoard = memo(function KanbanBoard({
     ...threadQueryOptions(selectedThreadId ?? ""),
     enabled: !!selectedThreadId,
   });
+
+  // Fetch PR feedback summary for the Code Review tab badge
+  const { data: prFeedbackData } = useServerActionQuery({
+    queryKey: ["pr-feedback-kanban", selectedThreadId],
+    queryFn: () => getPRFeedback({ threadId: selectedThreadId! }),
+    enabled: !!selectedThreadId && !!selectedThread?.githubPRNumber,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  // Calculate code review status
+  const codeReviewStatus = useMemo(() => {
+    if (!prFeedbackData?.feedback) return null;
+    const summary = createFeedbackSummary(prFeedbackData.feedback);
+    const unresolvedCount =
+      summary.unresolvedCommentCount +
+      summary.failingCheckCount +
+      (summary.hasConflicts ? 1 : 0);
+    return {
+      unresolvedCount,
+      isAllPassing: unresolvedCount === 0,
+    };
+  }, [prFeedbackData]);
 
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
@@ -459,11 +503,27 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   if (isError) {
     return (
-      <div className="flex flex-col h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          Failed to load tasks. Please try again.
-        </p>
-      </div>
+      <>
+        <div className="flex flex-col h-full items-center justify-center gap-4">
+          <p className="text-sm text-muted-foreground">
+            Failed to load tasks. Please try again.
+          </p>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setNewTaskDialogOpen(true)}
+            className="gap-1.5"
+          >
+            <SquarePen className="h-3.5 w-3.5" />
+            New Task
+          </Button>
+        </div>
+        <KanbanNewTaskDialog
+          open={newTaskDialogOpen}
+          onOpenChange={setNewTaskDialogOpen}
+          queryFilters={queryFilters}
+        />
+      </>
     );
   }
 
@@ -478,28 +538,39 @@ export const KanbanBoard = memo(function KanbanBoard({
       >
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Single column in full-screen mode */}
-          <div className="w-full max-w-[400px] min-h-0 overflow-hidden p-4 border-r">
-            <KanbanColumn
-              column={currentColumn.id}
-              threads={columnThreads[currentColumn.id]}
-              selectedThreadId={selectedThreadId}
-              onThreadSelect={handleThreadSelect}
-              onThreadCommentsClick={handleThreadCommentsClick}
-              showArchivedToggle={
-                currentColumn.id === "done" && !queryFilters.archived
-              }
-              showArchived={showArchivedInDone}
-              onToggleArchived={() =>
-                setShowArchivedInDone(!showArchivedInDone)
-              }
-              showNavigation={true}
-              canNavigateLeft={fullScreenColumnIndex > 0}
-              canNavigateRight={
-                fullScreenColumnIndex < KANBAN_COLUMNS.length - 1
-              }
-              onNavigateLeft={() => navigateColumn("left")}
-              onNavigateRight={() => navigateColumn("right")}
-            />
+          <div className="w-full max-w-[400px] min-h-0 overflow-hidden border-r border-border flex flex-col">
+            {/* Search bar at top of column */}
+            <div className="p-3 border-b border-border flex-shrink-0">
+              <KanbanSearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search tasks..."
+                compact
+              />
+            </div>
+            <div className="flex-1 min-h-0 p-4 pt-2">
+              <KanbanColumn
+                column={currentColumn.id}
+                threads={columnThreads[currentColumn.id]}
+                selectedThreadId={selectedThreadId}
+                onThreadSelect={handleThreadSelect}
+                onThreadCommentsClick={handleThreadCommentsClick}
+                showArchivedToggle={
+                  currentColumn.id === "done" && !queryFilters.archived
+                }
+                showArchived={showArchivedInDone}
+                onToggleArchived={() =>
+                  setShowArchivedInDone(!showArchivedInDone)
+                }
+                showNavigation={true}
+                canNavigateLeft={fullScreenColumnIndex > 0}
+                canNavigateRight={
+                  fullScreenColumnIndex < KANBAN_COLUMNS.length - 1
+                }
+                onNavigateLeft={() => navigateColumn("left")}
+                onNavigateRight={() => navigateColumn("right")}
+              />
+            </div>
           </div>
 
           {/* Task detail panel - full width */}
@@ -539,8 +610,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                 >
-                  <MessageCircle className="h-3.5 w-3.5" />
+                  <GitPullRequest className="h-3.5 w-3.5" />
                   <span className="text-xs">Code Review</span>
+                  {selectedThread?.githubPRNumber &&
+                    codeReviewStatus &&
+                    (codeReviewStatus.isAllPassing ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
+                        {codeReviewStatus.unresolvedCount}
+                      </span>
+                    ))}
                 </Button>
               </div>
 
@@ -593,22 +673,17 @@ export const KanbanBoard = memo(function KanbanBoard({
     >
       {/* Header with view toggle and new task button */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2">
-          {/* Expand sidebar button */}
-          {canCollapseThreadList && isThreadListCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setThreadListCollapsed(false)}
-              className="h-8 w-8 flex-shrink-0"
-              title="Show task list"
-            >
-              <PanelRightClose className="h-4 w-4" />
-            </Button>
-          )}
+        <div className="flex items-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
             Kanban Board
           </h2>
+          <KanbanSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search tasks..."
+            compact
+            className="w-48"
+          />
         </div>
         <div className="flex items-center gap-2">
           <TaskViewToggle />
@@ -748,8 +823,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                 >
-                  <MessageCircle className="h-3.5 w-3.5" />
+                  <GitPullRequest className="h-3.5 w-3.5" />
                   <span className="text-xs">Code Review</span>
+                  {selectedThread?.githubPRNumber &&
+                    codeReviewStatus &&
+                    (codeReviewStatus.isAllPassing ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
+                        {codeReviewStatus.unresolvedCount}
+                      </span>
+                    ))}
                 </Button>
               </div>
 

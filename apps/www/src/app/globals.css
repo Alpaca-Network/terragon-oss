@@ -37,14 +37,16 @@
   --chart-3: hsl(238 60% 50%);
   --chart-4: hsl(238 50% 45%);
   --chart-5: hsl(238 40% 40%);
-  --sidebar: hsl(0 0% 2%);
+  --sidebar: hsl(0 0% 9%);
   --sidebar-foreground: hsl(0 0% 98%);
   --sidebar-primary: hsl(238 87% 64%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(0 0% 8%);
+  --sidebar-accent: hsl(0 0% 14%);
   --sidebar-accent-foreground: hsl(0 0% 98%);
   --sidebar-border: hsl(240 4% 16%);
   --sidebar-ring: hsl(238 87% 64%);
+  --sidebar-muted: hsl(240 4% 16%);
+  --sidebar-muted-foreground: hsl(0 0% 64%);
   --font-geist-sans: "Geist", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
   --font-sans: system-ui, -apple-system, sans-serif;
@@ -114,6 +116,8 @@
   --sidebar-accent-foreground: hsl(0 0% 98%);
   --sidebar-border: hsl(240 4% 16%);
   --sidebar-ring: hsl(238 87% 64%);
+  --sidebar-muted: hsl(240 4% 16%);
+  --sidebar-muted-foreground: hsl(0 0% 64%);
   --font-geist-sans: "Geist", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
   --font-cabin: "Cabin", sans-serif;
@@ -176,6 +180,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -211,6 +217,20 @@
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Override semantic color variables within sidebar context */
+  /* This ensures sidebar components always use sidebar-specific tokens in both themes */
+  [data-slot="sidebar"],
+  [data-slot="sidebar-wrapper"] [data-sidebar],
+  .bg-sidebar {
+    --background: var(--sidebar);
+    --foreground: var(--sidebar-foreground);
+    --muted: var(--sidebar-muted);
+    --muted-foreground: var(--sidebar-muted-foreground);
+    --border: var(--sidebar-border);
+    --input: var(--sidebar-muted);
+    color: var(--sidebar-foreground);
   }
 
   /* Safe area utility class for PWA bottom padding */

@@ -6,11 +6,8 @@ import {
   updateThread,
   getThreadChat,
 } from "@terragon/shared/model/threads";
-import {
-  getGitHubUserAccessTokenOrThrow,
-  getUser,
-  getUserSettings,
-} from "@terragon/shared/model/user";
+import { getUser, getUserSettings } from "@terragon/shared/model/user";
+import { getGitHubUserAccessTokenWithRefresh } from "@/lib/github-oauth";
 import { getFeatureFlagsForUser } from "@terragon/shared/model/feature-flags";
 import {
   getOrCreateEnvironment,
@@ -201,10 +198,12 @@ async function getOrCreateSandboxForThread({
       environmentId: repositoryEnvironment.id,
       encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
     }),
-    getGitHubUserAccessTokenOrThrow({
+    getGitHubUserAccessTokenWithRefresh({
       db,
       userId,
       encryptionKey: env.ENCRYPTION_MASTER_KEY,
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
     }),
   ]);
 

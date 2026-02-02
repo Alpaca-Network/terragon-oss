@@ -5,7 +5,7 @@ export type KanbanColumn =
   | "in_progress"
   | "in_review"
   | "done"
-  | "cancelled";
+  | "failed";
 
 export const KANBAN_COLUMNS: {
   id: KanbanColumn;
@@ -24,8 +24,8 @@ export const KANBAN_COLUMNS: {
   },
   {
     id: "in_review",
-    title: "In Review",
-    description: "Tasks with open PRs awaiting review",
+    title: "Review",
+    description: "Tasks awaiting review or with open PRs",
   },
   {
     id: "done",
@@ -33,9 +33,9 @@ export const KANBAN_COLUMNS: {
     description: "Completed tasks",
   },
   {
-    id: "cancelled",
-    title: "Cancelled",
-    description: "Cancelled or failed tasks",
+    id: "failed",
+    title: "Failed",
+    description: "Failed or cancelled tasks",
   },
 ];
 
@@ -44,23 +44,21 @@ export const KANBAN_COLUMNS: {
  */
 export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
   const status = getCombinedStatus(thread);
-  const hasOpenPR = thread.githubPRNumber && thread.prStatus === "open";
   const hasMergedPR = thread.prStatus === "merged";
-  const hasPRChecksFailure = thread.prChecksStatus === "failure";
 
   // Tasks explicitly marked as backlog go to backlog column
   if (thread.isBacklog) {
     return "backlog";
   }
 
-  // Error states go to cancelled
+  // Error states go to failed
   if (status === "error" || status === "working-error") {
-    return "cancelled";
+    return "failed";
   }
 
-  // Stopped tasks go to cancelled
+  // Stopped tasks go to failed
   if (status === "stopped" || status === "working-stopped") {
-    return "cancelled";
+    return "failed";
   }
 
   // Draft and scheduled tasks go to backlog
@@ -95,20 +93,12 @@ export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
 
   // Complete tasks
   if (status === "complete") {
-    // If there's an open PR, it's in review
-    if (hasOpenPR) {
-      return "in_review";
-    }
-    // If PR was merged or checks passed, it's done
+    // If PR was merged, it's done
     if (hasMergedPR) {
       return "done";
     }
-    // If PR checks failed, put in review (needs attention)
-    if (hasPRChecksFailure) {
-      return "in_review";
-    }
-    // No PR or closed PR means done
-    return "done";
+    // All other complete tasks go to review (open PR, no PR, or checks failed)
+    return "in_review";
   }
 
   // Default fallback
@@ -161,6 +151,14 @@ export type KanbanThreadGroup = {
   column: KanbanColumn;
   threads: ThreadInfo[];
 };
+
+/**
+ * Checks if a thread has an error status (error or working-error)
+ */
+export function isErrorThread(thread: ThreadInfo): boolean {
+  const status = getCombinedStatus(thread);
+  return status === "error" || status === "working-error";
+}
 
 /**
  * Checks if a thread is a draft (can be started)

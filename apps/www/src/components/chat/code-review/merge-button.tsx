@@ -94,11 +94,11 @@ export function MergeButton({
 
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 whitespace-nowrap">
         <Button
           onClick={() => setShowConfirmDialog(true)}
           disabled={!isMergeable || mergeMutation.isPending}
-          className="rounded-r-none"
+          className="rounded-r-none whitespace-nowrap"
         >
           {mergeMutation.isPending ? (
             <Loader2 className="size-4 mr-2 animate-spin" />

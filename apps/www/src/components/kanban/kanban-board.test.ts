@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { KANBAN_COLUMNS } from "./types";
+import type { PRFeedbackSummary } from "@terragon/shared/db/types";
 
 describe("Kanban Board Desktop", () => {
   describe("Column navigation", () => {
@@ -31,8 +32,8 @@ describe("Kanban Board Desktop", () => {
 
     it("should not exceed max index when navigating right from last column", () => {
       const lastIndex = KANBAN_COLUMNS.length - 1;
-      const newIndex = navigateColumn(lastIndex, "right"); // cancelled
-      expect(newIndex).toBe(lastIndex); // stays at cancelled
+      const newIndex = navigateColumn(lastIndex, "right"); // failed
+      expect(newIndex).toBe(lastIndex); // stays at failed
     });
 
     it("should correctly traverse all columns with right navigation", () => {
@@ -41,7 +42,7 @@ describe("Kanban Board Desktop", () => {
         "in_progress",
         "in_review",
         "done",
-        "cancelled",
+        "failed",
       ];
       let currentIndex = 0;
 
@@ -55,7 +56,7 @@ describe("Kanban Board Desktop", () => {
 
     it("should correctly traverse all columns with left navigation", () => {
       const expectedOrder = [
-        "cancelled",
+        "failed",
         "done",
         "in_review",
         "in_progress",
@@ -80,7 +81,7 @@ describe("Kanban Board Desktop", () => {
         "in_progress",
         "in_review",
         "done",
-        "cancelled",
+        "failed",
       ]);
     });
 
@@ -172,6 +173,142 @@ describe("Kanban Board Desktop", () => {
 
     it("should have default width greater than half screen", () => {
       expect(TASK_PANEL_DEFAULT_WIDTH_PERCENT).toBeGreaterThan(50);
+    });
+  });
+
+  describe("Code review status calculation", () => {
+    // Helper function matching the component logic for calculating code review status
+    const calculateCodeReviewStatus = (
+      summary: PRFeedbackSummary | null,
+    ): { unresolvedCount: number; isAllPassing: boolean } | null => {
+      if (!summary) return null;
+      const unresolvedCount =
+        summary.unresolvedCommentCount +
+        summary.failingCheckCount +
+        (summary.hasConflicts ? 1 : 0);
+      return {
+        unresolvedCount,
+        isAllPassing: unresolvedCount === 0,
+      };
+    };
+
+    it("should return null when summary is null", () => {
+      const result = calculateCodeReviewStatus(null);
+      expect(result).toBeNull();
+    });
+
+    it("should show all passing when no unresolved items", () => {
+      const summary: PRFeedbackSummary = {
+        unresolvedCommentCount: 0,
+        resolvedCommentCount: 5,
+        failingCheckCount: 0,
+        pendingCheckCount: 0,
+        passingCheckCount: 10,
+        hasCoverageCheck: true,
+        coverageCheckPassed: true,
+        hasConflicts: false,
+        isMergeable: true,
+      };
+      const result = calculateCodeReviewStatus(summary);
+      expect(result).toEqual({
+        unresolvedCount: 0,
+        isAllPassing: true,
+      });
+    });
+
+    it("should count unresolved comments", () => {
+      const summary: PRFeedbackSummary = {
+        unresolvedCommentCount: 3,
+        resolvedCommentCount: 2,
+        failingCheckCount: 0,
+        pendingCheckCount: 0,
+        passingCheckCount: 5,
+        hasCoverageCheck: false,
+        coverageCheckPassed: null,
+        hasConflicts: false,
+        isMergeable: true,
+      };
+      const result = calculateCodeReviewStatus(summary);
+      expect(result).toEqual({
+        unresolvedCount: 3,
+        isAllPassing: false,
+      });
+    });
+
+    it("should count failing checks", () => {
+      const summary: PRFeedbackSummary = {
+        unresolvedCommentCount: 0,
+        resolvedCommentCount: 0,
+        failingCheckCount: 2,
+        pendingCheckCount: 1,
+        passingCheckCount: 5,
+        hasCoverageCheck: false,
+        coverageCheckPassed: null,
+        hasConflicts: false,
+        isMergeable: false,
+      };
+      const result = calculateCodeReviewStatus(summary);
+      expect(result).toEqual({
+        unresolvedCount: 2,
+        isAllPassing: false,
+      });
+    });
+
+    it("should count conflicts as 1 unresolved item", () => {
+      const summary: PRFeedbackSummary = {
+        unresolvedCommentCount: 0,
+        resolvedCommentCount: 0,
+        failingCheckCount: 0,
+        pendingCheckCount: 0,
+        passingCheckCount: 5,
+        hasCoverageCheck: false,
+        coverageCheckPassed: null,
+        hasConflicts: true,
+        isMergeable: false,
+      };
+      const result = calculateCodeReviewStatus(summary);
+      expect(result).toEqual({
+        unresolvedCount: 1,
+        isAllPassing: false,
+      });
+    });
+
+    it("should sum all unresolved items correctly", () => {
+      const summary: PRFeedbackSummary = {
+        unresolvedCommentCount: 5,
+        resolvedCommentCount: 3,
+        failingCheckCount: 3,
+        pendingCheckCount: 2,
+        passingCheckCount: 10,
+        hasCoverageCheck: true,
+        coverageCheckPassed: false,
+        hasConflicts: true,
+        isMergeable: false,
+      };
+      const result = calculateCodeReviewStatus(summary);
+      expect(result).toEqual({
+        unresolvedCount: 9, // 5 comments + 3 failing checks + 1 conflict
+        isAllPassing: false,
+      });
+    });
+
+    it("should not count pending checks as unresolved", () => {
+      const summary: PRFeedbackSummary = {
+        unresolvedCommentCount: 0,
+        resolvedCommentCount: 0,
+        failingCheckCount: 0,
+        pendingCheckCount: 5,
+        passingCheckCount: 0,
+        hasCoverageCheck: false,
+        coverageCheckPassed: null,
+        hasConflicts: false,
+        isMergeable: true,
+      };
+      const result = calculateCodeReviewStatus(summary);
+      expect(result).toEqual({
+        unresolvedCount: 0,
+        isAllPassing: true,
+      });
     });
   });
 });

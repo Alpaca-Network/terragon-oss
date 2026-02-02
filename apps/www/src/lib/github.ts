@@ -17,9 +17,9 @@ import { BroadcastMessageThreadData } from "@terragon/types/broadcast";
 import { updateThread } from "@terragon/shared/model/threads";
 import {
   getGitHubAccountIdForUser,
-  getGitHubUserAccessTokenOrThrow,
   getUserSettings,
 } from "@terragon/shared/model/user";
+import { getGitHubUserAccessTokenWithRefresh } from "./github-oauth";
 import { env } from "@terragon/env/apps-www";
 import { UserFacingError } from "./server-actions";
 import { createGitHubClient } from "./github-client";
@@ -271,10 +271,12 @@ export async function getOctokitForUser({
   userId: string;
 }): Promise<OctokitResult> {
   try {
-    const userAccessToken = await getGitHubUserAccessTokenOrThrow({
+    const userAccessToken = await getGitHubUserAccessTokenWithRefresh({
       db,
       userId,
       encryptionKey: env.ENCRYPTION_MASTER_KEY,
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
     });
     if (userAccessToken) {
       return {
