@@ -329,18 +329,68 @@ function parseModelFromBodyBuffer(
   }
 }
 
+/**
+ * OpenCode models that free-tier users can access with credits.
+ * These are specific models routed through OpenCode - not to be confused with
+ * the broader model families (e.g., "claude-sonnet" here refers only to the
+ * OpenCode-routed variant, not all Claude Sonnet models).
+ *
+ * This list should match the models defined in packages/agent/src/types.ts
+ * under the "opencode" agent models (with appropriate prefix normalization).
+ */
+const OPENCODE_GATEWAYZ_MODELS = new Set([
+  // Z.AI GLM models
+  "glm-4.6",
+  "glm-4.7",
+  "glm-4.7-flash",
+  "glm-4.7-lite",
+  // Chinese/other models
+  "kimi-k2",
+  "grok-code",
+  "qwen3-coder",
+  // Google models (OpenCode variants)
+  "gemini-2.5-pro",
+  "gemini-3-pro",
+  // OpenAI models (OpenCode variants)
+  "gpt-5",
+  "gpt-5-codex",
+  // Anthropic models (OpenCode variants) - specific to opencode-ant/sonnet
+  "sonnet",
+]);
+
+/**
+ * Check if a model is an OpenCode model that free-tier users can access with credits.
+ *
+ * Note: The model string is expected to be the raw model from the request body
+ * (e.g., "glm-4.7", "gpt-5", "sonnet"). Gatewayz uses OpenAI-compatible API format
+ * where the model is always specified in the JSON request body for chat completions.
+ */
 function isOpencodeGatewayzModel(model: string): boolean {
-  const normalized = model.toLowerCase();
-  return (
-    normalized.startsWith("glm-4.") ||
-    normalized.startsWith("qwen3-coder") ||
-    normalized.startsWith("kimi-k2") ||
-    normalized.startsWith("grok-code") ||
-    normalized.startsWith("gemini-2.5-pro") ||
-    normalized.startsWith("gemini-3-pro") ||
-    normalized.startsWith("gpt-5") ||
-    normalized.startsWith("claude-sonnet")
-  );
+  const normalized = model.toLowerCase().trim();
+
+  // Check exact matches first (most OpenCode models)
+  if (OPENCODE_GATEWAYZ_MODELS.has(normalized)) {
+    return true;
+  }
+
+  // Check prefix matches for models with version suffixes
+  // e.g., "glm-4.7-something" should still match
+  for (const prefix of [
+    "glm-4.6",
+    "glm-4.7",
+    "kimi-k2",
+    "grok-code",
+    "qwen3-coder",
+    "gemini-2.5-pro",
+    "gemini-3-pro",
+    "gpt-5",
+  ]) {
+    if (normalized.startsWith(prefix)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function proxyRequest(
@@ -522,18 +572,29 @@ async function authorize(
     const gwTier = (userRecord[0]?.gwTier as "free" | "pro" | "max") || "free";
 
     // Check if user has an active Gatewayz subscription (pro or max)
+    // Free-tier users can only access OpenCode models with credits
     if (gwTier === "free") {
+      // Gatewayz uses OpenAI-compatible API format where the model is always
+      // specified in the JSON request body for chat completions. This is the
+      // only supported method for specifying the model - headers and query
+      // params are not used. If no model is found in the body, the request
+      // will fail at the validateProxyRequestModel step anyway.
       const requestedModel = parseModelFromBodyBuffer(bodyBuffer);
+
       if (requestedModel && isOpencodeGatewayzModel(requestedModel)) {
+        // OpenCode model - check if user has credits or active subscription
         const creditCheck = await checkProxyCredits(userId, "OpenCode");
         if (!creditCheck.allowed) {
           return { response: creditCheck.response };
         }
         return { response: null, userId, gwTier };
       }
+
+      // Non-OpenCode model or no model found - deny access for free tier
       console.log("Gatewayz proxy access denied: free tier user", {
         userId,
         gwTier,
+        requestedModel: requestedModel ?? "(not found in body)",
       });
       return {
         response: new Response(

@@ -231,6 +231,87 @@ describe("Gatewayz proxy route", () => {
 
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalled();
+    // Verify credit check was called with the correct "OpenCode" category
+    expect(creditCheckMock).toHaveBeenCalledWith("user-123", "OpenCode");
+  });
+
+  it("rejects free-tier users with insufficient credits for OpenCode models", async () => {
+    dbSelectMock.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ gwTier: "free" }]),
+        }),
+      }),
+    } as any);
+
+    creditCheckMock.mockResolvedValueOnce({
+      allowed: false,
+      response: new Response("Insufficient credits", { status: 402 }),
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = createRequest({
+      body: { model: "glm-4.7", messages: [] },
+    });
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(402);
+    expect(await response.text()).toBe("Insufficient credits");
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Verify credit check was called with the correct "OpenCode" category
+    expect(creditCheckMock).toHaveBeenCalledWith("user-123", "OpenCode");
+  });
+
+  it("checks credits for all OpenCode model variants", async () => {
+    const openCodeModels = [
+      "glm-4.6",
+      "glm-4.7",
+      "glm-4.7-flash",
+      "glm-4.7-lite",
+      "kimi-k2",
+      "grok-code",
+      "qwen3-coder",
+      "gemini-2.5-pro",
+      "gemini-3-pro",
+      "gpt-5",
+      "gpt-5-codex",
+      "sonnet",
+    ];
+
+    for (const model of openCodeModels) {
+      vi.clearAllMocks();
+
+      dbSelectMock.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([{ gwTier: "free" }]),
+          }),
+        }),
+      } as any);
+
+      creditCheckMock.mockResolvedValueOnce({
+        allowed: true,
+        userId: "user-123",
+        balanceCents: 1000,
+      });
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({}), {
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const request = createRequest({
+        body: { model, messages: [] },
+      });
+      const response = await POST(request, { params: {} });
+
+      expect(response.status).toBe(200);
+      expect(creditCheckMock).toHaveBeenCalledWith("user-123", "OpenCode");
+    }
   });
 
   it("allows max tier users", async () => {
