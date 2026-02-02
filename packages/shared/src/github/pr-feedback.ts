@@ -188,28 +188,44 @@ export async function fetchPRDetails(
   prNumber: number,
 ): Promise<PRGetResponse> {
   let lastData: PRGetResponse | null = null;
+  let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MERGEABLE_STATE_POLL_ATTEMPTS; attempt += 1) {
-    const { data } = await octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: prNumber,
-    });
-    lastData = data;
+    try {
+      const { data } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber,
+      });
+      lastData = data;
+      lastError = null;
 
-    const isComputingMergeableState =
-      data.mergeable_state == null && data.mergeable == null;
+      const isComputingMergeableState =
+        data.mergeable_state == null && data.mergeable == null;
 
-    if (!isComputingMergeableState) {
-      return data;
-    }
+      if (!isComputingMergeableState) {
+        return data;
+      }
 
-    if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
-      await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
+        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+      }
+    } catch (error) {
+      lastError = error as Error;
+      // Only retry on network errors, not on 404s or other API errors
+      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
+        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+      }
     }
   }
 
-  return lastData as PRGetResponse;
+  if (lastData === null) {
+    throw (
+      lastError ?? new Error("Failed to fetch PR details after all attempts")
+    );
+  }
+
+  return lastData;
 }
 
 /**
