@@ -378,8 +378,8 @@ export function isConnectedCredentialsSupported(agent: AIAgent): boolean {
     case "claudeCode":
     case "codex":
     case "amp":
-      return true;
     case "gemini":
+      return true;
     case "opencode":
       return false;
     default:

@@ -163,6 +163,7 @@ export type ThreadErrorType =
   | "sandbox-creation-failed"
   | "sandbox-resume-failed"
   | "missing-gemini-credentials"
+  | "invalid-gemini-credentials"
   | "missing-amp-credentials"
   | "chatgpt-sub-required"
   | "gatewayz-subscription-required"
@@ -390,6 +391,7 @@ export type UserCredentials = {
   hasAmp: boolean;
   hasOpenAI: boolean;
   hasOpenAIOAuthCredentials: boolean;
+  hasGemini: boolean;
   // GatewayZ subscription tier - 'free' means no active subscription
   gwTier: GatewayZTier;
   // Whether user has an active Gatewayz subscription (pro or max)

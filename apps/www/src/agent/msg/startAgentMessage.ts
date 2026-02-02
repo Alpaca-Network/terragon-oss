@@ -500,7 +500,8 @@ export async function startAgentMessage({
           const hasOwnCredentials =
             (agentForModel === "codex" && userCredentials.hasOpenAI) ||
             (agentForModel === "claudeCode" && userCredentials.hasClaude) ||
-            (agentForModel === "amp" && userCredentials.hasAmp);
+            (agentForModel === "amp" && userCredentials.hasAmp) ||
+            (agentForModel === "gemini" && userCredentials.hasGemini);
 
           // Gatewayz is used when:
           // 1. User explicitly selected a Gatewayz model, OR
@@ -517,6 +518,7 @@ export async function startAgentMessage({
             !shouldUseGatewayz &&
             ((agentForModel === "codex" && !userCredentials.hasOpenAI) ||
               (agentForModel === "claudeCode" && !userCredentials.hasClaude) ||
+              (agentForModel === "gemini" && !userCredentials.hasGemini) ||
               !isConnectedCredentialsSupported(agentForModel));
 
           // For Gatewayz models, use the underlying agent for daemon execution
