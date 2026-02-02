@@ -390,6 +390,7 @@ export type UserCredentials = {
   hasAmp: boolean;
   hasOpenAI: boolean;
   hasOpenAIOAuthCredentials: boolean;
+  hasGemini: boolean;
   // GatewayZ subscription tier - 'free' means no active subscription
   gwTier: GatewayZTier;
   // Whether user has an active Gatewayz subscription (pro or max)

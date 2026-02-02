@@ -30,6 +30,7 @@ export async function getUserCredentials({
     hasAmp: false,
     hasOpenAI: false,
     hasOpenAIOAuthCredentials: false,
+    hasGemini: false,
     gwTier,
     hasGatewayz: gwTier === "pro" || gwTier === "max",
   };
@@ -46,6 +47,9 @@ export async function getUserCredentials({
         break;
       case "amp":
         result.hasAmp = true;
+        break;
+      case "gemini":
+        result.hasGemini = true;
         break;
     }
   }
