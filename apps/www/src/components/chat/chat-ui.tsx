@@ -382,8 +382,10 @@ function ChatPromptBox({
   }, []);
 
   const lastUsedModel = useMemo(() => {
-    // Prefer the lastUsedModel from the thread chat (stored in DB)
-    // Fall back to extracting from messages if not available
+    // Prefer the lastUsedModel from the thread chat (stored in DB when a message is sent).
+    // This ensures the model selector shows the last model the user actually used.
+    // Fall back to extracting from messages for backwards compatibility with
+    // threads created before lastUsedModel was added.
     if (threadChat.lastUsedModel) {
       return threadChat.lastUsedModel;
     }

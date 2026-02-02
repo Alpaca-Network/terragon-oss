@@ -190,8 +190,7 @@ export const ChatMessage = memo(function ChatMessage({
     isAgentWorking,
   });
   const lastGroupIndex = groups.length - 1;
-  const showModelBadge =
-    message.role === "user" && "model" in message && message.model;
+  const userModel = message.role === "user" ? message.model : null;
 
   return (
     <div
@@ -241,9 +240,7 @@ export const ChatMessage = memo(function ChatMessage({
             </React.Fragment>
           );
         })}
-        {showModelBadge && "model" in message && message.model && (
-          <ModelBadge model={message.model} />
-        )}
+        {userModel && <ModelBadge model={userModel} />}
       </div>
     </div>
   );
