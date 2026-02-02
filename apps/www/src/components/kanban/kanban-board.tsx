@@ -14,11 +14,12 @@ import {
   X,
   MessageSquare,
   GitCommit,
-  MessageCircle,
+  GitPullRequest,
   SquarePen,
   ChevronLeft,
   ChevronRight,
   PanelRightClose,
+  CheckCircle2,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
@@ -33,6 +34,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useQuery } from "@tanstack/react-query";
+import { useServerActionQuery } from "@/queries/server-action-helpers";
+import { getPRFeedback } from "@/server-actions/get-pr-feedback";
+import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 import { useAtom } from "jotai";
 import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
@@ -362,6 +366,29 @@ export const KanbanBoard = memo(function KanbanBoard({
     enabled: !!selectedThreadId,
   });
 
+  // Fetch PR feedback summary for the Code Review tab badge
+  const { data: prFeedbackData } = useServerActionQuery({
+    queryKey: ["pr-feedback-kanban", selectedThreadId],
+    queryFn: () => getPRFeedback({ threadId: selectedThreadId! }),
+    enabled: !!selectedThreadId && !!selectedThread?.githubPRNumber,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  // Calculate code review status
+  const codeReviewStatus = useMemo(() => {
+    if (!prFeedbackData?.feedback) return null;
+    const summary = createFeedbackSummary(prFeedbackData.feedback);
+    const unresolvedCount =
+      summary.unresolvedCommentCount +
+      summary.failingCheckCount +
+      (summary.hasConflicts ? 1 : 0);
+    return {
+      unresolvedCount,
+      isAllPassing: unresolvedCount === 0,
+    };
+  }, [prFeedbackData]);
+
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
     setActiveTab("feed"); // Reset to feed tab when selecting a new thread
@@ -459,11 +486,27 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   if (isError) {
     return (
-      <div className="flex flex-col h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          Failed to load tasks. Please try again.
-        </p>
-      </div>
+      <>
+        <div className="flex flex-col h-full items-center justify-center gap-4">
+          <p className="text-sm text-muted-foreground">
+            Failed to load tasks. Please try again.
+          </p>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setNewTaskDialogOpen(true)}
+            className="gap-1.5"
+          >
+            <SquarePen className="h-3.5 w-3.5" />
+            New Task
+          </Button>
+        </div>
+        <KanbanNewTaskDialog
+          open={newTaskDialogOpen}
+          onOpenChange={setNewTaskDialogOpen}
+          queryFilters={queryFilters}
+        />
+      </>
     );
   }
 
@@ -539,8 +582,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                 >
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  <span className="text-xs">Comments</span>
+                  <GitPullRequest className="h-3.5 w-3.5" />
+                  <span className="text-xs">Code Review</span>
+                  {selectedThread?.githubPRNumber &&
+                    codeReviewStatus &&
+                    (codeReviewStatus.isAllPassing ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
+                        {codeReviewStatus.unresolvedCount}
+                      </span>
+                    ))}
                 </Button>
               </div>
 
@@ -748,8 +800,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                 >
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  <span className="text-xs">Comments</span>
+                  <GitPullRequest className="h-3.5 w-3.5" />
+                  <span className="text-xs">Code Review</span>
+                  {selectedThread?.githubPRNumber &&
+                    codeReviewStatus &&
+                    (codeReviewStatus.isAllPassing ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
+                        {codeReviewStatus.unresolvedCount}
+                      </span>
+                    ))}
                 </Button>
               </div>
 

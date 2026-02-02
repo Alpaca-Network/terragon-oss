@@ -9,7 +9,7 @@ import {
   GitCommit,
   Maximize2,
   Minimize2,
-  MessageCircle,
+  GitPullRequest,
   AlertCircle,
   XCircle,
 } from "lucide-react";
@@ -212,7 +212,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               onClick={() => setActiveTab("comments")}
               disabled={!hasPR}
             >
-              <MessageCircle className="h-4 w-4" />
+              <GitPullRequest className="h-4 w-4" />
               <span className="text-xs font-medium">Code Review</span>
               {hasConflicts && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
@@ -285,7 +285,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <MessageCircle className="size-8 mb-2 opacity-50" />
+                  <GitPullRequest className="size-8 mb-2 opacity-50" />
                   <p className="text-sm">No PR associated with this task</p>
                 </div>
               )}
