@@ -222,9 +222,9 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               {hasPR &&
                 summary &&
                 (isAllPassing ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
                 ) : unresolvedCount > 0 ? (
-                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                     {unresolvedCount}
                   </span>
                 ) : null)}

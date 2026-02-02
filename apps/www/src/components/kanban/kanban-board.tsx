@@ -587,9 +587,9 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {selectedThread?.githubPRNumber &&
                     codeReviewStatus &&
                     (codeReviewStatus.isAllPassing ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                     ) : (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                         {codeReviewStatus.unresolvedCount}
                       </span>
                     ))}
@@ -805,9 +805,9 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {selectedThread?.githubPRNumber &&
                     codeReviewStatus &&
                     (codeReviewStatus.isAllPassing ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                     ) : (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                         {codeReviewStatus.unresolvedCount}
                       </span>
                     ))}

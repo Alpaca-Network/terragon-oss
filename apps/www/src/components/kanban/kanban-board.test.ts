@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { KANBAN_COLUMNS } from "./types";
-import type { PRFeedback, PRFeedbackSummary } from "@terragon/shared/db/types";
+import type { PRFeedbackSummary } from "@terragon/shared/db/types";
 
 describe("Kanban Board Desktop", () => {
   describe("Column navigation", () => {
