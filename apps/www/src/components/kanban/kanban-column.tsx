@@ -132,7 +132,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                   className="h-6 w-6 rounded-full hover:bg-muted/50"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAddToBacklog();
+                    onAddToBacklog?.();
                   }}
                 >
                   <Plus className="h-3.5 w-3.5" />
