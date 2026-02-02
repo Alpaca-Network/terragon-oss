@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getKanbanColumn, KANBAN_COLUMNS, isDraftThread } from "./types";
+import {
+  getKanbanColumn,
+  KANBAN_COLUMNS,
+  isDraftThread,
+  isErrorThread,
+} from "./types";
 import { ThreadInfo, ThreadStatus } from "@terragon/shared";
 
 // Helper to create a mock ThreadInfo with specific status and properties
@@ -382,6 +387,87 @@ describe("Kanban Types", () => {
         },
       ];
       expect(isDraftThread(thread)).toBe(true);
+    });
+  });
+
+  describe("isErrorThread", () => {
+    it("should return true for thread with error status", () => {
+      const thread = createMockThread({ status: "error" });
+      expect(isErrorThread(thread)).toBe(true);
+    });
+
+    it("should return true for thread with working-error status", () => {
+      const thread = createMockThread({ status: "working-error" });
+      expect(isErrorThread(thread)).toBe(true);
+    });
+
+    it("should return false for thread with complete status", () => {
+      const thread = createMockThread({ status: "complete" });
+      expect(isErrorThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with working status", () => {
+      const thread = createMockThread({ status: "working" });
+      expect(isErrorThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with stopped status", () => {
+      const thread = createMockThread({ status: "stopped" });
+      expect(isErrorThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with working-stopped status", () => {
+      const thread = createMockThread({ status: "working-stopped" });
+      expect(isErrorThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with draft status", () => {
+      const thread = createMockThread({ status: "draft" });
+      expect(isErrorThread(thread)).toBe(false);
+    });
+
+    it("should return false for thread with empty threadChats", () => {
+      const thread = createMockThread();
+      thread.threadChats = [];
+      expect(isErrorThread(thread)).toBe(false);
+    });
+
+    it("should return true for thread with mixed statuses including error", () => {
+      const thread = createMockThread();
+      thread.threadChats = [
+        {
+          id: "1",
+          agent: "claudeCode",
+          status: "complete",
+          errorMessage: null,
+        },
+        {
+          id: "2",
+          agent: "claudeCode",
+          status: "working-error",
+          errorMessage: "error",
+        },
+      ];
+      expect(isErrorThread(thread)).toBe(true);
+    });
+
+    it("should return false for thread with mixed statuses without error", () => {
+      const thread = createMockThread();
+      thread.threadChats = [
+        {
+          id: "1",
+          agent: "claudeCode",
+          status: "complete",
+          errorMessage: null,
+        },
+        {
+          id: "2",
+          agent: "claudeCode",
+          status: "working",
+          errorMessage: null,
+        },
+      ];
+      expect(isErrorThread(thread)).toBe(false);
     });
   });
 });

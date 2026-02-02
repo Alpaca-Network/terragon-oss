@@ -9,8 +9,9 @@ import {
   GitCommit,
   Maximize2,
   Minimize2,
-  MessageCircle,
+  GitPullRequest,
   AlertCircle,
+  XCircle,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,8 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   const feedback = prFeedbackData?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
   const commentCount = summary?.unresolvedCommentCount ?? 0;
+  const failingCheckCount = summary?.failingCheckCount ?? 0;
+  const hasConflicts = summary?.hasConflicts ?? false;
 
   // Sync activeTab with initialTab when drawer opens
   useEffect(() => {
@@ -209,8 +212,19 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               onClick={() => setActiveTab("comments")}
               disabled={!hasPR}
             >
-              <MessageCircle className="h-4 w-4" />
+              <GitPullRequest className="h-4 w-4" />
               <span className="text-xs font-medium">Code Review</span>
+              {hasConflicts && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
+                  <AlertCircle className="h-3 w-3" />
+                </span>
+              )}
+              {failingCheckCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive border border-destructive/20 flex items-center gap-0.5">
+                  <XCircle className="h-3 w-3" />
+                  {failingCheckCount}
+                </span>
+              )}
               {commentCount > 0 && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
                   {commentCount}
@@ -271,7 +285,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <MessageCircle className="size-8 mb-2 opacity-50" />
+                  <GitPullRequest className="size-8 mb-2 opacity-50" />
                   <p className="text-sm">No PR associated with this task</p>
                 </div>
               )}

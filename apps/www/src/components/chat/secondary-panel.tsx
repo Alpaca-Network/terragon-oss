@@ -345,7 +345,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden animate-page-enter futuristic-scrollbar">
+      <div className="flex-1 flex flex-col overflow-hidden animate-page-enter futuristic-scrollbar">
         {renderTabContent()}
       </div>
     </div>
