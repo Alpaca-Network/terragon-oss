@@ -825,6 +825,72 @@ describe("daemon", () => {
     });
   });
 
+  describe("Gemini credentials handling", () => {
+    const originalGeminiApiKey = process.env.GEMINI_API_KEY;
+    const originalGeminiBaseUrl = process.env.GOOGLE_GEMINI_BASE_URL;
+
+    afterEach(() => {
+      if (originalGeminiApiKey === undefined) {
+        delete process.env.GEMINI_API_KEY;
+      } else {
+        process.env.GEMINI_API_KEY = originalGeminiApiKey;
+      }
+      if (originalGeminiBaseUrl === undefined) {
+        delete process.env.GOOGLE_GEMINI_BASE_URL;
+      } else {
+        process.env.GOOGLE_GEMINI_BASE_URL = originalGeminiBaseUrl;
+      }
+    });
+
+    it("should preserve user GEMINI_API_KEY when not using credits", async () => {
+      process.env.GEMINI_API_KEY = "user-api-key";
+      delete process.env.GOOGLE_GEMINI_BASE_URL;
+
+      await daemon.start();
+      await writeToUnixSocket({
+        unixSocketPath: runtime.unixSocketPath,
+        dataStr: JSON.stringify({
+          ...TEST_INPUT_MESSAGE,
+          agent: "gemini",
+          model: "gemini-2.5-pro",
+        }),
+      });
+      await sleepUntil(() => spawnCommandLineMock.mock.calls.length === 1);
+
+      const spawnEnv = spawnCommandLineMock.mock.calls[0]![1].env as Record<
+        string,
+        string | undefined
+      >;
+      expect(spawnEnv.GEMINI_API_KEY).toBe("user-api-key");
+      expect(spawnEnv.GOOGLE_GEMINI_BASE_URL).toBeUndefined();
+    });
+
+    it("should route through proxy and use daemon token when credits are enabled", async () => {
+      process.env.GEMINI_API_KEY = "user-api-key";
+
+      await daemon.start();
+      await writeToUnixSocket({
+        unixSocketPath: runtime.unixSocketPath,
+        dataStr: JSON.stringify({
+          ...TEST_INPUT_MESSAGE,
+          agent: "gemini",
+          model: "gemini-2.5-pro",
+          useCredits: true,
+        }),
+      });
+      await sleepUntil(() => spawnCommandLineMock.mock.calls.length === 1);
+
+      const spawnEnv = spawnCommandLineMock.mock.calls[0]![1].env as Record<
+        string,
+        string | undefined
+      >;
+      expect(spawnEnv.GEMINI_API_KEY).toBe("TEST_TOKEN_STRING");
+      expect(spawnEnv.GOOGLE_GEMINI_BASE_URL).toBe(
+        "http://localhost:3000/api/proxy/google",
+      );
+    });
+  });
+
   describe("Error handling with result messages", () => {
     it("should not send custom-error when Claude sends a result message with is_error: true (rate limit case)", async () => {
       await daemon.start();

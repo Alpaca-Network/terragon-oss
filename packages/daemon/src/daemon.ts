@@ -840,6 +840,22 @@ export class TerragonDaemon {
   private async runGeminiCommand(input: DaemonMessageClaude): Promise<void> {
     // Create parser state for accumulating deltas
     const parserState = createGeminiParserState();
+    const useGatewayz = !!input.useGatewayz;
+    const useCredits = !!input.useCredits;
+
+    const geminiEnv: Record<string, string | undefined> = {};
+
+    // Route through our proxies only when using Gatewayz or built-in credits.
+    // When the user has their own Gemini API key we leave the base URL and
+    // GEMINI_API_KEY untouched so the CLI can talk directly to Google.
+    if (useGatewayz) {
+      geminiEnv.GOOGLE_GEMINI_BASE_URL = `${this.runtime.normalizedUrl}/api/proxy/gatewayz`;
+      geminiEnv.GEMINI_API_KEY = input.token;
+    } else if (useCredits) {
+      geminiEnv.GOOGLE_GEMINI_BASE_URL = `${this.runtime.normalizedUrl}/api/proxy/google`;
+      geminiEnv.GEMINI_API_KEY = input.token;
+    }
+
     return this.spawnAgentProcess({
       agentName: "Gemini",
       command: geminiCommand({
@@ -848,13 +864,7 @@ export class TerragonDaemon {
         model: input.model,
         sessionId: input.sessionId,
       }),
-      env: {
-        // Use Gatewayz proxy if enabled, otherwise use Google proxy
-        GOOGLE_GEMINI_BASE_URL: input.useGatewayz
-          ? `${this.runtime.normalizedUrl}/api/proxy/gatewayz`
-          : `${this.runtime.normalizedUrl}/api/proxy/google`,
-        GEMINI_API_KEY: input.token,
-      },
+      env: geminiEnv,
       input,
       onStdoutLine: (line) => {
         // Parse the line into ClaudeMessage format
