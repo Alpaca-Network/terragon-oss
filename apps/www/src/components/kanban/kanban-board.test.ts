@@ -279,6 +279,52 @@ describe("Kanban Board Desktop", () => {
     });
   });
 
+  describe("Column wheel scrolling", () => {
+    const getWheelBehavior = (
+      scrollWidth: number,
+      clientWidth: number,
+      deltaX: number,
+      deltaY: number,
+    ): { shouldScroll: boolean; shouldPreventDefault: boolean } => {
+      const hasHorizontalOverflow = scrollWidth > clientWidth + 1;
+      if (!hasHorizontalOverflow) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      if (absY <= absX) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+
+      return { shouldScroll: true, shouldPreventDefault: true };
+    };
+
+    it("should not hijack wheel when columns fit", () => {
+      const result = getWheelBehavior(600, 600, 0, 120);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should not hijack wheel when horizontal intent is stronger", () => {
+      const result = getWheelBehavior(900, 600, 120, 80);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should convert vertical wheel to horizontal scroll when overflowing", () => {
+      const result = getWheelBehavior(900, 600, 10, 140);
+      expect(result).toEqual({
+        shouldScroll: true,
+        shouldPreventDefault: true,
+      });
+    });
+  });
+
   describe("Code review status calculation", () => {
     // Helper function matching the component logic for calculating code review status
     const calculateCodeReviewStatus = (
