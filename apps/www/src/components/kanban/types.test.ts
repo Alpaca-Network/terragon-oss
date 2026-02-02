@@ -225,33 +225,33 @@ describe("Kanban Types", () => {
         });
         expect(getKanbanColumn(thread)).toBe("in_review");
       });
-    });
 
-    describe("Done column", () => {
-      it("should return done for complete status without PR", () => {
+      it("should return in_review for complete status without PR", () => {
         const thread = createMockThread({
           status: "complete",
           githubPRNumber: null,
           prStatus: null,
         });
-        expect(getKanbanColumn(thread)).toBe("done");
+        expect(getKanbanColumn(thread)).toBe("in_review");
       });
 
-      it("should return done for complete status with merged PR", () => {
-        const thread = createMockThread({
-          status: "complete",
-          githubPRNumber: 123,
-          prStatus: "merged",
-        });
-        expect(getKanbanColumn(thread)).toBe("done");
-      });
-
-      it("should return done for complete status with closed PR and successful checks", () => {
+      it("should return in_review for complete status with closed PR and successful checks", () => {
         const thread = createMockThread({
           status: "complete",
           githubPRNumber: 123,
           prStatus: "closed",
           prChecksStatus: "success",
+        });
+        expect(getKanbanColumn(thread)).toBe("in_review");
+      });
+    });
+
+    describe("Done column", () => {
+      it("should return done for complete status with merged PR", () => {
+        const thread = createMockThread({
+          status: "complete",
+          githubPRNumber: 123,
+          prStatus: "merged",
         });
         expect(getKanbanColumn(thread)).toBe("done");
       });
