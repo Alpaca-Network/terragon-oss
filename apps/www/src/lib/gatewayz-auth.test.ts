@@ -129,6 +129,34 @@ describe("gatewayz-auth", () => {
       expect(result?.keyHash).toBe("abc123def456");
     });
 
+    it("should successfully verify and decrypt a token with credits fields", () => {
+      const secret = "test-secret-key-for-testing";
+      const now = Math.floor(Date.now() / 1000);
+      const payload = {
+        gwUserId: 123,
+        email: "test@example.com",
+        username: "testuser",
+        tier: "pro",
+        credits: 5000, // $50 in cents
+        subscriptionAllowance: 2000, // $20 monthly allowance
+        purchasedCredits: 3000, // $30 purchased
+        keyHash: "abc123def456",
+        exp: now + 3600,
+        iat: now,
+      };
+
+      const token = createTestToken(payload, secret);
+      const result = verifyGatewayZToken(token);
+
+      expect(result).not.toBeNull();
+      expect(result?.gwUserId).toBe(123);
+      expect(result?.email).toBe("test@example.com");
+      expect(result?.tier).toBe("pro");
+      expect(result?.credits).toBe(5000);
+      expect(result?.subscriptionAllowance).toBe(2000);
+      expect(result?.purchasedCredits).toBe(3000);
+    });
+
     it("should handle different payload key orderings correctly", () => {
       // This test ensures the signature verification works regardless of JSON key order
       const secret = "test-secret-key-for-testing";

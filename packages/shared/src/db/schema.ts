@@ -68,6 +68,11 @@ export const user = pgTable("user", {
   gwUserId: text("gw_user_id"), // GatewayZ user ID for cross-platform identification
   gwTier: text("gw_tier"), // GatewayZ subscription tier (free/pro/max) - use GatewayZTier type when accessing
   gwTierUpdatedAt: timestamp("gw_tier_updated_at"), // Last time tier was synced from GatewayZ
+  // GatewayZ credits (in cents) - synced from auth token
+  gwCredits: integer("gw_credits"), // Total available credits
+  gwSubscriptionAllowance: integer("gw_subscription_allowance"), // Monthly subscription allowance
+  gwPurchasedCredits: integer("gw_purchased_credits"), // Purchased credits balance
+  gwCreditsUpdatedAt: timestamp("gw_credits_updated_at"), // Last time credits were synced
 });
 
 export const userStripePromotionCode = pgTable(

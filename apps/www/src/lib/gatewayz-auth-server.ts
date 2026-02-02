@@ -53,6 +53,11 @@ export async function findOrCreateUserFromGatewayZ(
         gwUserId: String(gwSession.gwUserId),
         gwTier,
         gwTierUpdatedAt: now,
+        // Sync GatewayZ credits (in cents)
+        gwCredits: gwSession.credits,
+        gwSubscriptionAllowance: gwSession.subscriptionAllowance,
+        gwPurchasedCredits: gwSession.purchasedCredits,
+        gwCreditsUpdatedAt: now,
         updatedAt: now,
       })
       .where(eq(schema.user.id, firstUser.id));
@@ -72,6 +77,11 @@ export async function findOrCreateUserFromGatewayZ(
     gwUserId: String(gwSession.gwUserId),
     gwTier,
     gwTierUpdatedAt: now,
+    // Sync GatewayZ credits (in cents)
+    gwCredits: gwSession.credits,
+    gwSubscriptionAllowance: gwSession.subscriptionAllowance,
+    gwPurchasedCredits: gwSession.purchasedCredits,
+    gwCreditsUpdatedAt: now,
   });
 
   return { userId: newUserId, isNewUser: true };

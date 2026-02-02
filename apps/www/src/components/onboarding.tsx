@@ -86,6 +86,23 @@ export function Onboarding({ forceIsDone }: { forceIsDone?: boolean }) {
         refetchUserCredentials(),
         refetchUserFlags(),
       ]);
+
+      // Check if in embed mode (GatewayZ iframe)
+      const isEmbedMode =
+        typeof window !== "undefined" &&
+        sessionStorage.getItem("gw_embed_mode") === "true";
+
+      if (isEmbedMode && window.parent !== window) {
+        // Notify parent (GatewayZ) that setup is complete
+        window.parent.postMessage(
+          {
+            type: "TERRAGON_SETUP_COMPLETE",
+            success: true,
+          },
+          "*",
+        );
+      }
+
       router.push("/dashboard");
       toast.success("Welcome to Terragon!");
     } catch (error) {
