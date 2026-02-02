@@ -757,7 +757,18 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* Close button */}
+              {/* New Task and Close buttons */}
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setNewTaskDialogOpen(true)}
+                title="Create new task"
+                aria-label="Create new task"
+              >
+                <SquarePen className="h-4 w-4" />
+                <span className="text-xs">New Task</span>
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -1110,7 +1121,18 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* Close button */}
+              {/* New Task and Close buttons */}
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setNewTaskDialogOpen(true)}
+                title="Create new task"
+                aria-label="Create new task"
+              >
+                <SquarePen className="h-4 w-4" />
+                <span className="text-xs">New Task</span>
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

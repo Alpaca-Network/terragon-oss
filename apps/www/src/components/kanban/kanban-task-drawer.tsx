@@ -17,6 +17,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  SquarePen,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -78,11 +79,13 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   threadId,
   open,
   onClose,
+  onNewTaskClick,
   initialTab = "feed",
 }: {
   threadId: string | null;
   open: boolean;
   onClose: () => void;
+  onNewTaskClick?: () => void;
   initialTab?: TabType;
 }) {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
@@ -491,6 +494,19 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                 <Maximize2 className="h-4 w-4" />
               )}
             </Button>
+            {onNewTaskClick && (
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={onNewTaskClick}
+                title="Create new task"
+                aria-label="Create new task"
+              >
+                <SquarePen className="h-4 w-4" />
+                <span className="text-xs">New Task</span>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
