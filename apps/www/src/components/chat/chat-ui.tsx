@@ -382,9 +382,14 @@ function ChatPromptBox({
   }, []);
 
   const lastUsedModel = useMemo(() => {
+    // Prefer the lastUsedModel from the thread chat (stored in DB)
+    // Fall back to extracting from messages if not available
+    if (threadChat.lastUsedModel) {
+      return threadChat.lastUsedModel;
+    }
     const dbMessages = (threadChat.messages as DBMessage[]) ?? [];
     return getLastUserMessageModel(dbMessages);
-  }, [threadChat.messages]);
+  }, [threadChat.lastUsedModel, threadChat.messages]);
 
   const updateThreadChat = useOptimisticUpdateThreadChat({
     threadId,

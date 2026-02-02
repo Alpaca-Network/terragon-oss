@@ -8,13 +8,14 @@ import {
   UIUserMessage,
   UIGitDiffPart,
 } from "@terragon/shared";
-import { AIAgent } from "@terragon/agent/types";
+import { AIAgent, AIModel } from "@terragon/agent/types";
 import { MessagePart } from "./message-part";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { MessageToolbar } from "./chat-message-toolbar";
 import { ImageLightbox } from "@/components/shared/image-lightbox";
 import { GitDiffPart } from "./git-diff-part";
+import { getModelDisplayName } from "@terragon/agent/utils";
 
 type UIUserOrAgentPart =
   | UIAgentMessage["parts"][number]
@@ -189,6 +190,9 @@ export const ChatMessage = memo(function ChatMessage({
     isAgentWorking,
   });
   const lastGroupIndex = groups.length - 1;
+  const showModelBadge =
+    message.role === "user" && "model" in message && message.model;
+
   return (
     <div
       style={{ overflowAnchor: "none" }}
@@ -237,6 +241,9 @@ export const ChatMessage = memo(function ChatMessage({
             </React.Fragment>
           );
         })}
+        {showModelBadge && "model" in message && message.model && (
+          <ModelBadge model={message.model} />
+        )}
       </div>
     </div>
   );
@@ -441,6 +448,16 @@ function CollapsibleAgentActivityGroup({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function ModelBadge({ model }: { model: AIModel }) {
+  const { mainName, subName } = getModelDisplayName(model);
+  return (
+    <div className="mt-1 text-[10px] text-muted-foreground/60 font-mono">
+      {mainName}
+      {subName && ` ${subName}`}
     </div>
   );
 }

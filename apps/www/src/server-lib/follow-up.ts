@@ -96,6 +96,18 @@ export async function followUpInternal({
         agentVersion: threadChat.agentVersion,
       }),
   };
+
+  // Store the last used model in the thread chat
+  await updateThreadChat({
+    db,
+    userId,
+    threadId,
+    threadChatId: threadChat.id,
+    updates: {
+      lastUsedModel: messageWithModel.model,
+    },
+  });
+
   const thread = await getThreadMinimal({ db, threadId, userId });
   waitUntil(
     startAgentMessage({
