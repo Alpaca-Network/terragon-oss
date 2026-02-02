@@ -42,6 +42,7 @@ import { TaskViewToggle } from "@/components/task-view-toggle";
 import { usePlatform } from "@/hooks/use-platform";
 import { KanbanBoardMobile } from "./kanban-board-mobile";
 import { QuickAddBacklogDialog } from "./quick-add-backlog";
+import { KanbanSearchBar } from "./kanban-search-bar";
 
 // Dynamically import ChatUI to avoid SSR issues
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
@@ -117,6 +118,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const [isFullScreenTask, setIsFullScreenTask] = useState(false);
   const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -249,6 +251,21 @@ export const KanbanBoard = memo(function KanbanBoard({
     [backlogThreads],
   );
 
+  // Filter function for search query
+  const matchesSearchQuery = useCallback(
+    (thread: ThreadInfo) => {
+      if (!searchQuery.trim()) return true;
+      const normalizedQuery = searchQuery.toLowerCase().trim();
+      const threadName = thread.name?.toLowerCase() || "";
+      const repoName = thread.githubRepoFullName?.toLowerCase() || "";
+      return (
+        threadName.includes(normalizedQuery) ||
+        repoName.includes(normalizedQuery)
+      );
+    },
+    [searchQuery],
+  );
+
   // Group threads by Kanban column
   const columnThreads = useMemo(() => {
     const groups: Record<KanbanColumnType, ThreadInfo[]> = {
@@ -260,6 +277,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     };
 
     for (const thread of threads) {
+      if (!matchesSearchQuery(thread)) continue;
       const column = getKanbanColumn(thread);
       groups[column].push(thread);
     }
@@ -267,7 +285,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     // Add backlog threads to the Backlog column
     for (const thread of backlogThreads) {
       // Avoid duplicates (threads that might be in both queries)
-      if (!threadIds.has(thread.id)) {
+      if (!threadIds.has(thread.id) && matchesSearchQuery(thread)) {
         groups.backlog.push(thread);
       }
     }
@@ -275,6 +293,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     // Add archived threads to Done column if toggle is enabled
     if (showArchivedInDone) {
       for (const thread of archivedThreads) {
+        if (!matchesSearchQuery(thread)) continue;
         const column = getKanbanColumn(thread);
         // Only add archived threads that would be in the Done column
         if (column === "done") {
@@ -292,7 +311,14 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     return groups;
-  }, [threads, backlogThreads, threadIds, archivedThreads, showArchivedInDone]);
+  }, [
+    threads,
+    backlogThreads,
+    threadIds,
+    archivedThreads,
+    showArchivedInDone,
+    matchesSearchQuery,
+  ]);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -512,28 +538,39 @@ export const KanbanBoard = memo(function KanbanBoard({
       >
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Single column in full-screen mode */}
-          <div className="w-full max-w-[400px] min-h-0 overflow-hidden p-4 border-r">
-            <KanbanColumn
-              column={currentColumn.id}
-              threads={columnThreads[currentColumn.id]}
-              selectedThreadId={selectedThreadId}
-              onThreadSelect={handleThreadSelect}
-              onThreadCommentsClick={handleThreadCommentsClick}
-              showArchivedToggle={
-                currentColumn.id === "done" && !queryFilters.archived
-              }
-              showArchived={showArchivedInDone}
-              onToggleArchived={() =>
-                setShowArchivedInDone(!showArchivedInDone)
-              }
-              showNavigation={true}
-              canNavigateLeft={fullScreenColumnIndex > 0}
-              canNavigateRight={
-                fullScreenColumnIndex < KANBAN_COLUMNS.length - 1
-              }
-              onNavigateLeft={() => navigateColumn("left")}
-              onNavigateRight={() => navigateColumn("right")}
-            />
+          <div className="w-full max-w-[400px] min-h-0 overflow-hidden border-r border-border flex flex-col">
+            {/* Search bar at top of column */}
+            <div className="p-3 border-b border-border flex-shrink-0">
+              <KanbanSearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search tasks..."
+                compact
+              />
+            </div>
+            <div className="flex-1 min-h-0 p-4 pt-2">
+              <KanbanColumn
+                column={currentColumn.id}
+                threads={columnThreads[currentColumn.id]}
+                selectedThreadId={selectedThreadId}
+                onThreadSelect={handleThreadSelect}
+                onThreadCommentsClick={handleThreadCommentsClick}
+                showArchivedToggle={
+                  currentColumn.id === "done" && !queryFilters.archived
+                }
+                showArchived={showArchivedInDone}
+                onToggleArchived={() =>
+                  setShowArchivedInDone(!showArchivedInDone)
+                }
+                showNavigation={true}
+                canNavigateLeft={fullScreenColumnIndex > 0}
+                canNavigateRight={
+                  fullScreenColumnIndex < KANBAN_COLUMNS.length - 1
+                }
+                onNavigateLeft={() => navigateColumn("left")}
+                onNavigateRight={() => navigateColumn("right")}
+              />
+            </div>
           </div>
 
           {/* Task detail panel - full width */}
@@ -636,10 +673,17 @@ export const KanbanBoard = memo(function KanbanBoard({
     >
       {/* Header with view toggle and new task button */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
             Kanban Board
           </h2>
+          <KanbanSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search tasks..."
+            compact
+            className="w-48"
+          />
         </div>
         <div className="flex items-center gap-2">
           <TaskViewToggle />
