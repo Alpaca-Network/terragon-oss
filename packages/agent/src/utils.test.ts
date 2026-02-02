@@ -9,6 +9,7 @@ import {
   getUnderlyingAgentForGatewayzModel,
   getUnderlyingModelForGatewayz,
   normalizedModelForDaemon,
+  isConnectedCredentialsSupported,
 } from "./utils";
 import { AIModel, AIAgent } from "./types";
 import { AGENT_VERSION } from "./versions";
@@ -353,6 +354,20 @@ describe("model-to-agent", () => {
           "terry/kimi-k2",
         );
       });
+    });
+  });
+
+  describe("isConnectedCredentialsSupported", () => {
+    it("should return true for agents that support connected credentials", () => {
+      expect(isConnectedCredentialsSupported("claudeCode")).toBe(true);
+      expect(isConnectedCredentialsSupported("codex")).toBe(true);
+      expect(isConnectedCredentialsSupported("amp")).toBe(true);
+      expect(isConnectedCredentialsSupported("gemini")).toBe(true);
+    });
+
+    it("should return false for agents that do not support connected credentials", () => {
+      expect(isConnectedCredentialsSupported("gatewayz")).toBe(false);
+      expect(isConnectedCredentialsSupported("opencode")).toBe(false);
     });
   });
 });
