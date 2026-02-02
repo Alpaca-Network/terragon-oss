@@ -17,8 +17,8 @@ describe("Header branding configuration", () => {
     });
 
     it("should point to documentation", () => {
-      // publicDocsUrl() should return docs URL
-      const docsUrl = "https://docs.terragonlabs.com/docs";
+      // publicDocsUrl() should return base URL without /docs path
+      const docsUrl = "https://docs.terragonlabs.com";
       expect(docsUrl).toContain("docs.terragonlabs.com");
     });
   });

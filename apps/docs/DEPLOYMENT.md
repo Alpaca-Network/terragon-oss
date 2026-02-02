@@ -11,15 +11,16 @@ The standalone documentation site (`apps/docs`) is configured to be deployed sep
 1. **`vercel.json`** - Vercel deployment configuration
 
    - Specifies build command and output directory
-   - Uses default Next.js static export settings
+   - Uses standard Next.js build (not static export) for server-side generation
 
 2. **`.env.example`** - Updated with deployment guidance
 
    - `NEXT_PUBLIC_APP_URL` should be set to `https://docs.terragonlabs.com` in production
 
 3. **`packages/env/src/next-public.ts`** - Updated `publicDocsUrl()` function
-   - Development: `http://localhost:3001/docs` (docs run on port 3001)
-   - Production: `https://docs.terragonlabs.com/docs`
+   - Returns base URL only (call sites append `/docs` or specific paths)
+   - Development: `http://localhost:3001` (docs run on port 3001)
+   - Production: `https://docs.terragonlabs.com`
 
 ## Deployment Steps
 

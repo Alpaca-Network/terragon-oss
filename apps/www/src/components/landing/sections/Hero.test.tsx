@@ -64,7 +64,7 @@ describe("Hero branding configuration", () => {
       },
       secondaryButton: {
         text: "Learn more",
-        href: "https://docs.terragonlabs.com/docs",
+        href: "https://docs.terragonlabs.com",
         variant: "outline",
       },
     };

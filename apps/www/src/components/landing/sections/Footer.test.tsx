@@ -72,7 +72,7 @@ describe("Footer branding configuration", () => {
 
   describe("resources links", () => {
     const resourcesLinks = [
-      { name: "Documentation", href: "https://docs.terragonlabs.com/docs" },
+      { name: "Documentation", href: "https://docs.terragonlabs.com" },
     ];
 
     it("should have Documentation link pointing to docs", () => {

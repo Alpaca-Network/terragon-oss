@@ -49,7 +49,7 @@ export function Header() {
             Pricing
           </a>
           <a
-            href={publicDocsUrl()}
+            href={`${publicDocsUrl()}/docs`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground transition-colors font-medium"
@@ -106,7 +106,7 @@ export function Header() {
                 Pricing
               </a>
               <a
-                href={publicDocsUrl()}
+                href={`${publicDocsUrl()}/docs`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

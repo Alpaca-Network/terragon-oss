@@ -23,7 +23,7 @@ export function DocsButton({ location }: DocsButtonProps) {
       }}
       asChild
     >
-      <Link href={publicDocsUrl()} target="_blank">
+      <Link href={`${publicDocsUrl()}/docs`} target="_blank">
         <BookText className="w-4 h-4" />
         <span className="hidden sm:block">Explore documentation</span>
         <span className="block sm:hidden">Docs</span>

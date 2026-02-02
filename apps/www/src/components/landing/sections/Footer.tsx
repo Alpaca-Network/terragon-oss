@@ -37,7 +37,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href={publicDocsUrl()}
+                  href={`${publicDocsUrl()}/docs`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
