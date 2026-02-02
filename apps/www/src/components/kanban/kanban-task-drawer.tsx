@@ -406,7 +406,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                     <GitPullRequest className="h-3.5 w-3.5" />
                     <span className="text-xs font-medium">Comments</span>
                     {commentCount > 0 && (
-                      <span className="px-1 py-0.5 text-[10px] rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                      <span className="px-1 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground">
                         {commentCount}
                       </span>
                     )}
@@ -425,7 +425,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     <span className="text-xs font-medium">Checks</span>
                     {failingCheckCount > 0 && (
-                      <span className="px-1 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                      <span className="px-1 py-0.5 text-[10px] rounded-full bg-destructive/10 text-destructive-foreground">
                         {failingCheckCount}
                       </span>
                     )}
@@ -444,7 +444,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                     <BarChart3 className="h-3.5 w-3.5" />
                     <span className="text-xs font-medium">Coverage</span>
                     {hasCoverageCheck && !coverageCheckPassed && (
-                      <span className="size-2 rounded-full bg-red-500" />
+                      <span className="size-2 rounded-full bg-destructive" />
                     )}
                   </Button>
                   <Button
@@ -461,7 +461,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                     <GitMerge className="h-3.5 w-3.5" />
                     <span className="text-xs font-medium">Merge</span>
                     {hasConflicts && (
-                      <span className="size-2 rounded-full bg-red-500" />
+                      <span className="size-2 rounded-full bg-destructive" />
                     )}
                   </Button>
                 </>

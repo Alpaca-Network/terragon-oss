@@ -22,10 +22,10 @@ import {
   CheckCircle2,
   BarChart3,
   GitMerge,
-  ExternalLink,
   AlertCircle,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
+import { PRHeader } from "./pr-header";
 import {
   ThreadListFilters,
   useInfiniteThreadList,
@@ -37,7 +37,7 @@ import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
@@ -131,28 +131,6 @@ const MergeStatusSection = dynamic(
         <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
       </div>
     ),
-  },
-);
-
-const MergeButton = dynamic(
-  () =>
-    import("@/components/chat/code-review/merge-button").then(
-      (mod) => mod.MergeButton,
-    ),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-);
-
-const AddressFeedbackDialog = dynamic(
-  () =>
-    import("@/components/chat/code-review/address-feedback-dialog").then(
-      (mod) => mod.AddressFeedbackDialog,
-    ),
-  {
-    ssr: false,
-    loading: () => null,
   },
 );
 
@@ -443,6 +421,9 @@ export const KanbanBoard = memo(function KanbanBoard({
     enabled: !!selectedThreadId,
   });
 
+  // Query client for invalidating PR feedback
+  const queryClient = useQueryClient();
+
   // Fetch PR feedback for the PR-related tabs
   const { data: prFeedbackData } = useServerActionQuery({
     queryKey: ["pr-feedback-kanban", selectedThreadId],
@@ -451,6 +432,13 @@ export const KanbanBoard = memo(function KanbanBoard({
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // Refetch every minute
   });
+
+  // Callback to refresh PR feedback after merge
+  const handlePRMerged = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ["pr-feedback-kanban", selectedThreadId],
+    });
+  }, [queryClient, selectedThreadId]);
 
   const handleThreadSelect = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
@@ -617,39 +605,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                 activeTab === "checks" ||
                 activeTab === "coverage" ||
                 activeTab === "merge") && (
-                <div className="border-b px-4 py-3 space-y-2 flex-shrink-0">
-                  <div className="flex items-center justify-between gap-2 overflow-hidden">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <GitMerge className="size-4 flex-shrink-0" />
-                      <a
-                        href={prFeedbackData.feedback.prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline flex items-center gap-1 shrink-0"
-                      >
-                        #{prFeedbackData.feedback.prNumber}
-                        <ExternalLink className="size-3" />
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <AddressFeedbackDialog
-                        feedback={prFeedbackData.feedback}
-                        thread={selectedThread}
-                      />
-                      <MergeButton
-                        repoFullName={prFeedbackData.feedback.repoFullName}
-                        prNumber={prFeedbackData.feedback.prNumber}
-                        prTitle={prFeedbackData.feedback.prTitle}
-                        isMergeable={prFeedbackData.feedback.isMergeable}
-                        threadId={selectedThread.id}
-                        onMerged={() => {}}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {prFeedbackData.feedback.prTitle}
-                  </div>
-                </div>
+                <PRHeader
+                  feedback={prFeedbackData.feedback}
+                  thread={selectedThread}
+                  onMerged={handlePRMerged}
+                />
               )}
 
             {/* Panel header with tabs and view toggle */}
@@ -692,7 +652,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {prFeedbackData?.feedback &&
                     createFeedbackSummary(prFeedbackData.feedback)
                       .unresolvedCommentCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground">
                         {
                           createFeedbackSummary(prFeedbackData.feedback)
                             .unresolvedCommentCount
@@ -717,7 +677,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {prFeedbackData?.feedback &&
                     createFeedbackSummary(prFeedbackData.feedback)
                       .failingCheckCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive-foreground">
                         {
                           createFeedbackSummary(prFeedbackData.feedback)
                             .failingCheckCount
@@ -744,7 +704,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                       .hasCoverageCheck &&
                     !createFeedbackSummary(prFeedbackData.feedback)
                       .coverageCheckPassed && (
-                      <span className="ml-1 size-2 rounded-full bg-red-500" />
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
                     )}
                 </Button>
                 <Button
@@ -764,7 +724,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {prFeedbackData?.feedback &&
                     createFeedbackSummary(prFeedbackData.feedback)
                       .hasConflicts && (
-                      <span className="ml-1 size-2 rounded-full bg-red-500" />
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
                     )}
                 </Button>
               </div>
@@ -1003,39 +963,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                 activeTab === "checks" ||
                 activeTab === "coverage" ||
                 activeTab === "merge") && (
-                <div className="border-b px-4 py-3 space-y-2 flex-shrink-0">
-                  <div className="flex items-center justify-between gap-2 overflow-hidden">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <GitMerge className="size-4 flex-shrink-0" />
-                      <a
-                        href={prFeedbackData.feedback.prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline flex items-center gap-1 shrink-0"
-                      >
-                        #{prFeedbackData.feedback.prNumber}
-                        <ExternalLink className="size-3" />
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <AddressFeedbackDialog
-                        feedback={prFeedbackData.feedback}
-                        thread={selectedThread}
-                      />
-                      <MergeButton
-                        repoFullName={prFeedbackData.feedback.repoFullName}
-                        prNumber={prFeedbackData.feedback.prNumber}
-                        prTitle={prFeedbackData.feedback.prTitle}
-                        isMergeable={prFeedbackData.feedback.isMergeable}
-                        threadId={selectedThread.id}
-                        onMerged={() => {}}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {prFeedbackData.feedback.prTitle}
-                  </div>
-                </div>
+                <PRHeader
+                  feedback={prFeedbackData.feedback}
+                  thread={selectedThread}
+                  onMerged={handlePRMerged}
+                />
               )}
 
             {/* Panel header with tabs and view toggle */}
@@ -1078,7 +1010,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {prFeedbackData?.feedback &&
                     createFeedbackSummary(prFeedbackData.feedback)
                       .unresolvedCommentCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-accent/10 text-accent-foreground">
                         {
                           createFeedbackSummary(prFeedbackData.feedback)
                             .unresolvedCommentCount
@@ -1103,7 +1035,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {prFeedbackData?.feedback &&
                     createFeedbackSummary(prFeedbackData.feedback)
                       .failingCheckCount > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive-foreground">
                         {
                           createFeedbackSummary(prFeedbackData.feedback)
                             .failingCheckCount
@@ -1130,7 +1062,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                       .hasCoverageCheck &&
                     !createFeedbackSummary(prFeedbackData.feedback)
                       .coverageCheckPassed && (
-                      <span className="ml-1 size-2 rounded-full bg-red-500" />
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
                     )}
                 </Button>
                 <Button
@@ -1150,7 +1082,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   {prFeedbackData?.feedback &&
                     createFeedbackSummary(prFeedbackData.feedback)
                       .hasConflicts && (
-                      <span className="ml-1 size-2 rounded-full bg-red-500" />
+                      <span className="ml-1 size-2 rounded-full bg-destructive" />
                     )}
                 </Button>
               </div>
