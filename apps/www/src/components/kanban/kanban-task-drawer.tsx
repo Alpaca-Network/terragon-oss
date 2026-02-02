@@ -10,7 +10,6 @@ import {
   Maximize2,
   Minimize2,
   MessageCircle,
-  AlertCircle,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
-import { PRCommentsSection } from "@/components/chat/code-review/pr-comments-section";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 
 const FuturisticLoader = () => (
@@ -47,7 +45,18 @@ const GitDiffView = dynamic(
   },
 );
 
-type TabType = "feed" | "changes" | "comments";
+const CodeReviewView = dynamic(
+  () =>
+    import("@/components/chat/code-review-view").then(
+      (mod) => mod.CodeReviewView,
+    ),
+  {
+    ssr: false,
+    loading: FuturisticLoader,
+  },
+);
+
+type TabType = "feed" | "changes" | "code-review";
 
 // Snap points: 80% and 100% of viewport height
 const SNAP_POINTS = [0.8, 1] as const;
@@ -75,12 +84,8 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
 
   const hasPR = thread?.githubPRNumber != null;
 
-  // Fetch PR feedback data when thread has a PR
-  const {
-    data: prFeedbackData,
-    isLoading: isPRFeedbackLoading,
-    isError: isPRFeedbackError,
-  } = useServerActionQuery({
+  // Fetch PR feedback data to show badge count on tab
+  const { data: prFeedbackData } = useServerActionQuery({
     queryKey: ["pr-feedback", threadId],
     queryFn: () => getPRFeedback({ threadId: threadId! }),
     enabled: hasPR && !!threadId,
@@ -91,6 +96,8 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   const feedback = prFeedbackData?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
   const commentCount = summary?.unresolvedCommentCount ?? 0;
+  const failingCheckCount = summary?.failingCheckCount ?? 0;
+  const totalIssues = commentCount + failingCheckCount;
 
   // Clear any pending reset timeout on unmount or when drawer opens
   useEffect(() => {
@@ -190,21 +197,21 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               <span className="text-xs font-medium">Changes</span>
             </Button>
             <Button
-              variant={activeTab === "comments" ? "secondary" : "ghost"}
+              variant={activeTab === "code-review" ? "secondary" : "ghost"}
               size="sm"
               className={cn(
                 "h-9 px-3.5 gap-2 rounded-lg tap-highlight transition-all duration-200",
-                activeTab === "comments" &&
+                activeTab === "code-review" &&
                   "shadow-[0_0_12px_rgba(99,102,241,0.15)]",
               )}
-              onClick={() => setActiveTab("comments")}
+              onClick={() => setActiveTab("code-review")}
               disabled={!hasPR}
             >
               <MessageCircle className="h-4 w-4" />
               <span className="text-xs font-medium">Code Review</span>
-              {commentCount > 0 && (
+              {totalIssues > 0 && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
-                  {commentCount}
+                  {totalIssues}
                 </span>
               )}
             </Button>
@@ -246,26 +253,9 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               <GitDiffView thread={thread} />
             </div>
           )}
-          {activeTab === "comments" && (
-            <div className="h-full overflow-auto animate-page-enter futuristic-scrollbar p-4">
-              {isPRFeedbackLoading ? (
-                <FuturisticLoader />
-              ) : isPRFeedbackError ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <AlertCircle className="size-8 mb-2 text-destructive opacity-70" />
-                  <p className="text-sm">Failed to load PR comments</p>
-                </div>
-              ) : feedback ? (
-                <PRCommentsSection
-                  unresolved={feedback.comments.unresolved}
-                  resolved={feedback.comments.resolved}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <MessageCircle className="size-8 mb-2 opacity-50" />
-                  <p className="text-sm">No PR associated with this task</p>
-                </div>
-              )}
+          {thread && activeTab === "code-review" && (
+            <div className="h-full overflow-auto animate-page-enter futuristic-scrollbar">
+              <CodeReviewView thread={thread} />
             </div>
           )}
         </div>

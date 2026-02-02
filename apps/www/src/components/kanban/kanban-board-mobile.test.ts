@@ -80,7 +80,7 @@ describe("Kanban Mobile Components", () => {
     const SNAP_POINTS = [0.8, 1] as const;
     const DEFAULT_SNAP_POINT = 0.8;
     const DEFAULT_TAB = "feed";
-    const AVAILABLE_TABS = ["feed", "changes", "comments"];
+    const AVAILABLE_TABS = ["feed", "changes", "code-review"];
 
     it("should have snap points at 80% and 100% for mobile", () => {
       expect(SNAP_POINTS).toContain(0.8);
@@ -107,11 +107,11 @@ describe("Kanban Mobile Components", () => {
       expect(DEFAULT_TAB).toBe("feed");
     });
 
-    it("should have feed, changes, and comments tabs available", () => {
+    it("should have feed, changes, and code-review tabs available", () => {
       expect(AVAILABLE_TABS).toContain("feed");
       expect(AVAILABLE_TABS).toContain("changes");
-      // Comments tab is enabled when thread has a PR associated
-      expect(AVAILABLE_TABS).toContain("comments");
+      // Code review tab is enabled when thread has a PR associated
+      expect(AVAILABLE_TABS).toContain("code-review");
     });
   });
 

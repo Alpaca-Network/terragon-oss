@@ -81,7 +81,7 @@ const CodeReviewView = dynamic(
   },
 );
 
-type TaskPanelTab = "feed" | "changes" | "comments";
+type TaskPanelTab = "feed" | "changes" | "code-review";
 
 const TASK_PANEL_MIN_WIDTH = 500;
 const TASK_PANEL_MAX_WIDTH_PERCENT = 75;
@@ -374,7 +374,7 @@ export const KanbanBoard = memo(function KanbanBoard({
 
   const handleThreadCommentsClick = useCallback((thread: ThreadInfo) => {
     setSelectedThreadId(thread.id);
-    setActiveTab("comments"); // Open the comments tab directly
+    setActiveTab("code-review"); // Open the code review tab directly
   }, []);
 
   const handleCloseDetail = useCallback(() => {
@@ -528,10 +528,10 @@ export const KanbanBoard = memo(function KanbanBoard({
                   <span className="text-xs">Files Changed</span>
                 </Button>
                 <Button
-                  variant={activeTab === "comments" ? "secondary" : "ghost"}
+                  variant={activeTab === "code-review" ? "secondary" : "ghost"}
                   size="sm"
                   className="h-8 px-3 gap-1.5"
-                  onClick={() => setActiveTab("comments")}
+                  onClick={() => setActiveTab("code-review")}
                   disabled={!selectedThread?.githubPRNumber}
                   title={
                     !selectedThread?.githubPRNumber
@@ -540,7 +540,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   }
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
-                  <span className="text-xs">Comments</span>
+                  <span className="text-xs">Code Review</span>
                 </Button>
               </div>
 
@@ -567,7 +567,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   <GitDiffView thread={selectedThread} />
                 </div>
               )}
-              {activeTab === "comments" && selectedThread && (
+              {activeTab === "code-review" && selectedThread && (
                 <div className="h-full overflow-auto">
                   <CodeReviewView thread={selectedThread} />
                 </div>
@@ -737,10 +737,10 @@ export const KanbanBoard = memo(function KanbanBoard({
                   <span className="text-xs">Files Changed</span>
                 </Button>
                 <Button
-                  variant={activeTab === "comments" ? "secondary" : "ghost"}
+                  variant={activeTab === "code-review" ? "secondary" : "ghost"}
                   size="sm"
                   className="h-8 px-3 gap-1.5"
-                  onClick={() => setActiveTab("comments")}
+                  onClick={() => setActiveTab("code-review")}
                   disabled={!selectedThread?.githubPRNumber}
                   title={
                     !selectedThread?.githubPRNumber
@@ -749,7 +749,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   }
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
-                  <span className="text-xs">Comments</span>
+                  <span className="text-xs">Code Review</span>
                 </Button>
               </div>
 
@@ -776,7 +776,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                   <GitDiffView thread={selectedThread} />
                 </div>
               )}
-              {activeTab === "comments" && selectedThread && (
+              {activeTab === "code-review" && selectedThread && (
                 <div className="h-full overflow-auto">
                   <CodeReviewView thread={selectedThread} />
                 </div>
