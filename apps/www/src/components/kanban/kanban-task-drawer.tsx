@@ -9,8 +9,9 @@ import {
   GitCommit,
   Maximize2,
   Minimize2,
-  MessageCircle,
+  GitPullRequest,
   AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -92,7 +93,14 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
 
   const feedback = prFeedbackData?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
-  const commentCount = summary?.unresolvedCommentCount ?? 0;
+
+  // Calculate total unresolved items (comments + failing checks + conflicts)
+  const unresolvedCount = summary
+    ? summary.unresolvedCommentCount +
+      summary.failingCheckCount +
+      (summary.hasConflicts ? 1 : 0)
+    : 0;
+  const isAllPassing = summary && unresolvedCount === 0;
 
   // Sync activeTab with initialTab when drawer opens
   useEffect(() => {
@@ -209,13 +217,17 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
               onClick={() => setActiveTab("comments")}
               disabled={!hasPR}
             >
-              <MessageCircle className="h-4 w-4" />
+              <GitPullRequest className="h-4 w-4" />
               <span className="text-xs font-medium">Code Review</span>
-              {commentCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
-                  {commentCount}
-                </span>
-              )}
+              {hasPR &&
+                summary &&
+                (isAllPassing ? (
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                ) : unresolvedCount > 0 ? (
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent/10 text-accent-foreground border border-accent/20">
+                    {unresolvedCount}
+                  </span>
+                ) : null)}
             </Button>
           </div>
           <div className="flex items-center gap-1">
@@ -271,7 +283,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <MessageCircle className="size-8 mb-2 opacity-50" />
+                  <GitPullRequest className="size-8 mb-2 opacity-50" />
                   <p className="text-sm">No PR associated with this task</p>
                 </div>
               )}
