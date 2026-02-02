@@ -4,6 +4,7 @@ import * as gatewayZRoute from "./[[...path]]/route";
 import { logGatewayZUsage } from "./log-gatewayz-usage";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -30,6 +31,10 @@ vi.mock("@terragon/env/apps-www", () => ({
 
 vi.mock("./log-gatewayz-usage", () => ({
   logGatewayZUsage: vi.fn(),
+}));
+
+vi.mock("@/server-lib/proxy-credit-check", () => ({
+  checkProxyCredits: vi.fn(),
 }));
 
 const encoder = new TextEncoder();
@@ -80,6 +85,7 @@ describe("Gatewayz proxy route", () => {
   const verifyApiKeyMock = vi.mocked(auth.api.verifyApiKey);
   const dbSelectMock = vi.mocked(db.select);
   const logUsageMock = vi.mocked(logGatewayZUsage);
+  const creditCheckMock = vi.mocked(checkProxyCredits);
   const { POST } = gatewayZRoute;
 
   beforeEach(async () => {
@@ -98,6 +104,11 @@ describe("Gatewayz proxy route", () => {
         }),
       }),
     } as any);
+    creditCheckMock.mockResolvedValue({
+      allowed: true,
+      userId: "user-123",
+      balanceCents: 1000,
+    });
     logUsageMock.mockReset();
     logUsageMock.mockImplementation(async () => {});
   });
@@ -182,13 +193,44 @@ describe("Gatewayz proxy route", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const request = createRequest({
-      body: { model: VALID_MODEL, messages: [] },
+      body: { model: "claude-3-5-sonnet-20241022", messages: [] },
     });
     const response = await POST(request, { params: {} });
 
     expect(response.status).toBe(402);
     expect(await response.text()).toContain("Gatewayz subscription required");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows free-tier users to use OpenCode models with credits", async () => {
+    dbSelectMock.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ gwTier: "free" }]),
+        }),
+      }),
+    } as any);
+
+    creditCheckMock.mockResolvedValueOnce({
+      allowed: true,
+      userId: "user-123",
+      balanceCents: 1000,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({}), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = createRequest({
+      body: { model: "glm-4.7", messages: [] },
+    });
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
   });
 
   it("allows max tier users", async () => {

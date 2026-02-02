@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logGatewayZUsage } from "../log-gatewayz-usage";
 import { waitUntil } from "@vercel/functions";
 import { validateProxyRequestModel } from "@/server-lib/proxy-model-validation";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 import * as schema from "@terragon/shared/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -17,6 +18,7 @@ type HandlerArgs = { params: { path?: string[] } };
 type AuthContext = {
   userId: string;
   gwTier: "free" | "pro" | "max";
+  bodyBuffer?: ArrayBuffer | null;
 };
 
 type StreamEvent = {
@@ -308,6 +310,39 @@ async function logUsageFromEventStream({
   }
 }
 
+function parseModelFromBodyBuffer(
+  bodyBuffer?: ArrayBuffer | null,
+): string | null {
+  if (!bodyBuffer || bodyBuffer.byteLength === 0) {
+    return null;
+  }
+  try {
+    const bodyText = new TextDecoder().decode(bodyBuffer);
+    if (!bodyText) {
+      return null;
+    }
+    const parsed = JSON.parse(bodyText) as { model?: string | null };
+    const model = parsed?.model;
+    return typeof model === "string" ? model.trim() : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function isOpencodeGatewayzModel(model: string): boolean {
+  const normalized = model.toLowerCase();
+  return (
+    normalized.startsWith("glm-4.") ||
+    normalized.startsWith("qwen3-coder") ||
+    normalized.startsWith("kimi-k2") ||
+    normalized.startsWith("grok-code") ||
+    normalized.startsWith("gemini-2.5-pro") ||
+    normalized.startsWith("gemini-3-pro") ||
+    normalized.startsWith("gpt-5") ||
+    normalized.startsWith("claude-sonnet")
+  );
+}
+
 async function proxyRequest(
   request: NextRequest,
   args: HandlerArgs,
@@ -319,6 +354,7 @@ async function proxyRequest(
   const validation = await validateProxyRequestModel({
     request,
     provider: "gatewayz",
+    bodyBuffer: authContext.bodyBuffer ?? undefined,
   });
   if (!validation.valid) {
     return new Response(validation.error, { status: 400 });
@@ -348,7 +384,7 @@ async function proxyRequest(
   const body =
     request.method === "GET" || request.method === "HEAD"
       ? undefined
-      : await request.arrayBuffer();
+      : (authContext.bodyBuffer ?? (await request.arrayBuffer()));
 
   const response = await fetch(targetUrl, {
     method: request.method,
@@ -453,6 +489,7 @@ function getDaemonTokenFromHeaders(headers: Headers) {
 
 async function authorize(
   request: NextRequest,
+  bodyBuffer?: ArrayBuffer | null,
 ): Promise<
   | { response: Response; userId?: undefined; gwTier?: undefined }
   | { response: null; userId: string; gwTier: "free" | "pro" | "max" }
@@ -486,6 +523,14 @@ async function authorize(
 
     // Check if user has an active Gatewayz subscription (pro or max)
     if (gwTier === "free") {
+      const requestedModel = parseModelFromBodyBuffer(bodyBuffer);
+      if (requestedModel && isOpencodeGatewayzModel(requestedModel)) {
+        const creditCheck = await checkProxyCredits(userId, "OpenCode");
+        if (!creditCheck.allowed) {
+          return { response: creditCheck.response };
+        }
+        return { response: null, userId, gwTier };
+      }
       console.log("Gatewayz proxy access denied: free tier user", {
         userId,
         gwTier,
@@ -514,13 +559,18 @@ async function handleWithAuth(
     context: AuthContext,
   ) => Promise<Response>,
 ) {
-  const authResult = await authorize(request);
+  const bodyBuffer =
+    request.method === "GET" || request.method === "HEAD"
+      ? null
+      : await request.arrayBuffer();
+  const authResult = await authorize(request, bodyBuffer);
   if (authResult.response) {
     return authResult.response;
   }
   return handler(request, args, {
     userId: authResult.userId,
     gwTier: authResult.gwTier,
+    bodyBuffer,
   });
 }
 
