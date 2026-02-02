@@ -277,6 +277,7 @@ async function performTokenRefresh({
 
     // Update the database with new tokens using optimistic locking.
     // Only update if updatedAt matches what we read, preventing concurrent updates.
+    // We use .returning() to get the updated row, which reliably tells us if the update succeeded.
     const updateResult = await db
       .update(schema.account)
       .set({
@@ -291,13 +292,11 @@ async function performTokenRefresh({
           eq(schema.account.id, githubAccount.id),
           eq(schema.account.updatedAt, githubAccount.updatedAt),
         ),
-      );
+      )
+      .returning({ id: schema.account.id });
 
-    // Check if the update succeeded (row was modified)
-    const rowsAffected =
-      "rowCount" in updateResult ? (updateResult.rowCount ?? 0) : 0;
-
-    if (rowsAffected === 0) {
+    // Check if the update succeeded by checking if a row was returned
+    if (updateResult.length === 0) {
       // Another instance already refreshed the token
       console.log(
         "Token refresh conflict detected - another instance refreshed first for user:",
