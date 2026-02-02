@@ -35,7 +35,11 @@ import { sandboxTimeoutMs } from "@terragon/sandbox/constants";
 import { getAndVerifyCredentials } from "./credentials";
 import { DEFAULT_SANDBOX_SIZE } from "@/lib/subscription-tiers";
 import type { UserSettings } from "@terragon/shared";
-import { ensureAgent } from "@terragon/agent/utils";
+import {
+  ensureAgent,
+  isGatewayzModel,
+  getUnderlyingAgentForGatewayzModel,
+} from "@terragon/agent/utils";
 import { getLastUserMessageModel } from "@/lib/db-message-helpers";
 
 async function getOrCreateSandboxWithTimeout(
@@ -147,8 +151,20 @@ async function getOrCreateSandboxForThread({
       userId,
     });
     if (threadChat) {
-      agentOrNull = ensureAgent(threadChat.agent);
       modelOrNull = getLastUserMessageModel(threadChat.messages ?? []);
+      // For Gatewayz models, use the underlying agent for sandbox setup
+      // e.g., "gatewayz/opencode/glm-4.7" -> "opencode"
+      if (isGatewayzModel(modelOrNull)) {
+        const underlyingAgent = getUnderlyingAgentForGatewayzModel(
+          modelOrNull!,
+        );
+        // If we can't determine the underlying agent, fallback to claudeCode
+        agentOrNull = underlyingAgent
+          ? ensureAgent(underlyingAgent)
+          : "claudeCode";
+      } else {
+        agentOrNull = ensureAgent(threadChat.agent);
+      }
     }
   }
   const [
