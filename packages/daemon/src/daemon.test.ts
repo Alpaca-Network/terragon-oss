@@ -889,6 +889,31 @@ describe("daemon", () => {
         "http://localhost:3000/api/proxy/google",
       );
     });
+
+    it("should route through gatewayz proxy when useGatewayz is enabled", async () => {
+      process.env.GEMINI_API_KEY = "user-api-key";
+
+      await daemon.start();
+      await writeToUnixSocket({
+        unixSocketPath: runtime.unixSocketPath,
+        dataStr: JSON.stringify({
+          ...TEST_INPUT_MESSAGE,
+          agent: "gemini",
+          model: "gemini-2.5-pro",
+          useGatewayz: true,
+        }),
+      });
+      await sleepUntil(() => spawnCommandLineMock.mock.calls.length === 1);
+
+      const spawnEnv = spawnCommandLineMock.mock.calls[0]![1].env as Record<
+        string,
+        string | undefined
+      >;
+      expect(spawnEnv.GEMINI_API_KEY).toBe("TEST_TOKEN_STRING");
+      expect(spawnEnv.GOOGLE_GEMINI_BASE_URL).toBe(
+        "http://localhost:3000/api/proxy/gatewayz",
+      );
+    });
   });
 
   describe("Error handling with result messages", () => {
