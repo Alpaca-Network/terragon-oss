@@ -1,29 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  createGoogleAuthorizationURL,
-  exchangeGoogleAuthorizationCode,
-  refreshGoogleAccessToken,
-  getGoogleUserInfo,
-  checkGeminiAccess,
-} from "./google-oauth";
+
+const envMock = vi.hoisted(() => ({
+  GOOGLE_OAUTH_CLIENT_ID: "test-client-id",
+  GOOGLE_OAUTH_CLIENT_SECRET: "test-client-secret",
+  BETTER_AUTH_URL: "https://test.example.com",
+}));
 
 vi.mock("@terragon/env/apps-www", () => ({
-  env: {
-    GOOGLE_OAUTH_CLIENT_ID: "test-client-id",
-    GOOGLE_OAUTH_CLIENT_SECRET: "test-client-secret",
-    BETTER_AUTH_URL: "https://test.example.com",
-  },
+  env: envMock,
 }));
 
 describe("Google OAuth", () => {
-  beforeEach(() => {
+  let googleOauth: typeof import("./google-oauth");
+
+  beforeEach(async () => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    vi.resetModules();
+    googleOauth = await import("./google-oauth");
   });
 
   describe("createGoogleAuthorizationURL", () => {
     it("should generate authorization URL with PKCE", async () => {
-      const result = await createGoogleAuthorizationURL();
+      const result = await googleOauth.createGoogleAuthorizationURL();
 
       expect(result.url).toBeInstanceOf(URL);
       expect(result.codeVerifier).toBeTruthy();
@@ -58,7 +57,7 @@ describe("Google OAuth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await exchangeGoogleAuthorizationCode({
+      const result = await googleOauth.exchangeGoogleAuthorizationCode({
         code: "test-code",
         codeVerifier: "test-verifier",
       });
@@ -84,7 +83,7 @@ describe("Google OAuth", () => {
       vi.stubGlobal("fetch", fetchMock);
 
       await expect(
-        exchangeGoogleAuthorizationCode({
+        googleOauth.exchangeGoogleAuthorizationCode({
           code: "invalid-code",
           codeVerifier: "test-verifier",
         }),
@@ -106,7 +105,8 @@ describe("Google OAuth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await refreshGoogleAccessToken("test-refresh-token");
+      const result =
+        await googleOauth.refreshGoogleAccessToken("test-refresh-token");
 
       expect(result.access_token).toBe("new-access-token");
       expect(fetchMock).toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe("Google OAuth", () => {
       vi.stubGlobal("fetch", fetchMock);
 
       await expect(
-        refreshGoogleAccessToken("invalid-refresh-token"),
+        googleOauth.refreshGoogleAccessToken("invalid-refresh-token"),
       ).rejects.toThrow("Google token refresh failed");
     });
   });
@@ -140,7 +140,7 @@ describe("Google OAuth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await getGoogleUserInfo("test-access-token");
+      const result = await googleOauth.getGoogleUserInfo("test-access-token");
 
       expect(result.email).toBe("test@example.com");
       expect(result.name).toBe("Test User");
@@ -170,7 +170,7 @@ describe("Google OAuth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await checkGeminiAccess("test-access-token");
+      const result = await googleOauth.checkGeminiAccess("test-access-token");
 
       expect(result.hasAccess).toBe(true);
       expect(result.subscriptionType).toBe("pro");
@@ -190,7 +190,7 @@ describe("Google OAuth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await checkGeminiAccess("test-access-token");
+      const result = await googleOauth.checkGeminiAccess("test-access-token");
 
       expect(result.hasAccess).toBe(true);
       expect(result.subscriptionType).toBe("ultra");
@@ -202,7 +202,7 @@ describe("Google OAuth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await checkGeminiAccess("invalid-token");
+      const result = await googleOauth.checkGeminiAccess("invalid-token");
 
       expect(result.hasAccess).toBe(false);
       expect(result.subscriptionType).toBe(null);
