@@ -24,8 +24,8 @@ export const KANBAN_COLUMNS: {
   },
   {
     id: "in_review",
-    title: "In Review",
-    description: "Tasks with open PRs awaiting review",
+    title: "Review",
+    description: "Tasks awaiting review or with open PRs",
   },
   {
     id: "done",
@@ -95,20 +95,12 @@ export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
 
   // Complete tasks
   if (status === "complete") {
-    // If there's an open PR, it's in review
-    if (hasOpenPR) {
-      return "in_review";
-    }
-    // If PR was merged or checks passed, it's done
+    // If PR was merged, it's done
     if (hasMergedPR) {
       return "done";
     }
-    // If PR checks failed, put in review (needs attention)
-    if (hasPRChecksFailure) {
-      return "in_review";
-    }
-    // No PR or closed PR means done
-    return "done";
+    // All other complete tasks go to review (open PR, no PR, or checks failed)
+    return "in_review";
   }
 
   // Default fallback

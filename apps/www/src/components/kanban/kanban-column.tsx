@@ -64,7 +64,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       case "in_progress":
         return "bg-primary/10 text-primary border border-primary/20";
       case "in_review":
-        return "bg-accent/10 text-accent-foreground border border-accent/20";
+        return "bg-primary/10 text-primary border border-primary/20";
       case "done":
         return "bg-primary/10 text-primary border border-primary/20";
       case "cancelled":
