@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { useCallback, useMemo, memo } from "react";
+import { useCallback, useMemo, memo, useState } from "react";
 import {
   LoaderCircle,
   ChevronDown,
@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   Shield,
   GitMerge,
+  Search,
+  X,
 } from "lucide-react";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
@@ -26,6 +28,7 @@ import { isToday, isYesterday, isThisWeek } from "date-fns";
 import { tz } from "@date-fns/tz";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { SheetOrMenu } from "@/components/ui/sheet-or-menu";
 import { RecommendedTasks } from "../recommended-tasks";
 import {
@@ -746,6 +749,43 @@ export const ThreadListContents = memo(function ThreadListContents({
   );
 });
 
+// Reusable search bar component for thread lists
+export const ThreadListSearchBar = memo(function ThreadListSearchBar({
+  value,
+  onChange,
+  placeholder = "Search tasks...",
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      <Input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-8 pl-8 pr-8 text-xs"
+      />
+      {value && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onChange("")}
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+          aria-label="Clear search"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  );
+});
+
 export const ThreadListMain = memo(function ThreadListMain({
   viewFilter,
   queryFilters,
@@ -764,6 +804,7 @@ export const ThreadListMain = memo(function ThreadListMain({
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const [searchQuery, setSearchQuery] = useState("");
   return (
     <>
       <div className="flex-1 pb-4 flex flex-col">
@@ -784,6 +825,14 @@ export const ThreadListMain = memo(function ThreadListMain({
           allowGroupBy={allowGroupBy}
           showViewToggle={showViewToggle}
         />
+        {/* Search bar */}
+        <div className="px-4 py-2">
+          <ThreadListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search tasks..."
+          />
+        </div>
         <ThreadListContents
           viewFilter={viewFilter}
           queryFilters={queryFilters}
@@ -791,6 +840,7 @@ export const ThreadListMain = memo(function ThreadListMain({
           setPromptText={setPromptText}
           allowGroupBy={allowGroupBy}
           isSidebar={false}
+          searchQuery={searchQuery}
         />
       </div>
     </>
