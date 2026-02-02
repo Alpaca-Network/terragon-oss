@@ -163,6 +163,19 @@ export const KanbanBoard = memo(function KanbanBoard({
       );
       if (!scrollContainer) return;
 
+      const target = event.target as HTMLElement | null;
+      const closestViewport = target?.closest(
+        '[data-slot="scroll-area-viewport"]',
+      ) as HTMLElement | null;
+      const isNestedViewport =
+        closestViewport && closestViewport !== scrollContainer;
+      if (
+        isNestedViewport &&
+        closestViewport.scrollHeight > closestViewport.clientHeight + 1
+      ) {
+        return;
+      }
+
       const hasHorizontalOverflow =
         scrollContainer.scrollWidth > scrollContainer.clientWidth + 1;
       if (!hasHorizontalOverflow) return;

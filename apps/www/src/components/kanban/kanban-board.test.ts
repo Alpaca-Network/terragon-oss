@@ -285,7 +285,11 @@ describe("Kanban Board Desktop", () => {
       clientWidth: number,
       deltaX: number,
       deltaY: number,
+      hasNestedScrollable: boolean,
     ): { shouldScroll: boolean; shouldPreventDefault: boolean } => {
+      if (hasNestedScrollable) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
       const hasHorizontalOverflow = scrollWidth > clientWidth + 1;
       if (!hasHorizontalOverflow) {
         return { shouldScroll: false, shouldPreventDefault: false };
@@ -301,7 +305,7 @@ describe("Kanban Board Desktop", () => {
     };
 
     it("should not hijack wheel when columns fit", () => {
-      const result = getWheelBehavior(600, 600, 0, 120);
+      const result = getWheelBehavior(600, 600, 0, 120, false);
       expect(result).toEqual({
         shouldScroll: false,
         shouldPreventDefault: false,
@@ -309,7 +313,7 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should not hijack wheel when horizontal intent is stronger", () => {
-      const result = getWheelBehavior(900, 600, 120, 80);
+      const result = getWheelBehavior(900, 600, 120, 80, false);
       expect(result).toEqual({
         shouldScroll: false,
         shouldPreventDefault: false,
@@ -317,10 +321,18 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should convert vertical wheel to horizontal scroll when overflowing", () => {
-      const result = getWheelBehavior(900, 600, 10, 140);
+      const result = getWheelBehavior(900, 600, 10, 140, false);
       expect(result).toEqual({
         shouldScroll: true,
         shouldPreventDefault: true,
+      });
+    });
+
+    it("should allow nested column scroll to handle wheel", () => {
+      const result = getWheelBehavior(900, 600, 0, 140, true);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
       });
     });
   });
