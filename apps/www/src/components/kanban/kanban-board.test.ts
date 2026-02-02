@@ -32,8 +32,8 @@ describe("Kanban Board Desktop", () => {
 
     it("should not exceed max index when navigating right from last column", () => {
       const lastIndex = KANBAN_COLUMNS.length - 1;
-      const newIndex = navigateColumn(lastIndex, "right"); // cancelled
-      expect(newIndex).toBe(lastIndex); // stays at cancelled
+      const newIndex = navigateColumn(lastIndex, "right"); // failed
+      expect(newIndex).toBe(lastIndex); // stays at failed
     });
 
     it("should correctly traverse all columns with right navigation", () => {
@@ -42,7 +42,7 @@ describe("Kanban Board Desktop", () => {
         "in_progress",
         "in_review",
         "done",
-        "cancelled",
+        "failed",
       ];
       let currentIndex = 0;
 
@@ -56,7 +56,7 @@ describe("Kanban Board Desktop", () => {
 
     it("should correctly traverse all columns with left navigation", () => {
       const expectedOrder = [
-        "cancelled",
+        "failed",
         "done",
         "in_review",
         "in_progress",
@@ -81,7 +81,7 @@ describe("Kanban Board Desktop", () => {
         "in_progress",
         "in_review",
         "done",
-        "cancelled",
+        "failed",
       ]);
     });
 

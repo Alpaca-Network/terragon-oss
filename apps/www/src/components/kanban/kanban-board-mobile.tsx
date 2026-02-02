@@ -47,7 +47,7 @@ export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
       return "data-[state=active]:bg-accent/10 data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm";
     case "done":
       return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_12px_rgba(99,102,241,0.15)]";
-    case "cancelled":
+    case "failed":
       return "data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-sm";
     default:
       return "data-[state=active]:bg-muted";
@@ -177,7 +177,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       in_progress: [],
       in_review: [],
       done: [],
-      cancelled: [],
+      failed: [],
     };
 
     for (const thread of threads) {

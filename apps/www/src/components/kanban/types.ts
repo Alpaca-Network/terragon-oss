@@ -5,7 +5,7 @@ export type KanbanColumn =
   | "in_progress"
   | "in_review"
   | "done"
-  | "cancelled";
+  | "failed";
 
 export const KANBAN_COLUMNS: {
   id: KanbanColumn;
@@ -33,9 +33,9 @@ export const KANBAN_COLUMNS: {
     description: "Completed tasks",
   },
   {
-    id: "cancelled",
-    title: "Cancelled",
-    description: "Cancelled or failed tasks",
+    id: "failed",
+    title: "Failed",
+    description: "Failed or cancelled tasks",
   },
 ];
 
@@ -53,14 +53,14 @@ export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
     return "backlog";
   }
 
-  // Error states go to cancelled
+  // Error states go to failed
   if (status === "error" || status === "working-error") {
-    return "cancelled";
+    return "failed";
   }
 
-  // Stopped tasks go to cancelled
+  // Stopped tasks go to failed
   if (status === "stopped" || status === "working-stopped") {
-    return "cancelled";
+    return "failed";
   }
 
   // Draft and scheduled tasks go to backlog
