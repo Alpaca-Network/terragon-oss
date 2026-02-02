@@ -127,7 +127,11 @@ function ViewTab({
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
   const [refreshKey, setRefreshKey] = React.useState(0);
-  const mergeablePollingRef = React.useRef({ until: null, count: 0 });
+  const mergeablePollingRef = React.useRef<{
+    until: number | null;
+    count: number;
+    lastDataUpdatedAt: number | null;
+  }>({ until: null, count: 0, lastDataUpdatedAt: null });
 
   const hasPR =
     thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
@@ -138,29 +142,39 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
     queryFn: () => getPRFeedback({ threadId: thread!.id }),
     enabled: hasPR && !!thread,
     staleTime: 30000, // 30 seconds
-    refetchInterval: () =>
-      getMergeablePollingInterval({
-        mergeableState: data?.feedback?.mergeableState,
+    refetchInterval: (query): number => {
+      const mergeableState = query.state.data?.feedback?.mergeableState;
+      return getMergeablePollingInterval({
+        mergeableState,
         now: Date.now(),
         state: mergeablePollingRef.current,
         defaultIntervalMs: 60000,
-      }),
+      });
+    },
   });
-
-  if (!thread) {
-    return null;
-  }
 
   const feedback = data?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
 
+  // Update polling state when data changes - only increment count on actual refetch
   React.useEffect(() => {
-    mergeablePollingRef.current = nextMergeablePollingState({
-      mergeableState: feedback?.mergeableState,
-      now: Date.now(),
-      state: mergeablePollingRef.current,
-    });
+    const isNewFetch =
+      dataUpdatedAt !== mergeablePollingRef.current.lastDataUpdatedAt;
+    if (isNewFetch) {
+      mergeablePollingRef.current = {
+        ...nextMergeablePollingState({
+          mergeableState: feedback?.mergeableState,
+          now: Date.now(),
+          state: mergeablePollingRef.current,
+        }),
+        lastDataUpdatedAt: dataUpdatedAt,
+      };
+    }
   }, [feedback?.mergeableState, dataUpdatedAt]);
+
+  if (!thread) {
+    return null;
+  }
 
   // Calculate badge counts
   const commentCount = summary?.unresolvedCommentCount ?? 0;
