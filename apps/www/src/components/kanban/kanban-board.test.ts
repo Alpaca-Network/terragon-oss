@@ -194,6 +194,52 @@ describe("Kanban Board Desktop", () => {
       currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
       expect(currentIndex).toBe(2); // back to in_review
     });
+
+    describe("Input field detection", () => {
+      // Helper to check if an element should be ignored for keyboard navigation
+      const shouldIgnoreKeyPress = (target: {
+        tagName: string;
+        isContentEditable?: boolean;
+      }): boolean => {
+        return (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable === true
+        );
+      };
+
+      it("should ignore arrow keys when focused on INPUT element", () => {
+        const target = { tagName: "INPUT" };
+        expect(shouldIgnoreKeyPress(target)).toBe(true);
+      });
+
+      it("should ignore arrow keys when focused on TEXTAREA element", () => {
+        const target = { tagName: "TEXTAREA" };
+        expect(shouldIgnoreKeyPress(target)).toBe(true);
+      });
+
+      it("should ignore arrow keys when focused on contentEditable element", () => {
+        const target = { tagName: "DIV", isContentEditable: true };
+        expect(shouldIgnoreKeyPress(target)).toBe(true);
+      });
+
+      it("should not ignore arrow keys when focused on non-input elements", () => {
+        const targets = [
+          { tagName: "DIV" },
+          { tagName: "BUTTON" },
+          { tagName: "A" },
+          { tagName: "SPAN" },
+        ];
+        targets.forEach((target) => {
+          expect(shouldIgnoreKeyPress(target)).toBe(false);
+        });
+      });
+
+      it("should not ignore arrow keys on non-contentEditable elements", () => {
+        const target = { tagName: "DIV", isContentEditable: false };
+        expect(shouldIgnoreKeyPress(target)).toBe(false);
+      });
+    });
   });
 
   describe("Scroll arrow visibility", () => {

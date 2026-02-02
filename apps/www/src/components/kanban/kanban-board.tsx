@@ -443,6 +443,15 @@ export const KanbanBoard = memo(function KanbanBoard({
     if (!isFullScreenTask) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle arrow keys if user is typing in an input field
+      const target = e.target as HTMLElement;
+      const isInputField =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      if (isInputField) return;
+
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         if (fullScreenColumnIndex > 0) {
