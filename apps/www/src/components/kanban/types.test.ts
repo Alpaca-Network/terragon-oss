@@ -82,7 +82,7 @@ describe("Kanban Types", () => {
         "in_progress",
         "in_review",
         "done",
-        "cancelled",
+        "failed",
       ]);
     });
 
@@ -257,25 +257,25 @@ describe("Kanban Types", () => {
       });
     });
 
-    describe("Cancelled column", () => {
-      it("should return cancelled for error status", () => {
+    describe("Failed column", () => {
+      it("should return failed for error status", () => {
         const thread = createMockThread({ status: "error" });
-        expect(getKanbanColumn(thread)).toBe("cancelled");
+        expect(getKanbanColumn(thread)).toBe("failed");
       });
 
-      it("should return cancelled for working-error status", () => {
+      it("should return failed for working-error status", () => {
         const thread = createMockThread({ status: "working-error" });
-        expect(getKanbanColumn(thread)).toBe("cancelled");
+        expect(getKanbanColumn(thread)).toBe("failed");
       });
 
-      it("should return cancelled for stopped status", () => {
+      it("should return failed for stopped status", () => {
         const thread = createMockThread({ status: "stopped" });
-        expect(getKanbanColumn(thread)).toBe("cancelled");
+        expect(getKanbanColumn(thread)).toBe("failed");
       });
 
-      it("should return cancelled for working-stopped status", () => {
+      it("should return failed for working-stopped status", () => {
         const thread = createMockThread({ status: "working-stopped" });
-        expect(getKanbanColumn(thread)).toBe("cancelled");
+        expect(getKanbanColumn(thread)).toBe("failed");
       });
     });
 
@@ -324,7 +324,7 @@ describe("Kanban Types", () => {
           },
         ];
         // "working-error" should take precedence
-        expect(getKanbanColumn(thread)).toBe("cancelled");
+        expect(getKanbanColumn(thread)).toBe("failed");
       });
     });
   });

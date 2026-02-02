@@ -273,7 +273,7 @@ export const KanbanBoard = memo(function KanbanBoard({
       in_progress: [],
       in_review: [],
       done: [],
-      cancelled: [],
+      failed: [],
     };
 
     for (const thread of threads) {
