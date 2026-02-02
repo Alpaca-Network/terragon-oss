@@ -72,13 +72,13 @@ describe("Footer branding configuration", () => {
 
   describe("resources links", () => {
     const resourcesLinks = [
-      { name: "Documentation", href: "https://docs.gatewayz.ai/" },
+      { name: "Documentation", href: "https://docs.terragonlabs.com/docs" },
     ];
 
-    it("should have Documentation link pointing to Gatewayz docs", () => {
+    it("should have Documentation link pointing to docs", () => {
       const link = resourcesLinks.find((l) => l.name === "Documentation");
       expect(link).toBeDefined();
-      expect(link?.href).toContain("docs.gatewayz.ai");
+      expect(link?.href).toContain("docs.terragonlabs.com");
     });
   });
 

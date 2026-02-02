@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Twitter, Linkedin } from "lucide-react";
 import Image from "next/image";
+import { publicDocsUrl } from "@terragon/env/next-public";
 
 export default function Footer() {
   return (
@@ -36,7 +37,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="https://docs.gatewayz.ai/"
+                  href={publicDocsUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
