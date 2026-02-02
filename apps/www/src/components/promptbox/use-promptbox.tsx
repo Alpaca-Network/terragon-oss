@@ -162,7 +162,7 @@ export function usePromptBox({
   );
 
   // Threshold for converting pasted text to a file attachment
-  const LARGE_PASTE_LINE_THRESHOLD = 10;
+  const LARGE_PASTE_LINE_THRESHOLD = 100;
   const LARGE_PASTE_CHAR_THRESHOLD = 500;
 
   const editor = useEditor({
@@ -421,6 +421,7 @@ export function usePromptBox({
                 mimeType: "text/plain",
                 fileType: "text-file",
                 fileName: "pasted-text.txt",
+                lineCount: lines.length,
                 base64,
                 file,
                 uploadStatus: "pending",
