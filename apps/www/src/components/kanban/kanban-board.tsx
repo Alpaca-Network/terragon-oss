@@ -18,7 +18,6 @@ import {
   SquarePen,
   ChevronLeft,
   ChevronRight,
-  PanelRightClose,
   CheckCircle2,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
@@ -42,7 +41,6 @@ import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
 import { usePlatform } from "@/hooks/use-platform";
 import { KanbanBoardMobile } from "./kanban-board-mobile";
-import { useCollapsibleThreadList } from "@/components/thread-list/use-collapsible-thread-list";
 import { QuickAddBacklogDialog } from "./quick-add-backlog";
 import { KanbanSearchBar } from "./kanban-search-bar";
 
@@ -125,13 +123,6 @@ export const KanbanBoard = memo(function KanbanBoard({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
-  // Sidebar collapse state
-  const {
-    canCollapseThreadList,
-    isThreadListCollapsed,
-    setThreadListCollapsed,
-  } = useCollapsibleThreadList();
 
   // Check scroll state
   const updateScrollState = useCallback(() => {
@@ -683,18 +674,6 @@ export const KanbanBoard = memo(function KanbanBoard({
       {/* Header with view toggle and new task button */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          {/* Expand sidebar button */}
-          {canCollapseThreadList && isThreadListCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setThreadListCollapsed(false)}
-              className="h-8 w-8 flex-shrink-0"
-              title="Show task list"
-            >
-              <PanelRightClose className="h-4 w-4" />
-            </Button>
-          )}
           <h2 className="text-sm font-medium text-muted-foreground">
             Kanban Board
           </h2>
