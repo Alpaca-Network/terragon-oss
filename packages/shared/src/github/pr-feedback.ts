@@ -181,6 +181,14 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isRetryableGithubError(error: unknown) {
+  const status = (error as { status?: number }).status;
+  if (status === 401 || status === 403 || status === 404 || status === 422) {
+    return false;
+  }
+  return true;
+}
+
 export async function fetchPRDetails(
   octokit: Octokit,
   owner: string,
@@ -212,7 +220,9 @@ export async function fetchPRDetails(
       }
     } catch (error) {
       lastError = error as Error;
-      // Only retry on network errors, not on 404s or other API errors
+      if (!isRetryableGithubError(error)) {
+        throw error;
+      }
       if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
         await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
       }

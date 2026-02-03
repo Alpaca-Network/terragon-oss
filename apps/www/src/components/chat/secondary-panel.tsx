@@ -33,6 +33,7 @@ import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 import {
   getMergeablePollingInterval,
   nextMergeablePollingState,
+  type MergeablePollingState,
 } from "@/lib/mergeable-polling";
 
 const SECONDARY_PANEL_MIN_WIDTH = 300;
@@ -127,11 +128,11 @@ function ViewTab({
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
   const [refreshKey, setRefreshKey] = React.useState(0);
-  const mergeablePollingRef = React.useRef<{
-    until: number | null;
-    count: number;
-    lastDataUpdatedAt: number | null;
-  }>({ until: null, count: 0, lastDataUpdatedAt: null });
+  const mergeablePollingRef = React.useRef<MergeablePollingState>({
+    until: null,
+    count: 0,
+  });
+  const lastDataUpdatedAtRef = React.useRef(0);
 
   const hasPR =
     thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
@@ -158,18 +159,15 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
 
   // Update polling state when data changes - only increment count on actual refetch
   React.useEffect(() => {
-    const isNewFetch =
-      dataUpdatedAt !== mergeablePollingRef.current.lastDataUpdatedAt;
-    if (isNewFetch) {
-      mergeablePollingRef.current = {
-        ...nextMergeablePollingState({
-          mergeableState: feedback?.mergeableState,
-          now: Date.now(),
-          state: mergeablePollingRef.current,
-        }),
-        lastDataUpdatedAt: dataUpdatedAt,
-      };
+    if (dataUpdatedAt === lastDataUpdatedAtRef.current) {
+      return;
     }
+    lastDataUpdatedAtRef.current = dataUpdatedAt;
+    mergeablePollingRef.current = nextMergeablePollingState({
+      mergeableState: feedback?.mergeableState,
+      now: Date.now(),
+      state: mergeablePollingRef.current,
+    });
   }, [feedback?.mergeableState, dataUpdatedAt]);
 
   if (!thread) {
