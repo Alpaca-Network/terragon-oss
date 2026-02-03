@@ -4,7 +4,6 @@ import {
   DashboardPromptBoxHandleSubmit,
   DashboardPromptBox,
 } from "./promptbox/dashboard-promptbox";
-import { ThreadListMain, ThreadViewFilter } from "./thread-list/main";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
@@ -26,6 +25,11 @@ import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
 import { TaskViewToggle } from "./task-view-toggle";
+import { RecentReposQuickAccess } from "./onboarding/recent-repos-quick-access";
+import { TemplateRepoSelector } from "./onboarding/template-repo-selector";
+import { KanbanPromotionBanner } from "./onboarding/kanban-promotion-banner";
+import { getUserRepos } from "@/server-actions/user-repos";
+import { useServerActionQuery } from "@/queries/server-action-helpers";
 
 export function Dashboard({
   showArchived = false,
@@ -107,20 +111,32 @@ export function Dashboard({
   const [promptText, setPromptText] = useState<string | null>(null);
   const selectedModel = useAtomValue(selectedModelAtom);
 
-  // Determine if there are any active tasks; used for Sawyer UI empty state
-  const { data } = useInfiniteThreadList({ archived: false });
-  const showRecommendedTasks =
-    (data?.pages.flatMap((page) => page) ?? []).length < 3;
+  // Determine if there are any active tasks; used for onboarding state
+  const { data, isLoading: isLoadingThreads } = useInfiniteThreadList({
+    archived: false,
+  });
+  const activeTaskCount = (data?.pages.flatMap((page) => page) ?? []).length;
+
+  // Fetch user repos for onboarding
+  const { data: reposResult, isLoading: isLoadingRepos } = useServerActionQuery(
+    {
+      queryKey: ["user-repos"],
+      queryFn: getUserRepos,
+    },
+  );
+  const userRepos = reposResult?.repos ?? [];
+  const repoCount = userRepos.length;
+
+  // Determine user state for onboarding - only calculate once data is loaded
+  const isDataLoaded = !isLoadingThreads && !isLoadingRepos;
+  const isNewUser = isDataLoaded && activeTaskCount === 0;
+  const isGrowingUser =
+    isDataLoaded && activeTaskCount > 0 && activeTaskCount < 3;
 
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
 
-  // Determine view filter and query filters
-  const viewFilter: ThreadViewFilter = showArchived
-    ? "archived"
-    : showBacklog
-      ? "backlog"
-      : "active";
+  // Determine query filters for Kanban view
   const queryFilters = showArchived
     ? { archived: true }
     : showBacklog
@@ -155,61 +171,46 @@ export function Dashboard({
             handleSubmit={handleSubmit}
             promptText={promptText ?? undefined}
           />
-          {showRecommendedTasks && (
-            <div className="space-y-2 hidden lg:block">
-              <h3 className="text-sm font-medium text-muted-foreground/70">
-                Suggested tasks
-              </h3>
-              <RecommendedTasks
+
+          {/* Onboarding content - conditional based on user state */}
+          <div className="space-y-4">
+            {/* Recent Repos - for growing users with repos */}
+            {isGrowingUser && repoCount >= 1 && (
+              <RecentReposQuickAccess
+                repos={userRepos.slice(0, 5)}
                 onTaskSelect={(p) => setPromptText(p)}
-                selectedModel={selectedModel}
               />
-            </div>
-          )}
+            )}
+
+            {/* Template Selector - for new users or users with few repos */}
+            {(isNewUser || repoCount < 3) && <TemplateRepoSelector />}
+
+            {/* Kanban Promotion - for engaged but not power users */}
+            {isGrowingUser && <KanbanPromotionBanner />}
+
+            {/* Task Ideas - always show for growing users */}
+            {isGrowingUser && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground/70">
+                  Task Ideas
+                </h3>
+                <RecommendedTasks
+                  onTaskSelect={(p) => setPromptText(p)}
+                  selectedModel={selectedModel}
+                />
+              </div>
+            )}
+          </div>
         </>
       )}
 
-      {/* Desktop: Show Kanban or Inbox based on viewMode */}
-      {mounted && (
-        <div className="hidden lg:flex flex-1 min-h-0">
-          {showKanbanView ? (
-            <KanbanBoard
-              queryFilters={queryFilters}
-              initialSelectedTaskId={initialTaskId}
-            />
-          ) : (
-            <div className="w-full">
-              <ThreadListMain
-                queryFilters={queryFilters}
-                viewFilter={viewFilter}
-                allowGroupBy={true}
-                showSuggestedTasks={false}
-                setPromptText={setPromptText}
-                showViewToggle={true}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Mobile: Show Kanban or Inbox based on viewMode */}
-      {mounted && (
-        <div className="lg:hidden flex flex-col flex-1 min-h-0">
-          {showKanbanView ? (
-            <KanbanBoard
-              queryFilters={queryFilters}
-              initialSelectedTaskId={initialTaskId}
-            />
-          ) : (
-            <ThreadListMain
-              queryFilters={queryFilters}
-              viewFilter={viewFilter}
-              allowGroupBy={true}
-              showSuggestedTasks={showRecommendedTasks}
-              setPromptText={setPromptText}
-              showViewToggle={true}
-            />
-          )}
+      {/* Kanban view - single component handles responsive layout internally */}
+      {mounted && showKanbanView && (
+        <div className="flex flex-col flex-1 min-h-0">
+          <KanbanBoard
+            queryFilters={queryFilters}
+            initialSelectedTaskId={initialTaskId}
+          />
         </div>
       )}
     </div>

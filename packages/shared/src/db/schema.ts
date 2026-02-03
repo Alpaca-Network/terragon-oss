@@ -20,6 +20,7 @@ import {
   AIAgent,
   SelectedAIModels,
   AgentModelPreferences,
+  CodeRouterSettings,
 } from "@terragon/agent/types";
 import {
   GithubPRStatus,
@@ -282,6 +283,7 @@ const threadChatShared = {
     .$type<"allowAll" | "plan" | "loop">()
     .default("allowAll"),
   loopConfig: jsonb("loop_config").$type<LoopConfig>(),
+  lastUsedModel: text("last_used_model").$type<AIModel>(),
 };
 
 export const thread = pgTable(
@@ -361,6 +363,18 @@ export const thread = pgTable(
       table.sandboxProvider,
       table.codesandboxId,
     ),
+    // Covering indexes for common list queries (active tasks, archived, backlog)
+    // These indexes include updatedAt for efficient ORDER BY DESC
+    index("user_id_archived_updated_at_index").on(
+      table.userId,
+      table.archived,
+      table.updatedAt,
+    ),
+    index("user_id_is_backlog_updated_at_index").on(
+      table.userId,
+      table.isBacklog,
+      table.updatedAt,
+    ),
   ],
 );
 
@@ -389,6 +403,8 @@ export const threadChat = pgTable(
       table.userId,
       table.threadId,
     ),
+    // Index for efficient batch lookups by threadId (used in thread list queries)
+    index("thread_chat_thread_id_index").on(table.threadId),
   ],
 );
 
@@ -530,6 +546,10 @@ export const userSettings = pgTable(
     agentModelPreferences: jsonb(
       "agent_model_preferences",
     ).$type<AgentModelPreferences>(),
+    // Code Router settings for Gatewayz integration
+    codeRouterSettings: jsonb(
+      "code_router_settings",
+    ).$type<CodeRouterSettings>(),
   },
   (table) => [uniqueIndex("user_id_unique").on(table.userId)],
 );
@@ -761,6 +781,11 @@ export const threadReadStatus = pgTable(
   },
   (table) => [
     uniqueIndex("user_thread_unique").on(table.threadId, table.userId),
+    // Index for efficient batch lookups by userId (used in thread list queries)
+    index("thread_read_status_user_id_thread_id_index").on(
+      table.userId,
+      table.threadId,
+    ),
   ],
 );
 
@@ -850,6 +875,13 @@ export const userFlags = pgTable(
     // Feature upsell toast last seen version. Increment FEATURE_UPSELL_VERSION
     // in apps/www/src/lib/constants.ts to show the upsell again.
     lastSeenFeatureUpsellVersion: integer("last_seen_feature_upsell_version"),
+    // Track recently used repos (max 5, FIFO)
+    recentRepos: jsonb("recent_repos").$type<string[]>(),
+    // Track if user has ever used Kanban view (for promotion dismissal)
+    hasUsedKanbanView: boolean("has_used_kanban_view").default(false),
+    // Track repo creation count for rate limiting (resets daily)
+    repoCreationCount: integer("repo_creation_count").default(0),
+    repoCreationResetDate: timestamp("repo_creation_reset_date"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()

@@ -53,6 +53,17 @@ describe("mergeable polling helpers", () => {
     expect(interval).toBe(MERGEABLE_POLL_INTERVAL_MS);
   });
 
+  it("returns fast interval when unknown without polling state yet", () => {
+    const interval = getMergeablePollingInterval({
+      mergeableState: "unknown",
+      now: 1_000_000,
+      state: { until: null, count: 0 },
+      defaultIntervalMs: 60000,
+    });
+
+    expect(interval).toBe(MERGEABLE_POLL_INTERVAL_MS);
+  });
+
   it("returns default interval when not polling", () => {
     const interval = getMergeablePollingInterval({
       mergeableState: "clean",

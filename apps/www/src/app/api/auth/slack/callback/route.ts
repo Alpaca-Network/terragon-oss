@@ -11,6 +11,7 @@ import {
   upsertSlackSettings,
 } from "@terragon/shared/model/slack";
 import { getUserFlags } from "@terragon/shared/model/user-flags";
+import { getUserSettings } from "@terragon/shared/model/user";
 import { nonLocalhostPublicAppUrl } from "@/lib/server-utils";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { getUserCredentials } from "@/server-lib/user-credentials";
@@ -191,15 +192,17 @@ export async function GET(request: NextRequest) {
     });
 
     // Create a slack setting with pre-populated defaults from user flags
-    const [existingSettings, userFlags, userCredentials] = await Promise.all([
-      getSlackSettingsForTeam({
-        db,
-        userId,
-        teamId,
-      }),
-      getUserFlags({ db, userId }),
-      getUserCredentials({ userId }),
-    ]);
+    const [existingSettings, userFlags, userCredentials, userSettings] =
+      await Promise.all([
+        getSlackSettingsForTeam({
+          db,
+          userId,
+          teamId,
+        }),
+        getUserFlags({ db, userId }),
+        getUserCredentials({ userId }),
+        getUserSettings({ db, userId }),
+      ]);
     if (
       !existingSettings ||
       !existingSettings?.defaultModel ||
@@ -212,7 +215,11 @@ export async function GET(request: NextRequest) {
         settings: {
           defaultModel:
             existingSettings?.defaultModel ||
-            getDefaultModel({ userFlags, userCredentials }),
+            getDefaultModel({
+              userFlags,
+              userCredentials,
+              codeRouterSettings: userSettings?.codeRouterSettings,
+            }),
           defaultRepoFullName:
             existingSettings?.defaultRepoFullName || userFlags.selectedRepo,
         },

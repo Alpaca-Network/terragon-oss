@@ -107,89 +107,75 @@ async function getThreadsInner({
   if (where?.agent !== undefined) {
     whereConditions.push(eq(schema.thread.agent, where.agent));
   }
-  const threadChatSubQuery = db
-    .select({
-      threadChats: sql<
-        Pick<ThreadChat, "id" | "agent" | "status" | "errorMessage">[]
-      >`jsonb_agg(jsonb_build_object(
-          'id', ${schema.threadChat.id},
-          'agent', ${schema.threadChat.agent},
-          'status', ${schema.threadChat.status},
-          'errorMessage', ${schema.threadChat.errorMessage}
-        ))
-      `.as("threadChats"),
-    })
-    .from(schema.threadChat)
-    .where(
-      and(
-        eq(schema.threadChat.userId, userIdOrNull ?? schema.thread.userId),
-        eq(schema.threadChat.threadId, schema.thread.id),
-      ),
-    )
-    .as("threadChatsAggregated");
+  // Optimized: Fetch threads first, then batch fetch threadChats, readStatus, and visibility
+  // This avoids slow LEFT JOINs that were causing performance issues
+  const baseSelect = {
+    id: schema.thread.id,
+    userId: schema.thread.userId,
+    name: schema.thread.name,
+    githubRepoFullName: schema.thread.githubRepoFullName,
+    githubPRNumber: schema.thread.githubPRNumber,
+    githubIssueNumber: schema.thread.githubIssueNumber,
+    codesandboxId: schema.thread.codesandboxId,
+    sandboxProvider: schema.thread.sandboxProvider,
+    sandboxSize: schema.thread.sandboxSize,
+    sandboxStatus: schema.thread.sandboxStatus,
+    bootingSubstatus: schema.thread.bootingSubstatus,
+    createdAt: schema.thread.createdAt,
+    updatedAt: schema.thread.updatedAt,
+    repoBaseBranchName: schema.thread.repoBaseBranchName,
+    branchName: schema.thread.branchName,
+    archived: schema.thread.archived,
+    isBacklog: schema.thread.isBacklog,
+    automationId: schema.thread.automationId,
+    parentThreadId: schema.thread.parentThreadId,
+    parentToolId: schema.thread.parentToolId,
+    draftMessage: schema.thread.draftMessage,
+    disableGitCheckpointing: schema.thread.disableGitCheckpointing,
+    skipSetup: schema.thread.skipSetup,
+    sourceType: schema.thread.sourceType,
+    sourceMetadata: schema.thread.sourceMetadata,
+    version: schema.thread.version,
+    gitDiffStats: schema.thread.gitDiffStats,
+    lastUsedModel: schema.thread.lastUsedModel,
+
+    // Legacy thread chat columns
+    legacyThreadChat: {
+      agent: schema.thread.agent,
+      status: schema.thread.status,
+      errorMessage: schema.thread.errorMessage,
+      lastUsedModel: schema.thread.lastUsedModel,
+    },
+    // PR status columns (from githubPR join)
+    prStatus: schema.githubPR.status,
+    prChecksStatus: schema.githubPR.checksStatus,
+    // Author info (from user join) - always included for kanban detail and share modal
+    authorName: schema.user.name,
+    authorImage: schema.user.image,
+  };
+
+  // Only include detailed user data when needed (admin queries)
+  const selectWithUser = includeUser
+    ? {
+        ...baseSelect,
+        user: {
+          id: schema.user.id,
+          name: schema.user.name,
+          email: schema.user.email,
+        },
+      }
+    : baseSelect;
+
+  // Build query with minimal JOINs
+  // - githubPR: needed for PR status indicators
+  // - user: needed for authorName/authorImage (used in kanban detail and share modal)
+  // Removed: threadVisibility (batch fetched separately), threadReadStatus (batch fetched separately)
   const query = db
-    .select({
-      id: schema.thread.id,
-      userId: schema.thread.userId,
-      name: schema.thread.name,
-      githubRepoFullName: schema.thread.githubRepoFullName,
-      githubPRNumber: schema.thread.githubPRNumber,
-      githubIssueNumber: schema.thread.githubIssueNumber,
-      codesandboxId: schema.thread.codesandboxId,
-      sandboxProvider: schema.thread.sandboxProvider,
-      sandboxSize: schema.thread.sandboxSize,
-      sandboxStatus: schema.thread.sandboxStatus,
-      bootingSubstatus: schema.thread.bootingSubstatus,
-      createdAt: schema.thread.createdAt,
-      updatedAt: schema.thread.updatedAt,
-      repoBaseBranchName: schema.thread.repoBaseBranchName,
-      branchName: schema.thread.branchName,
-      archived: schema.thread.archived,
-      isBacklog: schema.thread.isBacklog,
-      automationId: schema.thread.automationId,
-      parentThreadId: schema.thread.parentThreadId,
-      parentToolId: schema.thread.parentToolId,
-      draftMessage: schema.thread.draftMessage,
-      disableGitCheckpointing: schema.thread.disableGitCheckpointing,
-      skipSetup: schema.thread.skipSetup,
-      sourceType: schema.thread.sourceType,
-      sourceMetadata: schema.thread.sourceMetadata,
-      version: schema.thread.version,
-      gitDiffStats: schema.thread.gitDiffStats,
-
-      ...(includeUser
-        ? {
-            user: {
-              id: schema.user.id,
-              name: schema.user.name,
-              email: schema.user.email,
-            },
-          }
-        : {}),
-
-      // Legacy thread chat columns
-      legacyThreadChat: {
-        agent: schema.thread.agent,
-        status: schema.thread.status,
-        errorMessage: schema.thread.errorMessage,
-      },
-      // Additional columns
-      authorName: schema.user.name,
-      authorImage: schema.user.image,
-      prStatus: schema.githubPR.status,
-      prChecksStatus: schema.githubPR.checksStatus,
-      visibility: schema.threadVisibility.visibility,
-      isUnread: sql<boolean>`NOT COALESCE(${schema.threadReadStatus.isRead}, true)`,
-      threadChats: threadChatSubQuery.threadChats,
-    })
+    .select(selectWithUser)
     .from(schema.thread)
     .limit(limit)
     .offset(offset)
     .orderBy(desc(schema.thread.updatedAt))
-    .leftJoin(
-      schema.threadVisibility,
-      eq(schema.threadVisibility.threadId, schema.thread.id),
-    )
     .leftJoin(
       schema.githubPR,
       and(
@@ -198,40 +184,139 @@ async function getThreadsInner({
       ),
     )
     .leftJoin(schema.user, eq(schema.user.id, schema.thread.userId))
-    .leftJoin(
-      schema.threadReadStatus,
-      and(
-        eq(
-          schema.threadReadStatus.userId,
-          userIdOrNull ?? schema.thread.userId,
-        ),
-        eq(schema.threadReadStatus.threadId, schema.thread.id),
-      ),
-    )
-    .leftJoinLateral(threadChatSubQuery, sql`true`)
     .where(and(...whereConditions));
 
   const threads = await query;
   if (threads.length === 0) {
     return [];
   }
+
+  // Batch fetch threadChats, readStatus, and visibility for all threads in parallel
+  const threadIds = threads.map((t) => t.id);
+
+  // Build where clause for threadChats query
+  // For admin queries (userIdOrNull is null), we need to match each thread's userId
+  // For regular queries, we filter by the single userId
+  const threadChatsWhereClause = userIdOrNull
+    ? and(
+        inArray(schema.threadChat.threadId, threadIds),
+        eq(schema.threadChat.userId, userIdOrNull),
+      )
+    : inArray(schema.threadChat.threadId, threadIds);
+
+  // Batch fetch threadChats, readStatus, and visibility in parallel
+  const [threadChatsResult, readStatusResult, visibilityResult] =
+    await Promise.all([
+      db
+        .select({
+          threadId: schema.threadChat.threadId,
+          id: schema.threadChat.id,
+          agent: schema.threadChat.agent,
+          status: schema.threadChat.status,
+          errorMessage: schema.threadChat.errorMessage,
+          lastUsedModel: schema.threadChat.lastUsedModel,
+          userId: schema.threadChat.userId,
+        })
+        .from(schema.threadChat)
+        .where(threadChatsWhereClause),
+      // Batch fetch read status - only for regular user queries (not admin)
+      userIdOrNull
+        ? db
+            .select({
+              threadId: schema.threadReadStatus.threadId,
+              isRead: schema.threadReadStatus.isRead,
+            })
+            .from(schema.threadReadStatus)
+            .where(
+              and(
+                eq(schema.threadReadStatus.userId, userIdOrNull),
+                inArray(schema.threadReadStatus.threadId, threadIds),
+              ),
+            )
+        : Promise.resolve([]),
+      // Batch fetch visibility
+      db
+        .select({
+          threadId: schema.threadVisibility.threadId,
+          visibility: schema.threadVisibility.visibility,
+        })
+        .from(schema.threadVisibility)
+        .where(inArray(schema.threadVisibility.threadId, threadIds)),
+    ]);
+
+  // Group threadChats by threadId for O(1) lookup
+  // For admin queries, we need to match both threadId and userId
+  const threadChatsMap = new Map<
+    string,
+    Pick<
+      ThreadChat,
+      "id" | "agent" | "status" | "errorMessage" | "lastUsedModel"
+    >[]
+  >();
+
+  // Create a map key that includes userId for admin queries
+  const getMapKey = (threadId: string, threadUserId: string) =>
+    userIdOrNull ? threadId : `${threadId}:${threadUserId}`;
+
+  for (const chat of threadChatsResult) {
+    const { threadId, userId: chatUserId, ...chatData } = chat;
+    const mapKey = getMapKey(threadId, chatUserId);
+    if (!threadChatsMap.has(mapKey)) {
+      threadChatsMap.set(mapKey, []);
+    }
+    threadChatsMap.get(mapKey)!.push(chatData);
+  }
+
+  // Build read status map for O(1) lookup
+  // Map contains isRead value (true = read, false = unread)
+  const readStatusMap = new Map<string, boolean>();
+  for (const status of readStatusResult) {
+    readStatusMap.set(status.threadId, status.isRead);
+  }
+
+  // Build visibility map for O(1) lookup
+  const visibilityMap = new Map<string, ThreadVisibility>();
+  for (const vis of visibilityResult) {
+    visibilityMap.set(vis.threadId, vis.visibility);
+  }
+
   return threads.map((thread) => {
-    const {
-      user = null,
-      legacyThreadChat,
-      threadChats,
-      ...threadWithoutChats
-    } = thread;
+    const { legacyThreadChat, authorName, authorImage, ...threadWithoutChats } =
+      thread;
+    // user object is only present when includeUser is true (admin queries)
+    const user =
+      "user" in thread
+        ? (thread as { user: { id: string; name: string; email: string } }).user
+        : null;
+    const mapKey = getMapKey(thread.id, thread.userId);
+    const threadChats = threadChatsMap.get(mapKey);
+    // Compute isUnread from batch-fetched read status
+    // If no record exists, default to read (isUnread=false), matching SQL: NOT COALESCE(isRead, true)
+    // For admin queries (userIdOrNull is null), always set isUnread to false
+    const isUnread = userIdOrNull
+      ? !(readStatusMap.get(thread.id) ?? true)
+      : false;
+    // Get visibility from batch-fetched results (null if not set)
+    const visibility = visibilityMap.get(thread.id) ?? null;
+
+    const baseThread = {
+      ...threadWithoutChats,
+      isUnread,
+      visibility,
+      authorName,
+      authorImage,
+    };
+
     if (threadChats?.length) {
       return {
         user,
-        thread: { ...threadWithoutChats, threadChats },
+        thread: { ...baseThread, threadChats },
       };
     }
     return {
       user,
       thread: {
-        ...threadWithoutChats,
+        ...baseThread,
         threadChats: [
           {
             id: LEGACY_THREAD_CHAT_ID,
@@ -644,6 +729,7 @@ export async function getThread({
     sourceMetadata: thread.sourceMetadata,
     version: thread.version,
     isUnread: thread.isUnread,
+    lastUsedModel: thread.lastUsedModel,
     threadChats: resolveThreadChatFull(thread, threadChats),
     childThreads,
   };
@@ -731,6 +817,7 @@ type ThreadForThreadChatInfoFull = Pick<
   | "name"
   | "queuedMessages"
   | "messages"
+  | "lastUsedModel"
 > & {
   isUnread: boolean;
 };
@@ -767,6 +854,7 @@ function createLegacyThreadChatFull(
     permissionMode: thread.permissionMode ?? "allowAll",
     loopConfig: thread.loopConfig ?? null,
     isUnread: thread.isUnread,
+    lastUsedModel: thread.lastUsedModel,
     messages: thread.messages ?? [],
     queuedMessages: thread.queuedMessages ?? [],
   };

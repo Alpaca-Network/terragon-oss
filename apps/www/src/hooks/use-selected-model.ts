@@ -1,10 +1,11 @@
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   selectedModelAtom,
   selectedModelPersistedAtom,
   multiAgentModePersistedAtom,
   selectedModelsPersistedAtom,
 } from "@/atoms/user-flags";
+import { userSettingsAtom } from "@/atoms/user";
 import { AIAgent, AIModel, SelectedAIModels } from "@terragon/agent/types";
 import { useCallback, useMemo, useState } from "react";
 import { agentToModels, modelToAgent } from "@terragon/agent/utils";
@@ -37,6 +38,7 @@ export function useSelectedModel({
   setSelectedModel: SetSelectedModel;
   selectedModels: SelectedAIModels;
 } {
+  const userSettings = useAtomValue(userSettingsAtom);
   const openCodeOpenAIAnthropicModel = useFeatureFlag(
     "opencodeOpenAIAnthropicModelOption",
   );
@@ -87,6 +89,7 @@ export function useSelectedModel({
         agentVersion: forcedAgentVersion ?? "latest",
         enableOpenRouterOpenAIAnthropicModel: openCodeOpenAIAnthropicModel,
         enableOpencodeGemini3ProModelOption: openCodeGemini3ProModel,
+        codeRouterSettings: userSettings?.codeRouterSettings ?? undefined,
       });
       for (const [model, count] of selectedModelsInnerEntries) {
         if (count > 0 && validModels.includes(model)) {
@@ -113,6 +116,7 @@ export function useSelectedModel({
     forcedAgentVersion,
     openCodeOpenAIAnthropicModel,
     openCodeGemini3ProModel,
+    userSettings?.codeRouterSettings,
   ]);
 
   const setPersistedSelectedModel = useSetAtom(selectedModelPersistedAtom);

@@ -208,8 +208,10 @@ export async function fetchPRDetails(
       lastData = data;
       lastError = null;
 
+      // GitHub returns "unknown" string when computing mergeability, or null when not yet computed
       const isComputingMergeableState =
-        data.mergeable_state == null && data.mergeable == null;
+        (data.mergeable_state == null || data.mergeable_state === "unknown") &&
+        data.mergeable == null;
 
       if (!isComputingMergeableState) {
         return data;
@@ -439,6 +441,7 @@ export async function aggregatePRFeedback(
     mergeableState,
     hasConflicts,
     isMergeable,
+    isAutoMergeEnabled: prDetails.auto_merge !== null,
   };
 }
 

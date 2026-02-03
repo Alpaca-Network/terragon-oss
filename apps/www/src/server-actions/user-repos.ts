@@ -7,6 +7,11 @@ import {
   parseRepoFullName,
 } from "@/lib/github";
 import { Endpoints } from "@octokit/types";
+import {
+  getUserFlags,
+  updateUserFlags,
+} from "@terragon/shared/model/user-flags";
+import { db } from "@/lib/db";
 
 export type UserRepo =
   Endpoints["GET /installation/repositories"]["response"]["data"]["repositories"][number];
@@ -105,4 +110,23 @@ export const getUserRepoBranches = userOnlyAction(
     }
   },
   { defaultErrorMessage: "An unexpected error occurred" },
+);
+
+/**
+ * Track a recently used repo (max 5, FIFO)
+ */
+export const trackRecentRepo = userOnlyAction(
+  async function trackRecentRepo(userId: string, repoFullName: string) {
+    const userFlags = await getUserFlags({ db, userId });
+    const recentRepos = (userFlags?.recentRepos as string[]) ?? [];
+
+    // Remove if already exists, add to front (FIFO, max 5)
+    const updated = [
+      repoFullName,
+      ...recentRepos.filter((r) => r !== repoFullName),
+    ].slice(0, 5);
+
+    await updateUserFlags({ db, userId, updates: { recentRepos: updated } });
+  },
+  { defaultErrorMessage: "Failed to track recent repo" },
 );

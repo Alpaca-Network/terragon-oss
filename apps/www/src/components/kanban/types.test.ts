@@ -71,8 +71,8 @@ function createMockThread(
 
 describe("Kanban Types", () => {
   describe("KANBAN_COLUMNS", () => {
-    it("should have exactly 5 columns", () => {
-      expect(KANBAN_COLUMNS).toHaveLength(5);
+    it("should have exactly 4 columns", () => {
+      expect(KANBAN_COLUMNS).toHaveLength(4);
     });
 
     it("should have the correct column order", () => {
@@ -82,7 +82,6 @@ describe("Kanban Types", () => {
         "in_progress",
         "in_review",
         "done",
-        "failed",
       ]);
     });
 
@@ -257,25 +256,25 @@ describe("Kanban Types", () => {
       });
     });
 
-    describe("Failed column", () => {
-      it("should return failed for error status", () => {
+    describe("Review column for failed tasks", () => {
+      it("should return in_review for error status", () => {
         const thread = createMockThread({ status: "error" });
-        expect(getKanbanColumn(thread)).toBe("failed");
+        expect(getKanbanColumn(thread)).toBe("in_review");
       });
 
-      it("should return failed for working-error status", () => {
+      it("should return in_review for working-error status", () => {
         const thread = createMockThread({ status: "working-error" });
-        expect(getKanbanColumn(thread)).toBe("failed");
+        expect(getKanbanColumn(thread)).toBe("in_review");
       });
 
-      it("should return failed for stopped status", () => {
+      it("should return in_review for stopped status", () => {
         const thread = createMockThread({ status: "stopped" });
-        expect(getKanbanColumn(thread)).toBe("failed");
+        expect(getKanbanColumn(thread)).toBe("in_review");
       });
 
-      it("should return failed for working-stopped status", () => {
+      it("should return in_review for working-stopped status", () => {
         const thread = createMockThread({ status: "working-stopped" });
-        expect(getKanbanColumn(thread)).toBe("failed");
+        expect(getKanbanColumn(thread)).toBe("in_review");
       });
     });
 
@@ -324,7 +323,7 @@ describe("Kanban Types", () => {
           },
         ];
         // "working-error" should take precedence
-        expect(getKanbanColumn(thread)).toBe("failed");
+        expect(getKanbanColumn(thread)).toBe("in_review");
       });
     });
   });

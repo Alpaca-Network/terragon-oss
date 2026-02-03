@@ -1,11 +1,6 @@
 import { ThreadInfo, ThreadStatus } from "@terragon/shared";
 
-export type KanbanColumn =
-  | "backlog"
-  | "in_progress"
-  | "in_review"
-  | "done"
-  | "failed";
+export type KanbanColumn = "backlog" | "in_progress" | "in_review" | "done";
 
 export const KANBAN_COLUMNS: {
   id: KanbanColumn;
@@ -32,11 +27,6 @@ export const KANBAN_COLUMNS: {
     title: "Done",
     description: "Completed tasks",
   },
-  {
-    id: "failed",
-    title: "Failed",
-    description: "Failed or cancelled tasks",
-  },
 ];
 
 /**
@@ -51,14 +41,14 @@ export function getKanbanColumn(thread: ThreadInfo): KanbanColumn {
     return "backlog";
   }
 
-  // Error states go to failed
+  // Error states go to review
   if (status === "error" || status === "working-error") {
-    return "failed";
+    return "in_review";
   }
 
-  // Stopped tasks go to failed
+  // Stopped tasks go to review
   if (status === "stopped" || status === "working-stopped") {
-    return "failed";
+    return "in_review";
   }
 
   // Draft and scheduled tasks go to backlog

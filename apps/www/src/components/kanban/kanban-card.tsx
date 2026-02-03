@@ -93,8 +93,8 @@ export const KanbanCard = memo(function KanbanCard({
       className={cn(
         "group relative bg-card border rounded-xl p-2.5 cursor-pointer",
         "transition-all duration-200 ease-out",
-        "tap-highlight card-float-hover",
-        "hover:border-primary/40 active:scale-[0.98]",
+        "tap-highlight",
+        "hover:border-primary/40 hover:shadow-md active:scale-[0.98]",
         isSelected &&
           "ring-2 ring-primary border-primary shadow-[0_0_20px_rgba(99,102,241,0.15)]",
         isError && "bg-destructive/10 border-destructive/30",
@@ -105,7 +105,9 @@ export const KanbanCard = memo(function KanbanCard({
         <div
           className={cn(
             "absolute right-1.5 top-1.5 transition-opacity",
-            isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            isMenuOpen
+              ? "opacity-100"
+              : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
           )}
           onClick={handleMenuClick}
         >
@@ -129,7 +131,7 @@ export const KanbanCard = memo(function KanbanCard({
 
       {/* Start Task button - shown on hover for draft tasks */}
       {isDraft && !isMenuOpen && (
-        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-1.5 right-1.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

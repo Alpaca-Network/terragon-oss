@@ -6,8 +6,6 @@ import {
   LoaderCircle,
   RefreshCw,
   SquarePen,
-  Archive,
-  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -30,11 +28,6 @@ import {
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 import { KanbanSearchBar } from "./kanban-search-bar";
 
@@ -48,8 +41,6 @@ export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
       return "data-[state=active]:bg-accent/10 data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm";
     case "done":
       return "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_12px_rgba(99,102,241,0.15)]";
-    case "failed":
-      return "data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-sm";
     default:
       return "data-[state=active]:bg-muted";
   }
@@ -77,14 +68,6 @@ export const calculateScrollToCenter = (
   return tabOffsetLeft - tabsListWidth / 2 + tabWidth / 2;
 };
 
-// Determine if archive toggle should be shown
-export const shouldShowArchiveToggle = (
-  columnId: KanbanColumnType,
-  isArchivedView: boolean,
-): boolean => {
-  return columnId === "done" && !isArchivedView;
-};
-
 export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters,
   initialSelectedTaskId,
@@ -105,7 +88,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const [activeColumn, setActiveColumn] =
     useState<KanbanColumnType>("in_progress");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
-  const [showArchivedInDone, setShowArchivedInDone] = useState(false);
   const [drawerInitialTab, setDrawerInitialTab] = useState<
     "feed" | "changes" | "code-review"
   >("feed");
@@ -125,7 +107,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
 
-  // Fetch archived threads when showing archived in Done column
+  // Always fetch archived threads to show in Done column
   const archivedFilters = useMemo(
     () => ({
       ...queryFilters,
@@ -194,7 +176,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       in_progress: [],
       in_review: [],
       done: [],
-      failed: [],
     };
 
     for (const thread of threads) {
@@ -211,15 +192,13 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       }
     }
 
-    // Add archived threads to Done column if toggle is enabled
-    if (showArchivedInDone) {
-      for (const thread of archivedThreads) {
-        if (!matchesSearchQuery(thread)) continue;
-        const column = getKanbanColumn(thread);
-        // Only add archived threads that would be in the Done column
-        if (column === "done") {
-          groups.done.push(thread);
-        }
+    // Always add archived threads to Done column
+    for (const thread of archivedThreads) {
+      if (!matchesSearchQuery(thread)) continue;
+      const column = getKanbanColumn(thread);
+      // Only add archived threads that would be in the Done column
+      if (column === "done") {
+        groups.done.push(thread);
       }
     }
 
@@ -232,14 +211,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
 
     return groups;
-  }, [
-    threads,
-    backlogThreads,
-    threadIds,
-    archivedThreads,
-    showArchivedInDone,
-    matchesSearchQuery,
-  ]);
+  }, [threads, backlogThreads, threadIds, archivedThreads, matchesSearchQuery]);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
@@ -257,12 +229,12 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         return false;
       }
       if (typeof data.isThreadArchived === "boolean") {
-        // Match both archived and non-archived based on current filters and toggle state
+        // Match both archived and non-archived based on current filters
         if (showArchived === data.isThreadArchived) {
           return true;
         }
-        // Also match archived threads when showArchivedInDone is enabled
-        if (showArchivedInDone && data.isThreadArchived) {
+        // Always match archived threads for Done column
+        if (data.isThreadArchived) {
           return true;
         }
       }
@@ -280,7 +252,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       archivedThreadIds,
       backlogThreadIds,
       showArchived,
-      showArchivedInDone,
       automationId,
     ],
   );
@@ -290,9 +261,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     onThreadChange: () => {
       refetch();
       refetchBacklog();
-      if (showArchivedInDone) {
-        refetchArchived();
-      }
+      refetchArchived();
     },
   });
 
@@ -558,40 +527,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             </div>
             <ScrollArea className="flex-1 min-h-0 futuristic-scrollbar">
               <div className={cn("p-2 space-y-2", CONTENT_BOTTOM_PADDING)}>
-                {/* Show archived toggle for Done column */}
-                {shouldShowArchiveToggle(
-                  col.id,
-                  queryFilters.archived ?? false,
-                ) && (
-                  <div className="flex items-center justify-end">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={showArchivedInDone ? "secondary" : "ghost"}
-                          size="sm"
-                          className="h-7 px-2 gap-1.5 text-xs tap-highlight rounded-lg"
-                          onClick={() =>
-                            setShowArchivedInDone(!showArchivedInDone)
-                          }
-                        >
-                          {showArchivedInDone ? (
-                            <ArchiveRestore className="h-3.5 w-3.5" />
-                          ) : (
-                            <Archive className="h-3.5 w-3.5" />
-                          )}
-                          {showArchivedInDone
-                            ? "Hide Archived"
-                            : "Show Archived"}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        {showArchivedInDone
-                          ? "Hide archived tasks"
-                          : "Show archived tasks in Done column"}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                )}
                 {columnThreads[col.id].length === 0 ? (
                   <div className="py-16 text-center">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
@@ -636,6 +571,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         open={!!selectedThreadId}
         onClose={handleCloseDrawer}
         initialTab={drawerInitialTab}
+        onNewTask={handleOpenNewTaskDrawer}
       />
 
       {/* New task drawer */}

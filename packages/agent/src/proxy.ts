@@ -94,10 +94,13 @@ const MODEL_PROVIDER_CONFIG: Record<ModelProvider, ModelValidationConfig> = {
       // Z.AI models
       startsWithMatcher("glm-4"),
       // Chinese/other models
+      includesMatcher("grok"),
       startsWithMatcher("qwen"),
       startsWithMatcher("kimi"),
       startsWithMatcher("deepseek"),
       startsWithMatcher("minimax"),
+      // Code Router models
+      includesMatcher("code-router"),
     ],
     missingModelMessage: "Model must be specified in request body",
     unsupportedModelMessage: (model) =>

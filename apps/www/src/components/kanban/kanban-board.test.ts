@@ -32,18 +32,12 @@ describe("Kanban Board Desktop", () => {
 
     it("should not exceed max index when navigating right from last column", () => {
       const lastIndex = KANBAN_COLUMNS.length - 1;
-      const newIndex = navigateColumn(lastIndex, "right"); // failed
-      expect(newIndex).toBe(lastIndex); // stays at failed
+      const newIndex = navigateColumn(lastIndex, "right"); // done
+      expect(newIndex).toBe(lastIndex); // stays at done
     });
 
     it("should correctly traverse all columns with right navigation", () => {
-      const expectedOrder = [
-        "backlog",
-        "in_progress",
-        "in_review",
-        "done",
-        "failed",
-      ];
+      const expectedOrder = ["backlog", "in_progress", "in_review", "done"];
       let currentIndex = 0;
 
       for (let i = 0; i < expectedOrder.length; i++) {
@@ -55,13 +49,7 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should correctly traverse all columns with left navigation", () => {
-      const expectedOrder = [
-        "failed",
-        "done",
-        "in_review",
-        "in_progress",
-        "backlog",
-      ];
+      const expectedOrder = ["done", "in_review", "in_progress", "backlog"];
       let currentIndex = KANBAN_COLUMNS.length - 1;
 
       for (let i = 0; i < expectedOrder.length; i++) {
@@ -75,13 +63,12 @@ describe("Kanban Board Desktop", () => {
 
   describe("Full-screen mode", () => {
     it("should have all columns available for full-screen view", () => {
-      expect(KANBAN_COLUMNS.length).toBe(5);
+      expect(KANBAN_COLUMNS.length).toBe(4);
       expect(KANBAN_COLUMNS.map((c) => c.id)).toEqual([
         "backlog",
         "in_progress",
         "in_review",
         "done",
-        "failed",
       ]);
     });
 
@@ -125,15 +112,15 @@ describe("Kanban Board Desktop", () => {
       expect(newIndex).toBe(0); // stays at backlog
     });
 
-    it("should not navigate right from last column (failed)", () => {
+    it("should not navigate right from last column (done)", () => {
       const lastIndex = KANBAN_COLUMNS.length - 1;
       const newIndex = simulateArrowKey(lastIndex, "ArrowRight");
-      expect(newIndex).toBe(lastIndex); // stays at failed
+      expect(newIndex).toBe(lastIndex); // stays at done
     });
 
     it("should navigate through all columns with right arrow keys", () => {
       let currentIndex = 0; // Start at backlog
-      const expectedPath = [0, 1, 2, 3, 4]; // All column indices
+      const expectedPath = [0, 1, 2, 3]; // All column indices
 
       expectedPath.forEach((expectedIndex) => {
         expect(currentIndex).toBe(expectedIndex);
@@ -145,8 +132,8 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should navigate through all columns with left arrow keys", () => {
-      let currentIndex = KANBAN_COLUMNS.length - 1; // Start at failed
-      const expectedPath = [4, 3, 2, 1, 0]; // All column indices in reverse
+      let currentIndex = KANBAN_COLUMNS.length - 1; // Start at done
+      const expectedPath = [3, 2, 1, 0]; // All column indices in reverse
 
       expectedPath.forEach((expectedIndex) => {
         expect(currentIndex).toBe(expectedIndex);
@@ -276,6 +263,74 @@ describe("Kanban Board Desktop", () => {
 
     it("should have default width greater than half screen", () => {
       expect(TASK_PANEL_DEFAULT_WIDTH_PERCENT).toBeGreaterThan(50);
+    });
+  });
+
+  describe("Column wheel scrolling", () => {
+    const getWheelBehavior = (
+      scrollWidth: number,
+      clientWidth: number,
+      deltaX: number,
+      deltaY: number,
+      hasNestedScrollable: boolean,
+      nestedOverflowPx: number,
+      nestedOverflowThresholdPx = 16,
+    ): { shouldScroll: boolean; shouldPreventDefault: boolean } => {
+      if (hasNestedScrollable && nestedOverflowPx > nestedOverflowThresholdPx) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+      const hasHorizontalOverflow = scrollWidth > clientWidth + 1;
+      if (!hasHorizontalOverflow) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      if (absY <= absX) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+
+      return { shouldScroll: true, shouldPreventDefault: true };
+    };
+
+    it("should not hijack wheel when columns fit", () => {
+      const result = getWheelBehavior(600, 600, 0, 120, false, 0);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should not hijack wheel when horizontal intent is stronger", () => {
+      const result = getWheelBehavior(900, 600, 120, 80, false, 0);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should convert vertical wheel to horizontal scroll when overflowing", () => {
+      const result = getWheelBehavior(900, 600, 10, 140, false, 0);
+      expect(result).toEqual({
+        shouldScroll: true,
+        shouldPreventDefault: true,
+      });
+    });
+
+    it("should allow nested column scroll to handle wheel", () => {
+      const result = getWheelBehavior(900, 600, 0, 140, true, 32);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should allow kanban scroll when nested overflow is tiny", () => {
+      const result = getWheelBehavior(900, 600, 0, 140, true, 8);
+      expect(result).toEqual({
+        shouldScroll: true,
+        shouldPreventDefault: true,
+      });
     });
   });
 

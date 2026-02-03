@@ -40,6 +40,7 @@ import { sendLoopsEvent, updateLoopsContact } from "@/lib/loops";
 import { getSandboxSizeForUser } from "@/lib/subscription-tiers";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
 import { getThreadChatHistory } from "./compact";
+import { trackRecentRepo } from "@/server-actions/user-repos";
 
 export interface CreateThreadOptions {
   userId: string;
@@ -219,6 +220,7 @@ export async function createNewThread({
       agent,
       permissionMode: message.permissionMode || "allowAll",
       status: scheduleAt ? "scheduled" : saveAsDraft ? "draft" : "queued",
+      lastUsedModel: modelOrDefault,
     },
     enableThreadChatCreation,
   });
@@ -236,6 +238,13 @@ export async function createNewThread({
   }
 
   const updateThreadMetadata = () => {
+    // Track recently used repo
+    waitUntil(
+      trackRecentRepo(githubRepoFullName).catch((error) => {
+        console.error("Failed to track recent repo:", error);
+      }),
+    );
+
     if (shouldGenerateName) {
       waitUntil(
         generateAndUpdateThreadName({

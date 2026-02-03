@@ -38,6 +38,7 @@ function createMockThreadInfo(overrides: Partial<ThreadInfo> = {}): ThreadInfo {
     authorName: null,
     authorImage: null,
     threadChats: [],
+    lastUsedModel: null,
     ...overrides,
   };
 }

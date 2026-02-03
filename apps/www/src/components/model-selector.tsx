@@ -151,6 +151,7 @@ function ModelSelectorInner({
             agentVersion: forcedAgentVersion ?? AGENT_VERSION,
             enableOpenRouterOpenAIAnthropicModel: openCodeOpenAIAnthropicModel,
             enableOpencodeGemini3ProModelOption: openCodeGemini3ProModel,
+            codeRouterSettings: userSettings?.codeRouterSettings ?? undefined,
           },
         }),
       )
@@ -161,6 +162,7 @@ function ModelSelectorInner({
     openCodeGemini3ProModel,
     agentsToDisplay,
     userSettings?.agentModelPreferences,
+    userSettings?.codeRouterSettings,
     currentlySelectedModels,
   ]);
 

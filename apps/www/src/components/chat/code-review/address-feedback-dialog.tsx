@@ -25,11 +25,25 @@ import { useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { useAccessInfo } from "@/queries/subscription";
 import { SUBSCRIPTION_MESSAGES } from "@/lib/subscription-msgs";
+import { ModelSelector } from "@/components/model-selector";
+import type { AIModel } from "@terragon/agent/types";
 import type { PRFeedback } from "@terragon/shared/db/types";
 import type { ThreadInfoFull } from "@terragon/shared";
 import { generateFeedbackTaskDescription } from "@/lib/feedback-task-template";
 
 type ActionMode = "new-task" | "integrate";
+
+export function resolveFeedbackTaskModel({
+  mode,
+  defaultModel,
+  taskModel,
+}: {
+  mode: ActionMode;
+  defaultModel: AIModel;
+  taskModel: AIModel;
+}): AIModel {
+  return mode === "new-task" ? taskModel : defaultModel;
+}
 
 interface AddressFeedbackDialogProps {
   feedback: PRFeedback;
@@ -48,7 +62,8 @@ export function AddressFeedbackDialog({
     useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const { isActive } = useAccessInfo();
-  const selectedModel = useAtomValue(selectedModelAtom);
+  const defaultModel = useAtomValue(selectedModelAtom);
+  const [taskModel, setTaskModel] = useState<AIModel>(defaultModel);
 
   // Generate the task description
   const generatedDescription = useMemo(
@@ -68,6 +83,12 @@ export function AddressFeedbackDialog({
       setEditedDescription(generatedDescription);
     }
   }, [generatedDescription, isEditing]);
+
+  React.useEffect(() => {
+    if (open) {
+      setTaskModel(defaultModel);
+    }
+  }, [open, defaultModel]);
 
   const createNewThreadMutation = useServerActionMutation({
     mutationFn: newThread,
@@ -95,6 +116,11 @@ export function AddressFeedbackDialog({
       ? editedDescription
       : generatedDescription;
     const taskTitle = `Address PR feedback for #${feedback.prNumber}`;
+    const messageModel = resolveFeedbackTaskModel({
+      mode,
+      defaultModel,
+      taskModel,
+    });
 
     if (mode === "new-task") {
       await createNewThreadMutation.mutateAsync({
@@ -104,7 +130,7 @@ export function AddressFeedbackDialog({
         parentThreadId: thread.id,
         message: {
           type: "user",
-          model: selectedModel,
+          model: messageModel,
           timestamp: new Date().toISOString(),
           parts: [
             {
@@ -123,7 +149,7 @@ export function AddressFeedbackDialog({
         messages: [
           {
             type: "user",
-            model: selectedModel,
+            model: messageModel,
             timestamp: new Date().toISOString(),
             parts: [
               {
@@ -218,6 +244,23 @@ export function AddressFeedbackDialog({
               </label>
             </RadioGroup>
           </div>
+
+          {mode === "new-task" && (
+            <div className="space-y-2">
+              <Label>Model</Label>
+              <ModelSelector
+                className="w-full"
+                selectedModel={taskModel}
+                selectedModels={{}}
+                setSelectedModel={({ model }) => setTaskModel(model)}
+                isMultiAgentMode={false}
+                setIsMultiAgentMode={() => {}}
+                supportsMultiAgentPromptSubmission={false}
+                forcedAgent={null}
+                forcedAgentVersion={null}
+              />
+            </div>
+          )}
 
           {/* Merge instructions toggle */}
           <div className="flex items-center gap-2">

@@ -74,8 +74,10 @@ async function fetchPRWithMergeablePolling({
       lastData = data;
       lastError = null;
 
+      // GitHub returns "unknown" string when computing mergeability, or null when not yet computed
       const isComputingMergeableState =
-        data.mergeable_state == null && data.mergeable == null;
+        (data.mergeable_state == null || data.mergeable_state === "unknown") &&
+        data.mergeable == null;
 
       if (!isComputingMergeableState) {
         return data;
@@ -143,6 +145,12 @@ export const mergePR = userOnlyAction(
 
       if (pr.state === "closed") {
         throw new UserFacingError("Cannot merge a closed PR");
+      }
+
+      if (pr.draft) {
+        throw new UserFacingError(
+          "Cannot merge a draft PR. Mark the PR as ready for review first.",
+        );
       }
 
       if (!pr.mergeable) {
@@ -275,6 +283,14 @@ export const canMergePR = userOnlyAction(
           canMerge: false,
           reason: "PR is closed",
           mergeableState: "closed",
+        };
+      }
+
+      if (pr.draft) {
+        return {
+          canMerge: false,
+          reason: "PR is a draft",
+          mergeableState: "draft",
         };
       }
 

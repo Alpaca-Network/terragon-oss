@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logGatewayZUsage } from "../log-gatewayz-usage";
 import { waitUntil } from "@vercel/functions";
 import { validateProxyRequestModel } from "@/server-lib/proxy-model-validation";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 import * as schema from "@terragon/shared/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -17,6 +18,7 @@ type HandlerArgs = { params: { path?: string[] } };
 type AuthContext = {
   userId: string;
   gwTier: "free" | "pro" | "max";
+  bodyBuffer?: ArrayBuffer | null;
 };
 
 type StreamEvent = {
@@ -308,6 +310,116 @@ async function logUsageFromEventStream({
   }
 }
 
+function parseModelFromBodyBuffer(
+  bodyBuffer?: ArrayBuffer | null,
+): string | null {
+  if (!bodyBuffer || bodyBuffer.byteLength === 0) {
+    return null;
+  }
+  try {
+    const bodyText = new TextDecoder().decode(bodyBuffer);
+    if (!bodyText) {
+      return null;
+    }
+    const parsed = JSON.parse(bodyText) as { model?: string | null };
+    const model = parsed?.model;
+    return typeof model === "string" ? model.trim() : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+/**
+ * Check if a model is a Code Router model
+ * Code Router models follow the pattern: gatewayz/code-router[/mode]
+ */
+function isCodeRouterModel(model: string | null): boolean {
+  return !!model && model.startsWith("gatewayz/code-router");
+}
+
+/**
+ * Extract the Code Router mode from a model string
+ * Returns 'balanced', 'price', or 'quality'
+ */
+function getCodeRouterMode(
+  model: string | null,
+): "balanced" | "price" | "quality" {
+  if (!model || !isCodeRouterModel(model)) {
+    return "balanced";
+  }
+  if (model === "gatewayz/code-router/price") {
+    return "price";
+  }
+  if (model === "gatewayz/code-router/quality") {
+    return "quality";
+  }
+  return "balanced";
+}
+
+/**
+ * OpenCode models that free-tier users can access with credits.
+ * These are specific models routed through OpenCode - not to be confused with
+ * the broader model families (e.g., "claude-sonnet" here refers only to the
+ * OpenCode-routed variant, not all Claude Sonnet models).
+ *
+ * This list should match the models defined in packages/agent/src/types.ts
+ * under the "opencode" agent models (with appropriate prefix normalization).
+ */
+const OPENCODE_GATEWAYZ_MODELS = new Set([
+  // Z.AI GLM models
+  "glm-4.6",
+  "glm-4.7",
+  "glm-4.7-flash",
+  "glm-4.7-lite",
+  // Chinese/other models
+  "kimi-k2",
+  "grok-code",
+  "qwen3-coder",
+  // Google models (OpenCode variants)
+  "gemini-2.5-pro",
+  "gemini-3-pro",
+  // OpenAI models (OpenCode variants)
+  "gpt-5",
+  "gpt-5-codex",
+  // Anthropic models (OpenCode variants) - specific to opencode-ant/sonnet
+  "sonnet",
+]);
+
+/**
+ * Check if a model is an OpenCode model that free-tier users can access with credits.
+ *
+ * Note: The model string is expected to be the raw model from the request body
+ * (e.g., "glm-4.7", "gpt-5", "sonnet"). Gatewayz uses OpenAI-compatible API format
+ * where the model is always specified in the JSON request body for chat completions.
+ */
+function isOpencodeGatewayzModel(model: string): boolean {
+  const normalized = model.toLowerCase().trim();
+
+  // Check exact matches first (most OpenCode models)
+  if (OPENCODE_GATEWAYZ_MODELS.has(normalized)) {
+    return true;
+  }
+
+  // Check prefix matches for models with version suffixes
+  // e.g., "glm-4.7-something" should still match
+  for (const prefix of [
+    "glm-4.6",
+    "glm-4.7",
+    "kimi-k2",
+    "grok-code",
+    "qwen3-coder",
+    "gemini-2.5-pro",
+    "gemini-3-pro",
+    "gpt-5",
+  ]) {
+    if (normalized.startsWith(prefix)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function proxyRequest(
   request: NextRequest,
   args: HandlerArgs,
@@ -319,6 +431,7 @@ async function proxyRequest(
   const validation = await validateProxyRequestModel({
     request,
     provider: "gatewayz",
+    bodyBuffer: authContext.bodyBuffer ?? undefined,
   });
   if (!validation.valid) {
     return new Response(validation.error, { status: 400 });
@@ -345,10 +458,18 @@ async function proxyRequest(
   headers.set("X-GatewayZ-User-Id", authContext.userId);
   headers.set("X-GatewayZ-Tier", authContext.gwTier);
 
+  // Check if this is a Code Router request and set the appropriate headers
+  const requestedModel = parseModelFromBodyBuffer(authContext.bodyBuffer);
+  if (isCodeRouterModel(requestedModel)) {
+    const codeRouterMode = getCodeRouterMode(requestedModel);
+    headers.set("X-GatewayZ-Code-Router", "true");
+    headers.set("X-GatewayZ-Code-Router-Mode", codeRouterMode);
+  }
+
   const body =
     request.method === "GET" || request.method === "HEAD"
       ? undefined
-      : await request.arrayBuffer();
+      : (authContext.bodyBuffer ?? (await request.arrayBuffer()));
 
   const response = await fetch(targetUrl, {
     method: request.method,
@@ -453,6 +574,7 @@ function getDaemonTokenFromHeaders(headers: Headers) {
 
 async function authorize(
   request: NextRequest,
+  bodyBuffer?: ArrayBuffer | null,
 ): Promise<
   | { response: Response; userId?: undefined; gwTier?: undefined }
   | { response: null; userId: string; gwTier: "free" | "pro" | "max" }
@@ -485,10 +607,29 @@ async function authorize(
     const gwTier = (userRecord[0]?.gwTier as "free" | "pro" | "max") || "free";
 
     // Check if user has an active Gatewayz subscription (pro or max)
+    // Free-tier users can only access OpenCode models with credits
     if (gwTier === "free") {
+      // Gatewayz uses OpenAI-compatible API format where the model is always
+      // specified in the JSON request body for chat completions. This is the
+      // only supported method for specifying the model - headers and query
+      // params are not used. If no model is found in the body, the request
+      // will fail at the validateProxyRequestModel step anyway.
+      const requestedModel = parseModelFromBodyBuffer(bodyBuffer);
+
+      if (requestedModel && isOpencodeGatewayzModel(requestedModel)) {
+        // OpenCode model - check if user has credits or active subscription
+        const creditCheck = await checkProxyCredits(userId, "OpenCode");
+        if (!creditCheck.allowed) {
+          return { response: creditCheck.response };
+        }
+        return { response: null, userId, gwTier };
+      }
+
+      // Non-OpenCode model or no model found - deny access for free tier
       console.log("Gatewayz proxy access denied: free tier user", {
         userId,
         gwTier,
+        requestedModel: requestedModel ?? "(not found in body)",
       });
       return {
         response: new Response(
@@ -514,13 +655,18 @@ async function handleWithAuth(
     context: AuthContext,
   ) => Promise<Response>,
 ) {
-  const authResult = await authorize(request);
+  const bodyBuffer =
+    request.method === "GET" || request.method === "HEAD"
+      ? null
+      : await request.arrayBuffer();
+  const authResult = await authorize(request, bodyBuffer);
   if (authResult.response) {
     return authResult.response;
   }
   return handler(request, args, {
     userId: authResult.userId,
     gwTier: authResult.gwTier,
+    bodyBuffer,
   });
 }
 
