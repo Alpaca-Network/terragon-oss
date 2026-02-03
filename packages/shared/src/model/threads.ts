@@ -110,12 +110,16 @@ async function getThreadsInner({
   const threadChatSubQuery = db
     .select({
       threadChats: sql<
-        Pick<ThreadChat, "id" | "agent" | "status" | "errorMessage">[]
+        Pick<
+          ThreadChat,
+          "id" | "agent" | "status" | "errorMessage" | "lastUsedModel"
+        >[]
       >`jsonb_agg(jsonb_build_object(
           'id', ${schema.threadChat.id},
           'agent', ${schema.threadChat.agent},
           'status', ${schema.threadChat.status},
-          'errorMessage', ${schema.threadChat.errorMessage}
+          'errorMessage', ${schema.threadChat.errorMessage},
+          'lastUsedModel', ${schema.threadChat.lastUsedModel}
         ))
       `.as("threadChats"),
     })
@@ -156,6 +160,7 @@ async function getThreadsInner({
       sourceMetadata: schema.thread.sourceMetadata,
       version: schema.thread.version,
       gitDiffStats: schema.thread.gitDiffStats,
+      lastUsedModel: schema.thread.lastUsedModel,
 
       ...(includeUser
         ? {
@@ -172,6 +177,7 @@ async function getThreadsInner({
         agent: schema.thread.agent,
         status: schema.thread.status,
         errorMessage: schema.thread.errorMessage,
+        lastUsedModel: schema.thread.lastUsedModel,
       },
       // Additional columns
       authorName: schema.user.name,
@@ -644,6 +650,7 @@ export async function getThread({
     sourceMetadata: thread.sourceMetadata,
     version: thread.version,
     isUnread: thread.isUnread,
+    lastUsedModel: thread.lastUsedModel,
     threadChats: resolveThreadChatFull(thread, threadChats),
     childThreads,
   };
@@ -731,6 +738,7 @@ type ThreadForThreadChatInfoFull = Pick<
   | "name"
   | "queuedMessages"
   | "messages"
+  | "lastUsedModel"
 > & {
   isUnread: boolean;
 };
@@ -767,6 +775,7 @@ function createLegacyThreadChatFull(
     permissionMode: thread.permissionMode ?? "allowAll",
     loopConfig: thread.loopConfig ?? null,
     isUnread: thread.isUnread,
+    lastUsedModel: thread.lastUsedModel,
     messages: thread.messages ?? [],
     queuedMessages: thread.queuedMessages ?? [],
   };
