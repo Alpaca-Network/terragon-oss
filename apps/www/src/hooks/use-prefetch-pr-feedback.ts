@@ -3,7 +3,10 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThreadInfo } from "@terragon/shared";
-import { getPRFeedbackBatch } from "@/server-actions/get-pr-feedback-batch";
+import {
+  getPRFeedbackBatch,
+  type ThreadPRInfo,
+} from "@/server-actions/get-pr-feedback-batch";
 
 // Must match MAX_BATCH_SIZE in get-pr-feedback-batch.ts
 const MAX_BATCH_SIZE = 10;
@@ -33,17 +36,23 @@ export function usePrefetchPRFeedback(threads: ThreadInfo[]) {
     // Only take threads up to the batch limit to avoid marking threads
     // that won't actually be fetched
     const limitedThreads = threadsWithPRs.slice(0, MAX_BATCH_SIZE);
-    const threadIds = limitedThreads.map((t) => t.id);
+
+    // Extract only the PR info needed (avoids sending full thread data to server)
+    const threadPRInfos: ThreadPRInfo[] = limitedThreads.map((t) => ({
+      id: t.id,
+      githubPRNumber: t.githubPRNumber,
+      githubRepoFullName: t.githubRepoFullName,
+    }));
 
     // Mark only the threads we're actually fetching as prefetched
-    for (const id of threadIds) {
-      prefetchedRef.current.add(id);
+    for (const info of threadPRInfos) {
+      prefetchedRef.current.add(info.id);
     }
 
     // Batch fetch PR feedback
     const fetchBatch = async () => {
       try {
-        const result = await getPRFeedbackBatch(threadIds);
+        const result = await getPRFeedbackBatch(threadPRInfos);
         if (!result.success) {
           console.error(
             "Failed to batch fetch PR feedback:",
@@ -55,22 +64,22 @@ export function usePrefetchPRFeedback(threads: ThreadInfo[]) {
         const batchData = result.data;
 
         // Populate the React Query cache for each thread
-        for (const threadId of threadIds) {
-          const feedbackData = batchData[threadId];
+        for (const info of threadPRInfos) {
+          const feedbackData = batchData[info.id];
           if (feedbackData) {
             // Use the same query key pattern as individual PR feedback queries
             queryClient.setQueryData(
-              ["pr-feedback-summary", threadId],
+              ["pr-feedback-summary", info.id],
               feedbackData,
             );
             // Also set for other query key variants used in the codebase
-            queryClient.setQueryData(["pr-feedback", threadId], feedbackData);
+            queryClient.setQueryData(["pr-feedback", info.id], feedbackData);
             queryClient.setQueryData(
-              ["pr-feedback-indicators", threadId],
+              ["pr-feedback-indicators", info.id],
               feedbackData,
             );
             queryClient.setQueryData(
-              ["pr-feedback-kanban", threadId],
+              ["pr-feedback-kanban", info.id],
               feedbackData,
             );
           }
@@ -78,8 +87,8 @@ export function usePrefetchPRFeedback(threads: ThreadInfo[]) {
       } catch (error) {
         console.error("Error prefetching PR feedback batch:", error);
         // Remove failed thread IDs from prefetched set so they can be retried
-        for (const id of threadIds) {
-          prefetchedRef.current.delete(id);
+        for (const info of threadPRInfos) {
+          prefetchedRef.current.delete(info.id);
         }
       }
     };
