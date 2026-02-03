@@ -102,6 +102,7 @@ describe("createFeedbackSummary", () => {
     mergeableState: "clean",
     hasConflicts: false,
     isMergeable: true,
+    isAutoMergeEnabled: false,
     ...overrides,
   });
 

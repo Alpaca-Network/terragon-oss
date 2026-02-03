@@ -532,6 +532,7 @@ export type PRFeedback = {
   mergeableState: GithubPRMergeableState;
   hasConflicts: boolean;
   isMergeable: boolean;
+  isAutoMergeEnabled: boolean;
 };
 
 export type PRFeedbackSummary = {
