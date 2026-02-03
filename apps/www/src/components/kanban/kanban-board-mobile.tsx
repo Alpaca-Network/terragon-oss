@@ -30,6 +30,7 @@ import { BroadcastUserMessage } from "@terragon/types/broadcast";
 import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 import { KanbanSearchBar } from "./kanban-search-bar";
+import { TaskViewToggle } from "@/components/task-view-toggle";
 
 export const getColumnHeaderColor = (columnId: KanbanColumnType) => {
   switch (columnId) {
@@ -441,13 +442,21 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
 
   return (
     <div className="flex flex-col h-full gradient-shift-bg">
+      {/* Header with view toggle */}
+      <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold">Tasks</h2>
+        </div>
+        <TaskViewToggle />
+      </div>
+
       <Tabs
         value={activeColumn}
         onValueChange={(v) => setActiveColumn(v as KanbanColumnType)}
         className="flex flex-col h-full"
       >
         {/* Column tabs - horizontally scrollable with arrows */}
-        <div className="flex-shrink-0 flex items-center gap-1 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex-shrink-0 flex items-center gap-1 px-2 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-[53px] z-10">
           {/* Left arrow */}
           <Button
             variant="ghost"

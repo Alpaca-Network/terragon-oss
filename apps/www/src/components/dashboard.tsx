@@ -152,9 +152,9 @@ export function Dashboard({
     >
       <FeatureUpsellToast />
 
-      {/* Task View Toggle - shown at top right in inbox view on desktop (kanban has its own toggle) */}
+      {/* Task View Toggle - shown at top right in inbox view on both mobile and desktop */}
       {mounted && !showKanbanView && (
-        <div className="hidden lg:flex justify-end items-center gap-2 pb-0">
+        <div className="flex justify-end items-center gap-2 pb-0">
           <TaskViewToggle />
         </div>
       )}
