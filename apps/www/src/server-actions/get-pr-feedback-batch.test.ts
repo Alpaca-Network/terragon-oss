@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ThreadPRInfo } from "./get-pr-feedback-batch";
 
 // Mock the dependencies
 vi.mock("@/lib/auth-server", () => ({
@@ -16,18 +17,9 @@ vi.mock("@/lib/auth-server", () => ({
   }),
 }));
 
-vi.mock("@/lib/db", () => ({
-  db: {},
-}));
-
 vi.mock("@/lib/github", () => ({
   getOctokitForApp: vi.fn(),
   parseRepoFullName: vi.fn((fullName: string) => fullName.split("/")),
-}));
-
-const mockGetThreadMinimal = vi.fn();
-vi.mock("@terragon/shared/model/threads", () => ({
-  getThreadMinimal: (...args: any[]) => mockGetThreadMinimal(...args),
 }));
 
 const mockAggregatePRFeedback = vi.fn();
@@ -51,7 +43,7 @@ describe("getPRFeedbackBatch", () => {
     vi.clearAllMocks();
   });
 
-  it("should return empty object for empty thread IDs", async () => {
+  it("should return empty object for empty thread infos", async () => {
     // Dynamically import to get fresh mocks
     const { getPRFeedbackBatch } = await import("./get-pr-feedback-batch");
 
@@ -62,15 +54,17 @@ describe("getPRFeedbackBatch", () => {
   });
 
   it("should return null for threads without PRs", async () => {
-    mockGetThreadMinimal.mockResolvedValue({
-      id: "thread-1",
-      githubRepoFullName: "owner/repo",
-      githubPRNumber: null, // No PR
-    });
-
     const { getPRFeedbackBatch } = await import("./get-pr-feedback-batch");
 
-    const result = await getPRFeedbackBatch(["thread-1"]);
+    const threadInfos: ThreadPRInfo[] = [
+      {
+        id: "thread-1",
+        githubRepoFullName: "owner/repo",
+        githubPRNumber: null, // No PR
+      },
+    ];
+
+    const result = await getPRFeedbackBatch(threadInfos);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -81,12 +75,6 @@ describe("getPRFeedbackBatch", () => {
   it("should fetch PR feedback for threads with PRs", async () => {
     const { getOctokitForApp } = await import("@/lib/github");
     (getOctokitForApp as any).mockResolvedValue({});
-
-    mockGetThreadMinimal.mockResolvedValue({
-      id: "thread-1",
-      githubRepoFullName: "owner/repo",
-      githubPRNumber: 123,
-    });
 
     mockAggregatePRFeedback.mockResolvedValue({
       prNumber: 123,
@@ -107,7 +95,15 @@ describe("getPRFeedbackBatch", () => {
 
     const { getPRFeedbackBatch } = await import("./get-pr-feedback-batch");
 
-    const result = await getPRFeedbackBatch(["thread-1"]);
+    const threadInfos: ThreadPRInfo[] = [
+      {
+        id: "thread-1",
+        githubRepoFullName: "owner/repo",
+        githubPRNumber: 123,
+      },
+    ];
+
+    const result = await getPRFeedbackBatch(threadInfos);
 
     expect(result.success).toBe(true);
     expect(result.data!["thread-1"]).not.toBeNull();
@@ -117,20 +113,6 @@ describe("getPRFeedbackBatch", () => {
   it("should handle errors gracefully and continue with other threads", async () => {
     const { getOctokitForApp } = await import("@/lib/github");
     (getOctokitForApp as any).mockResolvedValue({});
-
-    // First thread will succeed
-    mockGetThreadMinimal
-      .mockResolvedValueOnce({
-        id: "thread-1",
-        githubRepoFullName: "owner/repo",
-        githubPRNumber: 123,
-      })
-      // Second thread will also succeed
-      .mockResolvedValueOnce({
-        id: "thread-2",
-        githubRepoFullName: "owner/repo",
-        githubPRNumber: 456,
-      });
 
     mockAggregatePRFeedback
       .mockResolvedValueOnce({
@@ -153,7 +135,20 @@ describe("getPRFeedbackBatch", () => {
 
     const { getPRFeedbackBatch } = await import("./get-pr-feedback-batch");
 
-    const result = await getPRFeedbackBatch(["thread-1", "thread-2"]);
+    const threadInfos: ThreadPRInfo[] = [
+      {
+        id: "thread-1",
+        githubRepoFullName: "owner/repo",
+        githubPRNumber: 123,
+      },
+      {
+        id: "thread-2",
+        githubRepoFullName: "owner/repo",
+        githubPRNumber: 456,
+      },
+    ];
+
+    const result = await getPRFeedbackBatch(threadInfos);
 
     expect(result.success).toBe(true);
     // First thread should have data
@@ -166,22 +161,19 @@ describe("getPRFeedbackBatch", () => {
     const { getOctokitForApp } = await import("@/lib/github");
     (getOctokitForApp as any).mockResolvedValue({});
 
-    mockGetThreadMinimal.mockResolvedValue({
-      id: "thread",
+    // Create 15 thread infos (more than MAX_BATCH_SIZE of 10)
+    const threadInfos: ThreadPRInfo[] = Array.from({ length: 15 }, (_, i) => ({
+      id: `thread-${i}`,
       githubRepoFullName: "owner/repo",
       githubPRNumber: null, // No PR to simplify test
-    });
-
-    // Create 15 thread IDs (more than MAX_BATCH_SIZE of 10)
-    const threadIds = Array.from({ length: 15 }, (_, i) => `thread-${i}`);
+    }));
 
     const { getPRFeedbackBatch } = await import("./get-pr-feedback-batch");
 
-    const result = await getPRFeedbackBatch(threadIds);
+    const result = await getPRFeedbackBatch(threadInfos);
 
     expect(result.success).toBe(true);
     // Should only process first 10 threads
     expect(Object.keys(result.data!).length).toBe(10);
-    expect(mockGetThreadMinimal).toHaveBeenCalledTimes(10);
   });
 });

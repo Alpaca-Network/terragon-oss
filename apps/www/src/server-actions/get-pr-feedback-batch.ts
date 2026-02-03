@@ -2,9 +2,7 @@
 
 import { cache } from "react";
 import { userOnlyAction } from "@/lib/auth-server";
-import { db } from "@/lib/db";
 import { getOctokitForApp, parseRepoFullName } from "@/lib/github";
-import { getThreadMinimal } from "@terragon/shared/model/threads";
 import {
   aggregatePRFeedback,
   createFeedbackSummary,
@@ -18,67 +16,66 @@ export type BatchPRFeedbackResult = {
   } | null;
 };
 
+export type ThreadPRInfo = {
+  id: string;
+  githubPRNumber: number | null;
+  githubRepoFullName: string;
+};
+
 /**
  * Batch fetches PR feedback for multiple threads in parallel
  * This is more efficient than making individual requests for each thread
+ *
+ * Note: This function takes thread PR info directly to avoid redundant database
+ * queries - the caller already has this info from the thread list fetch.
  */
 export const getPRFeedbackBatch = cache(
   userOnlyAction(
     async function getPRFeedbackBatch(
-      userId: string,
-      threadIds: string[],
+      _userId: string,
+      threadPRInfos: ThreadPRInfo[],
     ): Promise<BatchPRFeedbackResult> {
-      if (threadIds.length === 0) {
+      if (threadPRInfos.length === 0) {
         return {};
       }
 
       // Limit batch size to prevent overwhelming GitHub API
       const MAX_BATCH_SIZE = 10;
-      const limitedThreadIds = threadIds.slice(0, MAX_BATCH_SIZE);
+      const limitedThreads = threadPRInfos.slice(0, MAX_BATCH_SIZE);
 
-      // Fetch all threads in parallel to get PR info
-      const threads = await Promise.all(
-        limitedThreadIds.map((threadId) =>
-          getThreadMinimal({ db, userId, threadId }),
-        ),
+      // Filter threads that have PRs
+      const threadsWithPRs = limitedThreads.filter(
+        (thread): thread is ThreadPRInfo & { githubPRNumber: number } =>
+          thread.githubPRNumber !== null && !!thread.githubRepoFullName,
       );
 
-      // Filter threads that have PRs and group by repo
-      const threadsWithPRs = threads
-        .map((thread, index) => ({
-          thread,
-          threadId: limitedThreadIds[index]!,
-        }))
-        .filter(
-          (
-            item,
-          ): item is {
-            thread: NonNullable<typeof item.thread>;
-            threadId: string;
-          } => item.thread !== null && item.thread.githubPRNumber !== null,
-        );
-
       // Fetch PR feedback in parallel for all threads with PRs
-      const feedbackResults = await Promise.allSettled(
-        threadsWithPRs.map(async ({ thread, threadId }) => {
-          const [owner, repo] = parseRepoFullName(thread.githubRepoFullName);
+      // Using Promise.all with try/catch inside each promise to handle errors gracefully
+      const feedbackResults = await Promise.all(
+        threadsWithPRs.map(async (thread) => {
           try {
+            const [owner, repo] = parseRepoFullName(thread.githubRepoFullName);
             const octokit = await getOctokitForApp({ owner, repo });
             const feedback = await aggregatePRFeedback(
               octokit,
               owner,
               repo,
-              thread.githubPRNumber!,
+              thread.githubPRNumber,
             );
             const summary = createFeedbackSummary(feedback);
-            return { threadId, feedback, summary };
+            return { threadId: thread.id, feedback, summary, error: null };
           } catch (error) {
             // Log error but continue with other threads
             console.error(
-              `Failed to fetch PR feedback for thread ${threadId}:`,
+              `Failed to fetch PR feedback for thread ${thread.id}:`,
               error,
             );
-            return { threadId, error };
+            return {
+              threadId: thread.id,
+              feedback: null,
+              summary: null,
+              error,
+            };
           }
         }),
       );
@@ -87,17 +84,15 @@ export const getPRFeedbackBatch = cache(
       const result: BatchPRFeedbackResult = {};
 
       // Initialize all requested thread IDs with null (no PR or not found)
-      for (const threadId of limitedThreadIds) {
-        result[threadId] = null;
+      for (const thread of limitedThreads) {
+        result[thread.id] = null;
       }
 
       // Fill in successful results
-      for (const settledResult of feedbackResults) {
-        if (settledResult.status === "fulfilled") {
-          const { threadId, feedback, summary } = settledResult.value;
-          if (feedback && summary) {
-            result[threadId] = { feedback, summary };
-          }
+      for (const feedbackResult of feedbackResults) {
+        const { threadId, feedback, summary } = feedbackResult;
+        if (feedback && summary) {
+          result[threadId] = { feedback, summary };
         }
       }
 
