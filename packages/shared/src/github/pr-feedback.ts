@@ -174,18 +174,68 @@ export async function fetchPRReviews(
 /**
  * Fetches PR details including mergeable state
  */
+const MERGEABLE_STATE_POLL_ATTEMPTS = 5;
+const MERGEABLE_STATE_POLL_DELAY_MS = 500;
+
+function isRetryableGithubError(error: unknown) {
+  const status = (error as { status?: number }).status;
+  if (status === 401 || status === 403 || status === 404 || status === 422) {
+    return false;
+  }
+  return true;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchPRDetails(
   octokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
 ): Promise<PRGetResponse> {
-  const { data } = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: prNumber,
-  });
-  return data;
+  let lastData: PRGetResponse | null = null;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MERGEABLE_STATE_POLL_ATTEMPTS; attempt += 1) {
+    try {
+      const { data } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber,
+      });
+      lastData = data;
+      lastError = null;
+
+      const isComputingMergeableState =
+        data.mergeable_state == null && data.mergeable == null;
+
+      if (!isComputingMergeableState) {
+        return data;
+      }
+
+      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
+        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+      }
+    } catch (error) {
+      lastError = error as Error;
+      if (!isRetryableGithubError(error)) {
+        throw error;
+      }
+      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
+        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+      }
+    }
+  }
+
+  if (lastData === null) {
+    throw (
+      lastError ?? new Error("Failed to fetch PR details after all attempts")
+    );
+  }
+
+  return lastData;
 }
 
 /**

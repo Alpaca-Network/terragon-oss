@@ -835,6 +835,30 @@ describe("fetch functions", () => {
     });
   });
 
+  it("fetchPRDetails should poll when mergeable state is computing", async () => {
+    vi.useFakeTimers();
+    const firstResponse = {
+      data: { mergeable_state: null, mergeable: null },
+    };
+    const finalResponse = {
+      data: { mergeable_state: "clean", mergeable: true },
+    };
+    mockOctokit.rest.pulls.get
+      .mockResolvedValueOnce(firstResponse)
+      .mockResolvedValueOnce(finalResponse);
+
+    try {
+      const promise = fetchPRDetails(mockOctokit as any, "owner", "repo", 123);
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(mockOctokit.rest.pulls.get).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(finalResponse.data);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("fetchPRChecks should call the correct endpoint", async () => {
     mockOctokit.rest.checks.listForRef.mockResolvedValue({ data: {} });
     await fetchPRChecks(mockOctokit as any, "owner", "repo", "abc123");
