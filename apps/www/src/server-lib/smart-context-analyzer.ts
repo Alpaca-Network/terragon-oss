@@ -494,7 +494,7 @@ async function fileExists(
 ): Promise<boolean> {
   try {
     const result = await session.runCommand(`test -f "${path}" && echo "yes"`, {
-      cwd: "/home/user/repo",
+      cwd: session.repoDir,
     });
     return result.trim() === "yes";
   } catch {
@@ -508,7 +508,7 @@ async function directoryExists(
 ): Promise<boolean> {
   try {
     const result = await session.runCommand(`test -d "${path}" && echo "yes"`, {
-      cwd: "/home/user/repo",
+      cwd: session.repoDir,
     });
     return result.trim() === "yes";
   } catch {

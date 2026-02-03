@@ -11,16 +11,39 @@ import { encryptValue } from "@terragon/utils/encryption";
 import { env } from "@terragon/env/apps-www";
 import { getPostHogServer } from "@/lib/posthog-server";
 import { UserFacingError } from "@/lib/server-actions";
+import * as z from "zod/v4";
+
+// Max smart context size: 100KB
+const MAX_SMART_CONTEXT_LENGTH = 100 * 1024;
+
+const getSmartContextSchema = z.object({
+  environmentId: z.string().min(1, "Environment ID is required"),
+});
+
+const updateSmartContextSchema = z.object({
+  environmentId: z.string().min(1, "Environment ID is required"),
+  smartContext: z
+    .string()
+    .max(MAX_SMART_CONTEXT_LENGTH, "Smart context exceeds maximum size (100KB)")
+    .nullable(),
+});
 
 export const getSmartContextAction = userOnlyAction(
   async function getSmartContextAction(
     userId: string,
-    {
-      environmentId,
-    }: {
+    input: {
       environmentId: string;
     },
   ) {
+    // Validate input
+    const parseResult = getSmartContextSchema.safeParse(input);
+    if (!parseResult.success) {
+      throw new UserFacingError(
+        parseResult.error.issues[0]?.message ?? "Invalid input",
+      );
+    }
+    const { environmentId } = parseResult.data;
+
     // Verify the user owns this environment
     const existingEnvironment = await getEnvironment({
       db,
@@ -49,14 +72,20 @@ export const getSmartContextAction = userOnlyAction(
 export const updateSmartContextAction = userOnlyAction(
   async function updateSmartContextAction(
     userId: string,
-    {
-      environmentId,
-      smartContext,
-    }: {
+    input: {
       environmentId: string;
       smartContext: string | null;
     },
   ) {
+    // Validate input
+    const parseResult = updateSmartContextSchema.safeParse(input);
+    if (!parseResult.success) {
+      throw new UserFacingError(
+        parseResult.error.issues[0]?.message ?? "Invalid input",
+      );
+    }
+    const { environmentId, smartContext } = parseResult.data;
+
     // Verify the user owns this environment
     const existingEnvironment = await getEnvironment({
       db,
