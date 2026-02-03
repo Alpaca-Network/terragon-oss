@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
 import {
-  Archive,
-  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Plus,
 } from "lucide-react";
 import {
@@ -40,9 +40,9 @@ export const KanbanColumn = memo(function KanbanColumn({
   onThreadSelect,
   onAddToBacklog,
   onThreadCommentsClick,
-  showArchivedToggle,
-  showArchived,
-  onToggleArchived,
+  showCollapseToggle,
+  isCollapsed,
+  onToggleCollapse,
   showNavigation,
   canNavigateLeft,
   canNavigateRight,
@@ -55,9 +55,9 @@ export const KanbanColumn = memo(function KanbanColumn({
   onThreadSelect: (thread: ThreadInfo) => void;
   onAddToBacklog?: () => void;
   onThreadCommentsClick?: (thread: ThreadInfo) => void;
-  showArchivedToggle?: boolean;
-  showArchived?: boolean;
-  onToggleArchived?: () => void;
+  showCollapseToggle?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   showNavigation?: boolean;
   canNavigateLeft?: boolean;
   canNavigateRight?: boolean;
@@ -180,24 +180,24 @@ export const KanbanColumn = memo(function KanbanColumn({
               <TooltipContent side="bottom">Add to backlog</TooltipContent>
             </Tooltip>
           )}
-          {showArchivedToggle && onToggleArchived && (
+          {showCollapseToggle && onToggleCollapse && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-6 w-6", showArchived && "bg-muted/50")}
-                  onClick={onToggleArchived}
+                  className={cn("h-6 w-6", isCollapsed && "bg-muted/50")}
+                  onClick={onToggleCollapse}
                 >
-                  {showArchived ? (
-                    <ArchiveRestore className="h-3.5 w-3.5" />
+                  {isCollapsed ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
                   ) : (
-                    <Archive className="h-3.5 w-3.5" />
+                    <ChevronUp className="h-3.5 w-3.5" />
                   )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {showArchived ? "Hide archived tasks" : "Show archived tasks"}
+                {isCollapsed ? "Expand Done column" : "Collapse Done column"}
               </TooltipContent>
             </Tooltip>
           )}
@@ -205,38 +205,45 @@ export const KanbanColumn = memo(function KanbanColumn({
       </div>
 
       {/* Column content */}
-      <div
-        ref={scrollContainerRef}
-        className="relative flex-1 bg-muted/30 rounded-b-lg border border-t-0 min-h-0"
-      >
-        <ScrollArea className="h-full">
-          <div className="p-2 space-y-2">
-            {threads.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No tasks
-              </div>
-            ) : (
-              threads.map((thread) => (
-                <KanbanCard
-                  key={thread.id}
-                  thread={thread}
-                  isSelected={selectedThreadId === thread.id}
-                  onClick={() => onThreadSelect(thread)}
-                  onCommentsClick={() => onThreadCommentsClick?.(thread)}
-                />
-              ))
-            )}
-          </div>
-        </ScrollArea>
-        {showScrollHint && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0">
-            <div className="h-10 bg-gradient-to-t from-background/90 to-transparent" />
-            <div className="absolute inset-x-0 bottom-1 text-center text-[11px] text-muted-foreground">
-              Scroll for more
+      {!isCollapsed && (
+        <div
+          ref={scrollContainerRef}
+          className="relative flex-1 bg-muted/30 rounded-b-lg border border-t-0 min-h-0"
+        >
+          <ScrollArea className="h-full">
+            <div className="p-2 space-y-2">
+              {threads.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  No tasks
+                </div>
+              ) : (
+                threads.map((thread) => (
+                  <KanbanCard
+                    key={thread.id}
+                    thread={thread}
+                    isSelected={selectedThreadId === thread.id}
+                    onClick={() => onThreadSelect(thread)}
+                    onCommentsClick={() => onThreadCommentsClick?.(thread)}
+                  />
+                ))
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          </ScrollArea>
+          {showScrollHint && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0">
+              <div className="h-10 bg-gradient-to-t from-background/90 to-transparent" />
+              <div className="absolute inset-x-0 bottom-1 text-center text-[11px] text-muted-foreground">
+                Scroll for more
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {isCollapsed && (
+        <div className="bg-muted/30 rounded-b-lg border border-t-0 py-2 px-3 text-center text-sm text-muted-foreground">
+          Column collapsed
+        </div>
+      )}
     </div>
   );
 });

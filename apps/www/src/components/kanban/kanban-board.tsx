@@ -116,7 +116,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useAtom(
     kanbanQuickAddBacklogOpenAtom,
   );
-  const [showArchivedInDone, setShowArchivedInDone] = useState(false);
+  const [isDoneColumnCollapsed, setIsDoneColumnCollapsed] = useState(false);
   const [isFullScreenTask, setIsFullScreenTask] = useState(false);
   const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -241,7 +241,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
 
-  // Fetch archived threads when showing archived in Done column
+  // Always fetch archived threads to show in Done column
   const archivedFilters = useMemo(
     () => ({
       ...queryFilters,
@@ -326,15 +326,13 @@ export const KanbanBoard = memo(function KanbanBoard({
       }
     }
 
-    // Add archived threads to Done column if toggle is enabled
-    if (showArchivedInDone) {
-      for (const thread of archivedThreads) {
-        if (!matchesSearchQuery(thread)) continue;
-        const column = getKanbanColumn(thread);
-        // Only add archived threads that would be in the Done column
-        if (column === "done") {
-          groups.done.push(thread);
-        }
+    // Always add archived threads to Done column
+    for (const thread of archivedThreads) {
+      if (!matchesSearchQuery(thread)) continue;
+      const column = getKanbanColumn(thread);
+      // Only add archived threads that would be in the Done column
+      if (column === "done") {
+        groups.done.push(thread);
       }
     }
 
@@ -347,14 +345,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     return groups;
-  }, [
-    threads,
-    backlogThreads,
-    threadIds,
-    archivedThreads,
-    showArchivedInDone,
-    matchesSearchQuery,
-  ]);
+  }, [threads, backlogThreads, threadIds, archivedThreads, matchesSearchQuery]);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -378,8 +369,8 @@ export const KanbanBoard = memo(function KanbanBoard({
         if (showArchived === data.isThreadArchived) {
           return true;
         }
-        // Also match archived threads when showArchivedInDone is enabled
-        if (showArchivedInDone && data.isThreadArchived) {
+        // Always match archived threads for Done column
+        if (data.isThreadArchived) {
           return true;
         }
       }
@@ -397,7 +388,6 @@ export const KanbanBoard = memo(function KanbanBoard({
       archivedThreadIds,
       backlogThreadIds,
       showArchived,
-      showArchivedInDone,
       automationId,
     ],
   );
@@ -407,9 +397,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     onThreadChange: () => {
       refetch();
       refetchBacklog();
-      if (showArchivedInDone) {
-        refetchArchived();
-      }
+      refetchArchived();
     },
   });
 
@@ -620,12 +608,10 @@ export const KanbanBoard = memo(function KanbanBoard({
                     : undefined
                 }
                 onThreadCommentsClick={handleThreadCommentsClick}
-                showArchivedToggle={
-                  currentColumn.id === "done" && !queryFilters.archived
-                }
-                showArchived={showArchivedInDone}
-                onToggleArchived={() =>
-                  setShowArchivedInDone(!showArchivedInDone)
+                showCollapseToggle={currentColumn.id === "done"}
+                isCollapsed={isDoneColumnCollapsed}
+                onToggleCollapse={() =>
+                  setIsDoneColumnCollapsed(!isDoneColumnCollapsed)
                 }
                 showNavigation={true}
                 canNavigateLeft={fullScreenColumnIndex > 0}
@@ -820,12 +806,10 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                   onThreadCommentsClick={handleThreadCommentsClick}
-                  showArchivedToggle={
-                    column.id === "done" && !queryFilters.archived
-                  }
-                  showArchived={showArchivedInDone}
-                  onToggleArchived={() =>
-                    setShowArchivedInDone(!showArchivedInDone)
+                  showCollapseToggle={column.id === "done"}
+                  isCollapsed={isDoneColumnCollapsed}
+                  onToggleCollapse={() =>
+                    setIsDoneColumnCollapsed(!isDoneColumnCollapsed)
                   }
                 />
               ))}
