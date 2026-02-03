@@ -4,7 +4,6 @@ import {
   getCuratedServersByCategory,
   findCuratedServer,
 } from "./curated-servers";
-import type { CuratedMcpServer } from "./types";
 
 describe("curated-servers", () => {
   describe("CURATED_MCP_SERVERS", () => {

@@ -67,7 +67,7 @@ function SearchResultCard({
           <span className="font-medium text-sm">{result.displayName}</span>
           <SourceBadge source={result.source} />
           {result.verified && (
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
           )}
           {isAdded && (
             <Badge variant="outline" className="text-xs">

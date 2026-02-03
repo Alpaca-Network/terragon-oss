@@ -135,10 +135,11 @@ describe("useMcpConfigState logic", () => {
     it("should be able to rename a server", () => {
       const { "existing-server": serverConfig, ...rest } =
         initialConfig.mcpServers;
+      // serverConfig is guaranteed to exist in this test since we set it up in initialConfig
       const updatedConfig: McpConfig = {
         mcpServers: {
           ...rest,
-          "renamed-server": serverConfig,
+          "renamed-server": serverConfig!,
         },
       };
 
