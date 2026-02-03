@@ -15,7 +15,6 @@ describe("KanbanColumn helpers", () => {
       expect(shouldShowAddToBacklog("in_progress", () => {})).toBe(false);
       expect(shouldShowAddToBacklog("in_review", () => {})).toBe(false);
       expect(shouldShowAddToBacklog("done", () => {})).toBe(false);
-      expect(shouldShowAddToBacklog("failed", () => {})).toBe(false);
     });
   });
 

@@ -113,8 +113,6 @@ export const KanbanColumn = memo(function KanbanColumn({
         return "bg-primary/10 text-primary border border-primary/20";
       case "done":
         return "bg-primary/10 text-primary border border-primary/20";
-      case "failed":
-        return "bg-destructive/10 text-destructive border border-destructive/20";
       default:
         return "bg-muted text-muted-foreground";
     }
