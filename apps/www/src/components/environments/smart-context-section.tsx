@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ChevronDown, Wand2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ChevronDown, Wand2, AlertCircle } from "lucide-react";
 import { createEnvironment } from "@/server-actions/create-environment";
 import { getEnvironments } from "@/server-actions/get-environments";
 import { SmartContextEditor } from "./smart-context-editor";
@@ -15,6 +15,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 
 interface SmartContextSectionProps {
   repoFullName: string | null;
@@ -31,6 +32,9 @@ export function SmartContextSection({
 }: SmartContextSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [environmentId, setEnvironmentId] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  // Track if a mutation is in progress to prevent race conditions
+  const isCreatingRef = useRef(false);
 
   // Fetch existing environments
   const { data: environments, isLoading: isLoadingEnvironments } =
@@ -46,6 +50,14 @@ export function SmartContextSection({
     mutationFn: createEnvironment,
     onSuccess: (environment) => {
       setEnvironmentId(environment.id);
+      setCreateError(null);
+      isCreatingRef.current = false;
+    },
+    onError: (error) => {
+      setCreateError(
+        error instanceof Error ? error.message : "Failed to create environment",
+      );
+      isCreatingRef.current = false;
     },
   });
 
@@ -53,6 +65,7 @@ export function SmartContextSection({
   useEffect(() => {
     if (!repoFullName || isLoadingEnvironments) {
       setEnvironmentId(null);
+      setCreateError(null);
       return;
     }
 
@@ -62,6 +75,7 @@ export function SmartContextSection({
 
     if (existingEnv) {
       setEnvironmentId(existingEnv.id);
+      setCreateError(null);
     } else {
       setEnvironmentId(null);
     }
@@ -75,15 +89,26 @@ export function SmartContextSection({
       open &&
       repoFullName &&
       !environmentId &&
-      !createEnvironmentMutation.isPending
+      !createEnvironmentMutation.isPending &&
+      !isCreatingRef.current
     ) {
       // Check if environment already exists (in case state is stale)
       const existingEnv = environments?.find(
         (env) => env.repoFullName === repoFullName,
       );
       if (!existingEnv) {
+        isCreatingRef.current = true;
+        setCreateError(null);
         await createEnvironmentMutation.mutateAsync({ repoFullName });
       }
+    }
+  };
+
+  const handleRetry = async () => {
+    if (repoFullName && !isCreatingRef.current) {
+      isCreatingRef.current = true;
+      setCreateError(null);
+      await createEnvironmentMutation.mutateAsync({ repoFullName });
     }
   };
 
@@ -117,6 +142,21 @@ export function SmartContextSection({
             environmentId={environmentId}
             onDirtyChange={onDirtyChange}
           />
+        ) : createError ? (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>{createError}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              disabled={createEnvironmentMutation.isPending}
+            >
+              {createEnvironmentMutation.isPending ? "Retrying..." : "Retry"}
+            </Button>
+          </div>
         ) : (
           <div className="text-sm text-muted-foreground py-4 text-center">
             {createEnvironmentMutation.isPending

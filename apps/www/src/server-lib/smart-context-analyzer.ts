@@ -315,7 +315,8 @@ async function detectCommands(
     const pkg = JSON.parse(packageJsonContent);
     const scripts = pkg.scripts || {};
     const pm = packageManager || "npm";
-    const run = pm === "npm" ? "npm run" : pm;
+    // npm uses "npm run", pnpm/yarn/bun use "<pm> run" for scripts
+    const run = pm === "npm" ? "npm run" : `${pm} run`;
 
     if (scripts.dev) commands.dev = `${run} dev`;
     if (scripts.build) commands.build = `${run} build`;
@@ -447,7 +448,7 @@ async function runAIAnalysis(
     const prompt = getAIAnalysisPrompt(sampleFiles, stack);
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-3-5-sonnet-latest",
       max_tokens: 1024,
       messages: [
         {

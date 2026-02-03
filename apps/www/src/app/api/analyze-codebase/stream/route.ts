@@ -19,6 +19,7 @@ import { analyzeCodebase } from "@/server-lib/smart-context-analyzer";
 import { encryptValue } from "@terragon/utils/encryption";
 import { getPostHogServer } from "@/lib/posthog-server";
 import { getAgentProviderCredentialsDecrypted } from "@terragon/shared/model/agent-provider-credentials";
+import { checkSmartContextAnalysisRateLimit } from "@/lib/rate-limit";
 
 export interface AnalysisOutput {
   step: string;
@@ -54,6 +55,15 @@ export async function POST(request: NextRequest) {
       { error: "Environment not found" },
       { status: 404 },
     );
+  }
+
+  // Check rate limit
+  try {
+    await checkSmartContextAnalysisRateLimit(userId);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Rate limit exceeded";
+    return NextResponse.json({ error: message }, { status: 429 });
   }
 
   // Create a TransformStream for SSE
@@ -163,8 +173,9 @@ export async function POST(request: NextRequest) {
       await sendProgress("created", `Sandbox created: ${sandbox.sandboxId}`);
 
       try {
-        // Wait for sandbox to be ready
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Verify sandbox is ready by running a simple command
+        await sendProgress("verifying", "Verifying sandbox is ready...");
+        await sandbox.runCommand("echo ready", { timeoutMs: 10000 });
 
         // Get Anthropic API key for AI analysis (if available)
         let anthropicApiKey: string | undefined;
@@ -228,8 +239,11 @@ export async function POST(request: NextRequest) {
         // Make sure to shutdown sandbox on error
         try {
           await sandbox.shutdown();
-        } catch {
-          // Ignore shutdown errors
+        } catch (shutdownError) {
+          console.error(
+            "Error shutting down sandbox after failure:",
+            shutdownError,
+          );
         }
         throw error;
       }

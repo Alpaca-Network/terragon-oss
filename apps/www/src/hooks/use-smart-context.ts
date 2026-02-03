@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useJSONStream } from "./use-json-stream";
 import {
   useServerActionMutation,
@@ -40,6 +40,16 @@ export function useSmartContext({
 }: UseSmartContextOptions) {
   const [outputs, setOutputs] = useState<AnalysisOutput[]>([]);
   const [status, setStatus] = useState<SmartContextStatus>("idle");
+  const prevEnvironmentIdRef = useRef(environmentId);
+
+  // Reset outputs and status when environmentId changes
+  useEffect(() => {
+    if (prevEnvironmentIdRef.current !== environmentId) {
+      setOutputs([]);
+      setStatus("idle");
+      prevEnvironmentIdRef.current = environmentId;
+    }
+  }, [environmentId]);
 
   // Fetch existing smart context
   const {

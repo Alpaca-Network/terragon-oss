@@ -40,6 +40,7 @@ export function SmartContextEditor({
   const [editedContent, setEditedContent] = useState<string>("");
   const [isInitialized, setIsInitialized] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
 
   // Initialize edited content from fetched content
   useEffect(() => {
@@ -61,11 +62,28 @@ export function SmartContextEditor({
 
   const handleSave = async () => {
     try {
-      await save(editedContent || null);
+      // Save empty string as null to clear, but preserve intentional empty content
+      // by only treating empty string as "clear" when the user explicitly saves empty
+      const contentToSave = editedContent.trim() === "" ? null : editedContent;
+      await save(contentToSave);
       toast.success("Smart context saved successfully");
     } catch (error) {
       toast.error("Failed to save smart context");
     }
+  };
+
+  const handleAnalyze = () => {
+    // If there are unsaved changes, show confirmation dialog
+    if (hasChanges) {
+      setShowRegenerateDialog(true);
+    } else {
+      analyze();
+    }
+  };
+
+  const handleConfirmRegenerate = () => {
+    setShowRegenerateDialog(false);
+    analyze();
   };
 
   const handleClear = async () => {
@@ -143,7 +161,7 @@ export function SmartContextEditor({
           <Button
             variant="outline"
             size="sm"
-            onClick={analyze}
+            onClick={handleAnalyze}
             disabled={isAnalyzing || isSaving}
             className="text-xs"
           >
@@ -154,6 +172,15 @@ export function SmartContextEditor({
             )}
             {content ? "Regenerate" : "Analyze Codebase"}
           </Button>
+          <DeleteConfirmationDialog
+            open={showRegenerateDialog}
+            onOpenChange={setShowRegenerateDialog}
+            onConfirm={handleConfirmRegenerate}
+            title="Discard unsaved changes?"
+            description="You have unsaved changes to the smart context. Regenerating will replace your current edits with new content."
+            confirmText="Regenerate"
+            isLoading={false}
+          />
           {hasChanges && (
             <Button
               size="sm"
