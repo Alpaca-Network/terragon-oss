@@ -68,27 +68,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
 
-  if (!columnConfig) {
-    return null;
-  }
-
-  const getColumnHeaderColor = (columnId: KanbanColumnType) => {
-    switch (columnId) {
-      case "backlog":
-        return "bg-muted text-muted-foreground";
-      case "in_progress":
-        return "bg-primary/10 text-primary border border-primary/20";
-      case "in_review":
-        return "bg-primary/10 text-primary border border-primary/20";
-      case "done":
-        return "bg-primary/10 text-primary border border-primary/20";
-      case "failed":
-        return "bg-destructive/10 text-destructive border border-destructive/20";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
-
+  // All hooks must be called before any conditional returns
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) return;
@@ -118,6 +98,28 @@ export const KanbanColumn = memo(function KanbanColumn({
       resizeObserver.disconnect();
     };
   }, [threads.length]);
+
+  if (!columnConfig) {
+    return null;
+  }
+
+  const getColumnHeaderColor = (columnId: KanbanColumnType) => {
+    switch (columnId) {
+      case "backlog":
+        return "bg-muted text-muted-foreground";
+      case "in_progress":
+        return "bg-primary/10 text-primary border border-primary/20";
+      case "in_review":
+        return "bg-primary/10 text-primary border border-primary/20";
+      case "done":
+        return "bg-primary/10 text-primary border border-primary/20";
+      case "failed":
+        return "bg-destructive/10 text-destructive border border-destructive/20";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
   const showAddToBacklog = shouldShowAddToBacklog(column, onAddToBacklog);
 
   return (
