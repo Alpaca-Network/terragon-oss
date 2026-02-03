@@ -382,15 +382,13 @@ function ChatPromptBox({
   }, []);
 
   const lastUsedModel = useMemo(() => {
-    // Prefer the lastUsedModel from the thread chat (stored in DB when a message is sent).
-    // This ensures the model selector shows the last model the user actually used.
-    // Fall back to extracting from messages for backwards compatibility with
-    // threads created before lastUsedModel was added.
-    if (threadChat.lastUsedModel) {
-      return threadChat.lastUsedModel;
-    }
     const dbMessages = (threadChat.messages as DBMessage[]) ?? [];
-    return getLastUserMessageModel(dbMessages);
+    const messageModel = getLastUserMessageModel(dbMessages);
+
+    // Use message-derived model if available, as it's always the most recent.
+    // Fall back to lastUsedModel from DB for backwards compatibility with
+    // threads created before lastUsedModel was added, or when no messages exist yet.
+    return messageModel ?? threadChat.lastUsedModel ?? null;
   }, [threadChat.lastUsedModel, threadChat.messages]);
 
   const updateThreadChat = useOptimisticUpdateThreadChat({
