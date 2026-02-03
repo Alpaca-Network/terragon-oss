@@ -434,8 +434,8 @@ function CodeRouterSettingsSection() {
   return (
     <div id="code-router-settings">
       <SettingsSection
-        label="Gatewayz Code Router"
-        description="Enable intelligent model routing for Gatewayz to automatically select the best model based on your optimization preference"
+        label="Code Router"
+        description="Enable intelligent model routing to automatically select the best model based on your optimization preference"
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -443,7 +443,7 @@ function CodeRouterSettingsSection() {
               <Label className="text-sm font-medium">Enable Code Router</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {hasGatewayz
-                  ? "Let Gatewayz automatically select the best model for each task"
+                  ? "Automatically select the best model for each task"
                   : "Requires a Gatewayz subscription (Pro or Max)"}
               </p>
             </div>
@@ -487,7 +487,7 @@ function CodeRouterSettingsSection() {
                       htmlFor="mode-price"
                       className="text-sm font-medium cursor-pointer"
                     >
-                      Optimize for Price
+                      Price
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       Minimize costs by using more efficient models when
@@ -502,7 +502,7 @@ function CodeRouterSettingsSection() {
                       htmlFor="mode-quality"
                       className="text-sm font-medium cursor-pointer"
                     >
-                      Optimize for Quality
+                      Performance
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       Always use the highest quality models for best results
