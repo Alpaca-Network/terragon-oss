@@ -890,7 +890,7 @@ describe("daemon", () => {
       );
     });
 
-    it("should route through Gatewayz proxy when useGatewayz is enabled", async () => {
+    it("should route through gatewayz proxy when useGatewayz is enabled", async () => {
       process.env.GEMINI_API_KEY = "user-api-key";
 
       await daemon.start();
