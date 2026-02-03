@@ -132,6 +132,9 @@ export function Dashboard({
   const isNewUser = isDataLoaded && activeTaskCount === 0;
   const isGrowingUser =
     isDataLoaded && activeTaskCount > 0 && activeTaskCount < 3;
+  // Should show template selector only after data is loaded to prevent flash
+  const shouldShowTemplateSelector =
+    isDataLoaded && (isNewUser || repoCount < 3);
 
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
@@ -183,7 +186,7 @@ export function Dashboard({
             )}
 
             {/* Template Selector - for new users or users with few repos */}
-            {(isNewUser || repoCount < 3) && <TemplateRepoSelector />}
+            {shouldShowTemplateSelector && <TemplateRepoSelector />}
 
             {/* Kanban Promotion - for engaged but not power users */}
             {isGrowingUser && <KanbanPromotionBanner />}

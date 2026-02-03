@@ -30,6 +30,7 @@ import {
 type ComboboxItem = {
   value: string;
   label: string;
+  mobileLabel?: string;
   className?: string;
   IconComponent?: React.ComponentType<{ className?: string }>;
 };
@@ -106,6 +107,14 @@ export function ResponsiveCombobox<T extends ComboboxItem>({
     }
   });
 
+  const selectedItem = value
+    ? items.find((item) => item.value === value)
+    : null;
+  // Use mobileLabel on mobile (non-desktop) if available
+  const displayLabel = selectedItem
+    ? (!isDesktop && selectedItem.mobileLabel) || selectedItem.label
+    : value || placeholder;
+
   const triggerButton = (
     <Button
       variant={variant}
@@ -124,11 +133,7 @@ export function ResponsiveCombobox<T extends ComboboxItem>({
     >
       <div className="flex items-center gap-2 min-w-0">
         {!!icon && icon}
-        <span className="truncate">
-          {value
-            ? items.find((item) => item.value === value)?.label || value
-            : placeholder}
-        </span>
+        <span className="truncate">{displayLabel}</span>
       </div>
       <ChevronDown className="group-hover:opacity-100 ml-2 size-4 shrink-0 opacity-30 transition-opacity hidden sm:block" />
     </Button>
