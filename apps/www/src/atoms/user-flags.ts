@@ -193,3 +193,15 @@ export const multiAgentModePersistedAtom = atom<boolean, [boolean], void>(
     );
   },
 );
+
+// Atom for tracking if user has ever used Kanban view
+export const hasUsedKanbanViewAtom = atom<boolean>((get) => {
+  const userFlags = get(userFlagsAtom);
+  return !!userFlags?.hasUsedKanbanView;
+});
+
+// Atom for tracking recently used repos
+export const recentReposAtom = atom<string[]>((get) => {
+  const userFlags = get(userFlagsAtom);
+  return userFlags?.recentRepos ?? [];
+});

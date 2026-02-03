@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useTransition } from "react";
 import { useAtom } from "jotai";
 import { useRouter, usePathname } from "next/navigation";
 import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { Button } from "@/components/ui/button";
 import { Kanban, LayoutList } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { markKanbanViewUsed } from "@/server-actions/user-flags";
 
 interface TaskViewToggleProps {
   className?: string;
@@ -18,10 +19,23 @@ export function TaskViewToggle({ className, threadId }: TaskViewToggleProps) {
   const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
   const router = useRouter();
   const pathname = usePathname();
+  const [, startTransition] = useTransition();
 
   const handleToggle = useCallback(
     (mode: "list" | "kanban") => {
       setViewMode(mode);
+
+      // Track Kanban view usage
+      if (mode === "kanban") {
+        startTransition(async () => {
+          try {
+            await markKanbanViewUsed();
+          } catch (error) {
+            console.error("Failed to track Kanban view usage:", error);
+          }
+        });
+      }
+
       // If we have a threadId, navigate to keep the task open
       // For Kanban, go to dashboard (Kanban will auto-select the task)
       // For List, go to the task page directly

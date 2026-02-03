@@ -205,6 +205,16 @@ export const dismissedRecommendedTasksAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 );
 
+// Atom for dismissing Kanban promotion banner
+const DISMISSED_KANBAN_PROMOTION_KEY = "dismissed-kanban-promotion";
+
+export const dismissedKanbanPromotionAtom = atomWithStorage<boolean>(
+  DISMISSED_KANBAN_PROMOTION_KEY,
+  false,
+  booleanCookieStorage,
+  { getOnInit: true },
+);
+
 // Persist the last-selected value for disabling git checkpointing when creating a thread
 export const disableGitCheckpointingCookieAtom = atomWithStorage<boolean>(
   disableGitCheckpointingKey,

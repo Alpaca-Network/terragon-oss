@@ -114,3 +114,16 @@ export const updateMultiAgentMode = userOnlyAction(
   },
   { defaultErrorMessage: "Failed to update multi agent mode" },
 );
+
+export const markKanbanViewUsed = userOnlyAction(
+  async function markKanbanViewUsed(userId: string) {
+    await updateUserFlags({
+      db,
+      userId,
+      updates: {
+        hasUsedKanbanView: true,
+      },
+    });
+  },
+  { defaultErrorMessage: "Failed to mark Kanban view as used" },
+);
