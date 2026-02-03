@@ -5,32 +5,29 @@ import { agentToModels, getModelDisplayName } from "@terragon/agent/utils";
 export function getModelId(modelName: AIModel): string {
   switch (modelName) {
     case "opencode/grok-code":
-      // https://openrouter.ai/x-ai/grok-code-fast-1
-      return "x-ai/grok-code-fast-1";
+      return "grok-code-fast-1";
     case "opencode/qwen3-coder":
-      // https://openrouter.ai/qwen/qwen3-coder:exacto
-      return "qwen/qwen3-coder:exacto";
+      return "qwen3-coder";
     case "opencode/kimi-k2":
-      // https://openrouter.ai/moonshotai/kimi-k2-0905:exacto
-      return "moonshotai/kimi-k2-0905:exacto";
+      return "kimi-k2";
     case "opencode/glm-4.6":
-      // https://openrouter.ai/z-ai/glm-4.6:exacto
-      return "z-ai/glm-4.6:exacto";
+      return "glm-4.6";
     case "opencode/glm-4.7":
-      // https://openrouter.ai/z-ai/glm-4.7:exacto
-      return "z-ai/glm-4.7:exacto";
+      return "glm-4.7";
     case "opencode/glm-4.7-flash":
-      // https://openrouter.ai/z-ai/glm-4.7-flash:exacto
-      return "z-ai/glm-4.7-flash:exacto";
+      return "glm-4.7-flash";
     case "opencode/glm-4.7-lite":
-      // https://openrouter.ai/z-ai/glm-4.7-lite:exacto
-      return "z-ai/glm-4.7-lite:exacto";
+      return "glm-4.7-lite";
     case "opencode/gemini-2.5-pro":
-      // https://openrouter.ai/google/gemini-2.5-pro
-      return "google/gemini-2.5-pro";
+      return "gemini-2.5-pro";
     case "opencode/gemini-3-pro":
-      // https://openrouter.ai/google/gemini-3-pro-preview
-      return "google/gemini-3-pro-preview";
+      return "gemini-3-pro";
+    case "opencode-oai/gpt-5":
+      return "gpt-5";
+    case "opencode-oai/gpt-5-codex":
+      return "gpt-5-codex";
+    case "opencode-ant/sonnet":
+      return "claude-sonnet-4-5";
     default:
       throw new Error(`Unknown model: ${modelName}`);
   }
@@ -65,14 +62,19 @@ export function buildOpencodeConfig({
     }
   }
 
-  const openRouterModels = Object.fromEntries(
+  const gatewayzModels = Object.fromEntries(
     agentToModels("opencode", {
       agentVersion: "latest",
       // For the config, just include all available models
       enableOpenRouterOpenAIAnthropicModel: true,
       enableOpencodeGemini3ProModelOption: true,
     })
-      .filter((model) => model.startsWith("opencode/"))
+      .filter(
+        (model) =>
+          model.startsWith("opencode/") ||
+          model.startsWith("opencode-oai/") ||
+          model.startsWith("opencode-ant/"),
+      )
       .map((model) => {
         const displayName = getModelDisplayName(model);
         const modelName = model.split("/")[1]!;
@@ -95,10 +97,10 @@ export function buildOpencodeConfig({
         npm: "@ai-sdk/openai-compatible",
         name: "Terragon",
         options: {
-          baseURL: `${publicUrl}/api/proxy/openrouter/v1`,
+          baseURL: `${publicUrl}/api/proxy/gatewayz/v1`,
           headers: { "X-Daemon-Token": "{env:DAEMON_TOKEN}" },
         },
-        models: openRouterModels,
+        models: gatewayzModels,
       },
       "terry-google": {
         npm: "@ai-sdk/google",
