@@ -10,6 +10,7 @@ import { decryptValue } from "@terragon/utils/encryption";
 import { env } from "@terragon/env/apps-www";
 import { publicAppUrl } from "@terragon/env/next-public";
 import { getUserFlags } from "@terragon/shared/model/user-flags";
+import { getUserSettings } from "@terragon/shared/model/user";
 import { newThreadInternal } from "@/server-lib/new-thread-internal";
 import { getUserCredentials } from "@/server-lib/user-credentials";
 import { getDefaultModel } from "@/lib/default-ai-model";
@@ -481,11 +482,16 @@ export async function handleAppMentionEvent(
         if (slackSettings.defaultModel) {
           return slackSettings.defaultModel;
         }
-        const [userFlags, userCredentials] = await Promise.all([
+        const [userFlags, userCredentials, userSettings] = await Promise.all([
           getUserFlags({ db, userId: slackAccount.userId }),
           getUserCredentials({ userId: slackAccount.userId }),
+          getUserSettings({ db, userId: slackAccount.userId }),
         ]);
-        return getDefaultModel({ userFlags, userCredentials });
+        return getDefaultModel({
+          userFlags,
+          userCredentials,
+          codeRouterSettings: userSettings?.codeRouterSettings,
+        });
       })(),
       buildSlackMentionMessage({
         slackAccount,

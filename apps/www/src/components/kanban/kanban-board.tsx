@@ -37,6 +37,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import { usePrefetchPRFeedback } from "@/hooks/use-prefetch-pr-feedback";
 import { useAtom } from "jotai";
 import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
@@ -116,7 +117,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useAtom(
     kanbanQuickAddBacklogOpenAtom,
   );
-  const [showArchivedInDone, setShowArchivedInDone] = useState(false);
+  const [isDoneColumnCollapsed, setIsDoneColumnCollapsed] = useState(false);
   const [isFullScreenTask, setIsFullScreenTask] = useState(false);
   const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -241,7 +242,7 @@ export const KanbanBoard = memo(function KanbanBoard({
   const { data, isLoading, isError, refetch } =
     useInfiniteThreadList(queryFilters);
 
-  // Fetch archived threads when showing archived in Done column
+  // Always fetch archived threads to show in Done column
   const archivedFilters = useMemo(
     () => ({
       ...queryFilters,
@@ -326,15 +327,13 @@ export const KanbanBoard = memo(function KanbanBoard({
       }
     }
 
-    // Add archived threads to Done column if toggle is enabled
-    if (showArchivedInDone) {
-      for (const thread of archivedThreads) {
-        if (!matchesSearchQuery(thread)) continue;
-        const column = getKanbanColumn(thread);
-        // Only add archived threads that would be in the Done column
-        if (column === "done") {
-          groups.done.push(thread);
-        }
+    // Always add archived threads to Done column
+    for (const thread of archivedThreads) {
+      if (!matchesSearchQuery(thread)) continue;
+      const column = getKanbanColumn(thread);
+      // Only add archived threads that would be in the Done column
+      if (column === "done") {
+        groups.done.push(thread);
       }
     }
 
@@ -347,14 +346,14 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     return groups;
-  }, [
-    threads,
-    backlogThreads,
-    threadIds,
-    archivedThreads,
-    showArchivedInDone,
-    matchesSearchQuery,
-  ]);
+  }, [threads, backlogThreads, threadIds, archivedThreads, matchesSearchQuery]);
+
+  // Prefetch PR feedback for all visible threads to avoid N+1 requests
+  const allVisibleThreads = useMemo(
+    () => [...threads, ...backlogThreads, ...archivedThreads],
+    [threads, backlogThreads, archivedThreads],
+  );
+  usePrefetchPRFeedback(allVisibleThreads);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
@@ -378,8 +377,8 @@ export const KanbanBoard = memo(function KanbanBoard({
         if (showArchived === data.isThreadArchived) {
           return true;
         }
-        // Also match archived threads when showArchivedInDone is enabled
-        if (showArchivedInDone && data.isThreadArchived) {
+        // Always match archived threads for Done column
+        if (data.isThreadArchived) {
           return true;
         }
       }
@@ -397,7 +396,6 @@ export const KanbanBoard = memo(function KanbanBoard({
       archivedThreadIds,
       backlogThreadIds,
       showArchived,
-      showArchivedInDone,
       automationId,
     ],
   );
@@ -407,9 +405,7 @@ export const KanbanBoard = memo(function KanbanBoard({
     onThreadChange: () => {
       refetch();
       refetchBacklog();
-      if (showArchivedInDone) {
-        refetchArchived();
-      }
+      refetchArchived();
     },
   });
 
@@ -620,12 +616,10 @@ export const KanbanBoard = memo(function KanbanBoard({
                     : undefined
                 }
                 onThreadCommentsClick={handleThreadCommentsClick}
-                showArchivedToggle={
-                  currentColumn.id === "done" && !queryFilters.archived
-                }
-                showArchived={showArchivedInDone}
-                onToggleArchived={() =>
-                  setShowArchivedInDone(!showArchivedInDone)
+                showCollapseToggle={currentColumn.id === "done"}
+                isCollapsed={isDoneColumnCollapsed}
+                onToggleCollapse={() =>
+                  setIsDoneColumnCollapsed(!isDoneColumnCollapsed)
                 }
                 showNavigation={true}
                 canNavigateLeft={fullScreenColumnIndex > 0}
@@ -689,7 +683,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* View toggle and close button */}
+              {/* View toggle, New Task and Close buttons */}
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -700,6 +694,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                   aria-label="Show all columns"
                 >
                   <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setNewTaskDialogOpen(true)}
+                  title="Create new task"
+                  aria-label="Create new task"
+                >
+                  <SquarePen className="h-4 w-4" />
+                  <span className="text-xs">New Task</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -820,12 +825,10 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                   onThreadCommentsClick={handleThreadCommentsClick}
-                  showArchivedToggle={
-                    column.id === "done" && !queryFilters.archived
-                  }
-                  showArchived={showArchivedInDone}
-                  onToggleArchived={() =>
-                    setShowArchivedInDone(!showArchivedInDone)
+                  showCollapseToggle={column.id === "done"}
+                  isCollapsed={isDoneColumnCollapsed}
+                  onToggleCollapse={() =>
+                    setIsDoneColumnCollapsed(!isDoneColumnCollapsed)
                   }
                 />
               ))}
@@ -918,7 +921,18 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* Close button */}
+              {/* New Task and Close buttons */}
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setNewTaskDialogOpen(true)}
+                title="Create new task"
+                aria-label="Create new task"
+              >
+                <SquarePen className="h-4 w-4" />
+                <span className="text-xs">New Task</span>
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

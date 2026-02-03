@@ -1,6 +1,20 @@
 import * as z from "zod/v4";
 
+// Code Router optimization modes for Gatewayz integration
+export const CodeRouterModeSchema = z.enum([
+  "balanced", // Default: balanced optimization for price/performance
+  "price", // Optimize for lowest cost
+  "quality", // Optimize for highest quality/performance
+]);
+
+export type CodeRouterMode = z.infer<typeof CodeRouterModeSchema>;
+
 export const AIModelSchema = z.enum([
+  // gatewayz code router - intelligent model selection
+  "gatewayz/code-router", // Default balanced mode
+  "gatewayz/code-router/price", // Optimize for cost
+  "gatewayz/code-router/quality", // Optimize for quality
+
   // gatewayz router - Claude Code models
   "gatewayz/claude-code/opus",
   "gatewayz/claude-code/sonnet",
@@ -128,4 +142,12 @@ export type SelectedAIModels = {
 export type AgentModelPreferences = {
   agents?: { [agent in AIAgent]?: boolean };
   models?: { [model in AIModel]?: boolean };
+};
+
+// Code Router settings for Gatewayz integration
+export type CodeRouterSettings = {
+  // Whether to use the Code Router for Gatewayz models
+  enabled: boolean;
+  // Optimization mode: balanced (default), price, or quality
+  mode: CodeRouterMode;
 };

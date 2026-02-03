@@ -102,6 +102,7 @@ describe("createFeedbackSummary", () => {
     mergeableState: "clean",
     hasConflicts: false,
     isMergeable: true,
+    isAutoMergeEnabled: false,
     ...overrides,
   });
 
@@ -854,6 +855,28 @@ describe("fetch functions", () => {
 
       expect(mockOctokit.rest.pulls.get).toHaveBeenCalledTimes(2);
       expect(result).toEqual(finalResponse.data);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fetchPRDetails should skip polling when skipMergeablePolling is true", async () => {
+    vi.useFakeTimers();
+    const response = {
+      data: { mergeable_state: null, mergeable: null },
+    };
+    mockOctokit.rest.pulls.get.mockResolvedValueOnce(response);
+
+    try {
+      const promise = fetchPRDetails(mockOctokit as any, "owner", "repo", 123, {
+        skipMergeablePolling: true,
+      });
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      // Should only call once and return immediately without polling
+      expect(mockOctokit.rest.pulls.get).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(response.data);
     } finally {
       vi.useRealTimers();
     }

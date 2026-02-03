@@ -13,6 +13,7 @@ import type { AIModel, SelectedAIModels } from "@terragon/agent/types";
 import { atom, Getter, Setter } from "jotai";
 import { RELEASE_NOTES_VERSION, FEATURE_UPSELL_VERSION } from "@/lib/constants";
 import { userCredentialsAtom } from "./user-credentials";
+import { userSettingsAtom } from "./user";
 import { getDefaultModel } from "@/lib/default-ai-model";
 import { ServerActionResult, unwrapResult } from "@/lib/server-actions";
 
@@ -66,7 +67,12 @@ export const selectedModelAtom = atom<AIModel, [AIModel], void>(
     }
     const userFlags = get(userFlagsAtom);
     const userCredentials = get(userCredentialsAtom);
-    return getDefaultModel({ userCredentials, userFlags });
+    const userSettings = get(userSettingsAtom);
+    return getDefaultModel({
+      userCredentials,
+      userFlags,
+      codeRouterSettings: userSettings?.codeRouterSettings,
+    });
   },
   (_get, set, model) => {
     set(selectedModalLocalAtom, model);
@@ -187,3 +193,15 @@ export const multiAgentModePersistedAtom = atom<boolean, [boolean], void>(
     );
   },
 );
+
+// Atom for tracking if user has ever used Kanban view
+export const hasUsedKanbanViewAtom = atom<boolean>((get) => {
+  const userFlags = get(userFlagsAtom);
+  return !!userFlags?.hasUsedKanbanView;
+});
+
+// Atom for tracking recently used repos
+export const recentReposAtom = atom<string[]>((get) => {
+  const userFlags = get(userFlagsAtom);
+  return userFlags?.recentRepos ?? [];
+});

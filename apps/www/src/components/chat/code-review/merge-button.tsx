@@ -1,12 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
-import { GitMerge, ChevronDown, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  GitMerge,
+  ChevronDown,
+  CheckCircle2,
+  Loader2,
+  Zap,
+  ZapOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -20,14 +28,20 @@ import {
 import { toast } from "sonner";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { mergePR, type MergeMethod } from "@/server-actions/merge-pr";
+import {
+  enableAutoMerge,
+  disableAutoMerge,
+} from "@/server-actions/auto-merge-pr";
 
 interface MergeButtonProps {
   repoFullName: string;
   prNumber: number;
   prTitle: string;
   isMergeable: boolean;
+  isAutoMergeEnabled?: boolean;
   threadId?: string;
   onMerged?: () => void;
+  onAutoMergeChanged?: () => void;
 }
 
 const MERGE_METHODS: {
@@ -57,12 +71,16 @@ export function MergeButton({
   prNumber,
   prTitle,
   isMergeable,
+  isAutoMergeEnabled = false,
   threadId,
   onMerged,
+  onAutoMergeChanged,
 }: MergeButtonProps) {
   const [selectedMethod, setSelectedMethod] = useState<MergeMethod>("squash");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showAutoMergeConfirmDialog, setShowAutoMergeConfirmDialog] =
+    useState(false);
   const [mergeResult, setMergeResult] = useState<{ sha?: string } | null>(null);
 
   const mergeMutation = useServerActionMutation({
@@ -78,6 +96,30 @@ export function MergeButton({
     },
   });
 
+  const enableAutoMergeMutation = useServerActionMutation({
+    mutationFn: enableAutoMerge,
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success("Auto-merge enabled. PR will merge when checks pass.");
+        onAutoMergeChanged?.();
+      } else {
+        toast.error(result.message || "Failed to enable auto-merge");
+      }
+    },
+  });
+
+  const disableAutoMergeMutation = useServerActionMutation({
+    mutationFn: disableAutoMerge,
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success("Auto-merge disabled");
+        onAutoMergeChanged?.();
+      } else {
+        toast.error(result.message || "Failed to disable auto-merge");
+      }
+    },
+  });
+
   const handleMerge = () => {
     setShowConfirmDialog(false);
     mergeMutation.mutate({
@@ -88,19 +130,40 @@ export function MergeButton({
     });
   };
 
+  const handleEnableAutoMerge = () => {
+    setShowAutoMergeConfirmDialog(false);
+    enableAutoMergeMutation.mutate({
+      repoFullName,
+      prNumber,
+      mergeMethod: selectedMethod,
+    });
+  };
+
+  const handleDisableAutoMerge = () => {
+    disableAutoMergeMutation.mutate({
+      repoFullName,
+      prNumber,
+    });
+  };
+
   const selectedMethodInfo = MERGE_METHODS.find(
     (m) => m.value === selectedMethod,
   );
+
+  const isPending =
+    mergeMutation.isPending ||
+    enableAutoMergeMutation.isPending ||
+    disableAutoMergeMutation.isPending;
 
   return (
     <>
       <div className="flex items-center gap-1 whitespace-nowrap">
         <Button
           onClick={() => setShowConfirmDialog(true)}
-          disabled={!isMergeable || mergeMutation.isPending}
+          disabled={!isMergeable || isPending}
           className="rounded-r-none whitespace-nowrap"
         >
-          {mergeMutation.isPending ? (
+          {isPending ? (
             <Loader2 className="size-4 mr-2 animate-spin" />
           ) : (
             <GitMerge className="size-4 mr-2" />
@@ -113,7 +176,7 @@ export function MergeButton({
               variant="default"
               size="icon"
               className="rounded-l-none border-l border-primary-foreground/20"
-              disabled={!isMergeable || mergeMutation.isPending}
+              disabled={isPending}
             >
               <ChevronDown className="size-4" />
             </Button>
@@ -136,6 +199,36 @@ export function MergeButton({
                 </span>
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            {isAutoMergeEnabled ? (
+              <DropdownMenuItem
+                onClick={handleDisableAutoMerge}
+                className="flex flex-col items-start gap-0.5"
+                disabled={disableAutoMergeMutation.isPending}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <ZapOff className="size-4 text-muted-foreground" />
+                  <span className="font-medium">Disable auto-merge</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Cancel automatic merge when checks pass
+                </span>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => setShowAutoMergeConfirmDialog(true)}
+                className="flex flex-col items-start gap-0.5"
+                disabled={enableAutoMergeMutation.isPending}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <Zap className="size-4 text-amber-500" />
+                  <span className="font-medium">Enable auto-merge</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Merge automatically when checks pass
+                </span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -164,6 +257,48 @@ export function MergeButton({
             <Button onClick={handleMerge}>
               <GitMerge className="size-4 mr-2" />
               Confirm merge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-merge Confirmation Dialog */}
+      <Dialog
+        open={showAutoMergeConfirmDialog}
+        onOpenChange={setShowAutoMergeConfirmDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="size-5 text-amber-500" />
+              Enable auto-merge?
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p>
+                PR #{prNumber} will be automatically merged when all conditions
+                are met:
+              </p>
+              <ul className="list-disc list-inside text-sm space-y-1">
+                <li>All required status checks pass</li>
+                <li>All required reviews are approved</li>
+                <li>No merge conflicts exist</li>
+              </ul>
+              <p className="text-sm">
+                Merge method:{" "}
+                <span className="font-medium">{selectedMethodInfo?.label}</span>
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAutoMergeConfirmDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEnableAutoMerge}>
+              <Zap className="size-4 mr-2" />
+              Enable auto-merge
             </Button>
           </DialogFooter>
         </DialogContent>

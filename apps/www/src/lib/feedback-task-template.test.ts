@@ -27,6 +27,7 @@ describe("generateFeedbackTaskDescription", () => {
     mergeableState: "clean",
     hasConflicts: false,
     isMergeable: true,
+    isAutoMergeEnabled: false,
     ...overrides,
   });
 
@@ -298,6 +299,7 @@ describe("createFeedbackSummaryText", () => {
     mergeableState: "clean",
     hasConflicts: false,
     isMergeable: true,
+    isAutoMergeEnabled: false,
     ...overrides,
   });
 

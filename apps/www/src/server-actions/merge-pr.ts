@@ -145,6 +145,12 @@ export const mergePR = userOnlyAction(
         throw new UserFacingError("Cannot merge a closed PR");
       }
 
+      if (pr.draft) {
+        throw new UserFacingError(
+          "Cannot merge a draft PR. Mark the PR as ready for review first.",
+        );
+      }
+
       if (!pr.mergeable) {
         if (pr.mergeable_state === "dirty") {
           throw new UserFacingError(
@@ -275,6 +281,14 @@ export const canMergePR = userOnlyAction(
           canMerge: false,
           reason: "PR is closed",
           mergeableState: "closed",
+        };
+      }
+
+      if (pr.draft) {
+        return {
+          canMerge: false,
+          reason: "PR is a draft",
+          mergeableState: "draft",
         };
       }
 
