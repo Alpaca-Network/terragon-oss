@@ -769,49 +769,11 @@ export function GitDiffView({
     setManuallySelectedMode(true);
   };
 
-  if (!thread.gitDiff) {
+  if (!thread.gitDiff || diffInstances.length === 0) {
     return (
       <div ref={containerRef} className="flex flex-col h-full">
-        <div className="border-b">
-          <FilesChangedHeader
-            fileCount={headerStats.files}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            allExpanded={false}
-            onToggleAll={() => {}}
-            showFileTree={showFileTree}
-            onToggleFileTree={() => setShowFileTree(!showFileTree)}
-            additions={headerStats.additions}
-            deletions={headerStats.deletions}
-            isSmallScreen={isSmallScreen}
-          />
-        </div>
-        <div className="flex items-center justify-center text-muted-foreground/50 py-8">
-          No changes
-        </div>
-      </div>
-    );
-  }
-
-  if (diffInstances.length === 0) {
-    return (
-      <div ref={containerRef} className="flex flex-col h-full">
-        <div className="border-b">
-          <FilesChangedHeader
-            fileCount={headerStats.files}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            allExpanded={false}
-            onToggleAll={() => {}}
-            showFileTree={showFileTree}
-            onToggleFileTree={() => setShowFileTree(!showFileTree)}
-            additions={headerStats.additions}
-            deletions={headerStats.deletions}
-            isSmallScreen={isSmallScreen}
-          />
-        </div>
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          No diff data available
+        <div className="flex-1 flex items-center justify-center text-muted-foreground/50 py-8">
+          {!thread.gitDiff ? "No changes" : "No diff data available"}
         </div>
       </div>
     );
