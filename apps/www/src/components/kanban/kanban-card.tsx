@@ -105,7 +105,9 @@ export const KanbanCard = memo(function KanbanCard({
         <div
           className={cn(
             "absolute right-1.5 top-1.5 transition-opacity",
-            isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            isMenuOpen
+              ? "opacity-100"
+              : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto",
           )}
           onClick={handleMenuClick}
         >
@@ -129,7 +131,7 @@ export const KanbanCard = memo(function KanbanCard({
 
       {/* Start Task button - shown on hover for draft tasks */}
       {isDraft && !isMenuOpen && (
-        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-1.5 right-1.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
