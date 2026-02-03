@@ -53,8 +53,8 @@ export const getPRFeedbackBatch = cache(
       // Using Promise.all with try/catch inside each promise to handle errors gracefully
       const feedbackResults = await Promise.all(
         threadsWithPRs.map(async (thread) => {
-          const [owner, repo] = parseRepoFullName(thread.githubRepoFullName);
           try {
+            const [owner, repo] = parseRepoFullName(thread.githubRepoFullName);
             const octokit = await getOctokitForApp({ owner, repo });
             const feedback = await aggregatePRFeedback(
               octokit,
