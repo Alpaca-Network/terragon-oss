@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { BatchPRFeedbackResult } from "./get-pr-feedback-batch";
 
 // Mock the dependencies
 vi.mock("@/lib/auth-server", () => ({
