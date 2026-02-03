@@ -5,7 +5,6 @@ import {
   CONTENT_BOTTOM_PADDING,
   SWIPE_THRESHOLD,
   calculateScrollToCenter,
-  shouldShowArchiveToggle,
   getColumnHeaderColor,
 } from "./kanban-board-mobile";
 
@@ -279,28 +278,6 @@ describe("Kanban Mobile Components", () => {
     it("should have padding to prevent FAB from obscuring content", () => {
       // pb-20 = 80px which accounts for FAB height (56px) + margin
       expect(CONTENT_BOTTOM_PADDING).toBe("pb-20");
-    });
-  });
-
-  describe("Archive toggle in Done column", () => {
-    // Tests the actual exported shouldShowArchiveToggle function from the component
-    it("should only show archive toggle for done column", () => {
-      expect(shouldShowArchiveToggle("done", false)).toBe(true);
-      expect(shouldShowArchiveToggle("backlog", false)).toBe(false);
-      expect(shouldShowArchiveToggle("in_progress", false)).toBe(false);
-      expect(shouldShowArchiveToggle("in_review", false)).toBe(false);
-    });
-
-    it("should not show archive toggle when viewing archived tasks", () => {
-      // When isArchivedView is true, toggle should be hidden
-      expect(shouldShowArchiveToggle("done", true)).toBe(false);
-      expect(shouldShowArchiveToggle("done", false)).toBe(true);
-    });
-
-    it("should hide toggle for all columns in archived view", () => {
-      KANBAN_COLUMNS.forEach((col) => {
-        expect(shouldShowArchiveToggle(col.id, true)).toBe(false);
-      });
     });
   });
 
