@@ -48,6 +48,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   canNavigateRight,
   onNavigateLeft,
   onNavigateRight,
+  className,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
@@ -63,6 +64,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   canNavigateRight?: boolean;
   onNavigateLeft?: () => void;
   onNavigateRight?: () => void;
+  className?: string;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -121,7 +123,12 @@ export const KanbanColumn = memo(function KanbanColumn({
   const showAddToBacklog = shouldShowAddToBacklog(column, onAddToBacklog);
 
   return (
-    <div className="flex flex-col h-full min-w-[280px] max-w-[320px] flex-1">
+    <div
+      className={cn(
+        "flex flex-col h-full min-w-[280px] max-w-[320px] flex-1",
+        className,
+      )}
+    >
       {/* Column header */}
       <div
         className={cn(
