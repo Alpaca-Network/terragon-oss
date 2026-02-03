@@ -33,6 +33,7 @@ import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 import {
   getMergeablePollingInterval,
   nextMergeablePollingState,
+  MERGEABLE_POLL_WINDOW_MS,
 } from "@/lib/mergeable-polling";
 
 const SECONDARY_PANEL_MIN_WIDTH = 300;
@@ -144,10 +145,20 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
     staleTime: 30000, // 30 seconds
     refetchInterval: (query): number => {
       const mergeableState = query.state.data?.feedback?.mergeableState;
+      const now = Date.now();
+
+      // For the first unknown response, use a snapshot of the current state
+      // with an inline calculation if `until` hasn't been set yet by useEffect
+      const currentState = mergeablePollingRef.current;
+      const effectiveState =
+        mergeableState === "unknown" && currentState.until === null
+          ? { until: now + MERGEABLE_POLL_WINDOW_MS, count: 0 }
+          : currentState;
+
       return getMergeablePollingInterval({
         mergeableState,
-        now: Date.now(),
-        state: mergeablePollingRef.current,
+        now,
+        state: effectiveState,
         defaultIntervalMs: 60000,
       });
     },

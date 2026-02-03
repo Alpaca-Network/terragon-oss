@@ -36,6 +36,33 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Checks if an error is a network error that should be retried
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    // Network errors typically have these characteristics
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("network") ||
+      message.includes("econnrefused") ||
+      message.includes("econnreset") ||
+      message.includes("etimedout") ||
+      message.includes("socket") ||
+      message.includes("dns")
+    ) {
+      return true;
+    }
+  }
+  // Check for HTTP status codes - only retry on 5xx server errors
+  const status = (error as { status?: number })?.status;
+  if (status !== undefined && status >= 500) {
+    return true;
+  }
+  // Don't retry on 4xx client errors (404, 403, 401, etc.)
+  return false;
+}
+
 type PRGetResponse = Awaited<
   ReturnType<
     Awaited<ReturnType<typeof getOctokitForApp>>["rest"]["pulls"]["get"]
@@ -78,13 +105,19 @@ async function fetchPRWithMergeablePolling({
       }
     } catch (error) {
       lastError = error as Error;
-      // Only retry on network errors, not on 404s or other API errors
-      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
-        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
+      // Only retry on network errors or 5xx server errors, not on 4xx client errors
+      if (
+        !isRetryableError(error) ||
+        attempt >= MERGEABLE_STATE_POLL_ATTEMPTS - 1
+      ) {
+        throw lastError;
       }
+      await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
     }
   }
 
+  // If we get here, we have lastData but it's still in computing state
+  // Return it anyway as the caller should handle the computing state
   if (lastData === null) {
     throw lastError ?? new Error("Failed to fetch PR data after all attempts");
   }
