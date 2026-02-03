@@ -36,6 +36,7 @@ import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
 import {
   getMergeablePollingInterval,
   nextMergeablePollingState,
+  type MergeablePollingState,
 } from "@/lib/mergeable-polling";
 
 const SECONDARY_PANEL_MIN_WIDTH = 300;
@@ -130,7 +131,10 @@ function ViewTab({
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
   const [refreshKey, setRefreshKey] = React.useState(0);
-  const mergeablePollingRef = React.useRef({ until: null, count: 0 });
+  const mergeablePollingRef = React.useRef<MergeablePollingState>({
+    until: null,
+    count: 0,
+  });
   const lastDataUpdatedAtRef = React.useRef(0);
 
   const hasPR =
