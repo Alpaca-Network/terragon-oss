@@ -198,19 +198,9 @@ export function Dashboard({
         </>
       )}
 
-      {/* Desktop: Show Kanban view when in kanban mode */}
+      {/* Kanban view - single component handles responsive layout internally */}
       {mounted && showKanbanView && (
-        <div className="hidden lg:flex flex-1 min-h-0">
-          <KanbanBoard
-            queryFilters={queryFilters}
-            initialSelectedTaskId={initialTaskId}
-          />
-        </div>
-      )}
-
-      {/* Mobile: Show Kanban view when in kanban mode */}
-      {mounted && showKanbanView && (
-        <div className="lg:hidden flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-0">
           <KanbanBoard
             queryFilters={queryFilters}
             initialSelectedTaskId={initialTaskId}
