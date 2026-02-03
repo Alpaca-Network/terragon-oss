@@ -24,6 +24,7 @@ import {
 } from "./prompt-box-tool-belt";
 import { useAccessInfo } from "@/queries/subscription";
 import { modelToAgent } from "@terragon/agent/utils";
+import { SmartContextSection } from "@/components/environments/smart-context-section";
 
 export type DashboardPromptBoxHandleSubmit = (
   args: UsePromptBoxHandleSubmitArgs & {
@@ -206,6 +207,10 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
           onCreateNewBranchChange={setCreateNewBranch}
           createNewBranchDisabled={!repoFullName}
         />
+      </div>
+      {/* Smart Context Section */}
+      <div className="border-t pt-3 mt-1">
+        <SmartContextSection repoFullName={repoFullName} />
       </div>
     </div>
   );

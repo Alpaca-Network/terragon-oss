@@ -314,3 +314,73 @@ export async function getEnvironmentForUserRepo({
     ),
   });
 }
+
+export async function getDecryptedSmartContext({
+  db,
+  userId,
+  environmentId,
+  encryptionMasterKey,
+}: {
+  db: DB;
+  userId: string;
+  environmentId: string;
+  encryptionMasterKey: string;
+}): Promise<{
+  content: string | null;
+  generatedAt: Date | null;
+}> {
+  const environment = await getEnvironment({ db, userId, environmentId });
+  if (!environment || !environment.smartContextEncrypted) {
+    return {
+      content: null,
+      generatedAt: environment?.smartContextGeneratedAt ?? null,
+    };
+  }
+
+  try {
+    const decryptedContent = decryptValue(
+      environment.smartContextEncrypted,
+      encryptionMasterKey,
+    );
+    return {
+      content: decryptedContent,
+      generatedAt: environment.smartContextGeneratedAt,
+    };
+  } catch (error) {
+    console.error("Failed to decrypt smart context:", error);
+    return {
+      content: null,
+      generatedAt: null,
+    };
+  }
+}
+
+export async function getDecryptedSmartContextForUserRepo({
+  db,
+  userId,
+  repoFullName,
+  encryptionMasterKey,
+}: {
+  db: DB;
+  userId: string;
+  repoFullName: string;
+  encryptionMasterKey: string;
+}): Promise<string | null> {
+  const environment = await getEnvironmentForUserRepo({
+    db,
+    userId,
+    repoFullName,
+  });
+  if (!environment) {
+    return null;
+  }
+
+  const result = await getDecryptedSmartContext({
+    db,
+    userId,
+    environmentId: environment.id,
+    encryptionMasterKey,
+  });
+
+  return result.content;
+}

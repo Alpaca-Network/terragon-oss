@@ -14,7 +14,9 @@ import {
   getDecryptedEnvironmentVariables,
   getDecryptedMcpConfig,
   getDecryptedGlobalEnvironmentVariables,
+  getDecryptedSmartContext,
 } from "@terragon/shared/model/environments";
+import { mergeContextContent } from "@terragon/sandbox";
 import { env } from "@terragon/env/apps-www";
 import type {
   CreateSandboxOptions,
@@ -195,6 +197,7 @@ async function getOrCreateSandboxForThread({
     repositoryEnvironmentVariables,
     globalEnvironmentVariables,
     mcpConfig,
+    smartContext,
     githubAccessToken,
   ] = await Promise.all([
     getDecryptedEnvironmentVariables({
@@ -209,6 +212,12 @@ async function getOrCreateSandboxForThread({
       encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
     }),
     getDecryptedMcpConfig({
+      db,
+      userId,
+      environmentId: repositoryEnvironment.id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+    getDecryptedSmartContext({
       db,
       userId,
       environmentId: repositoryEnvironment.id,
@@ -260,7 +269,10 @@ async function getOrCreateSandboxForThread({
     branchName,
     mcpConfig: mcpConfig || undefined,
     autoUpdateDaemon: !!userFeatureFlags.autoUpdateDaemon,
-    customSystemPrompt: userSettings.customSystemPrompt,
+    customSystemPrompt: mergeContextContent({
+      customSystemPrompt: userSettings.customSystemPrompt,
+      smartContext: smartContext.content,
+    }),
     setupScript: repositoryEnvironment.setupScript,
     skipSetupScript: thread.skipSetup,
     fastResume: fastResume && !!thread.codesandboxId,

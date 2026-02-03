@@ -102,6 +102,30 @@ export async function checkCliTaskCreationRateLimit(userId: string) {
   return result;
 }
 
+// Smart context analysis rate limiting (by user ID)
+// Limits to 10 analyses per hour per user
+export const smartContextAnalysisRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(
+    10, // 10 analyses
+    "1h", // per hour
+  ),
+  prefix: `${PREFIX}:smart-context-analysis`,
+});
+
+export async function checkSmartContextAnalysisRateLimit(userId: string) {
+  const result = await smartContextAnalysisRateLimit.limit(userId);
+  if (!result.success) {
+    const minutesUntilReset = Math.ceil(
+      (result.reset - Date.now()) / 1000 / 60,
+    );
+    throw new Error(
+      `Too many codebase analyses. Try again in ${minutesUntilReset} minutes.`,
+    );
+  }
+  return result;
+}
+
 // Shadow-banned users: 3 tasks per hour (applies across sources)
 export const shadowBanTaskCreationRateLimit = new Ratelimit({
   redis,

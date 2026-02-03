@@ -571,6 +571,8 @@ export const environment = pgTable(
       .default([]),
     mcpConfigEncrypted: text("mcp_config_encrypted"),
     setupScript: text("setup_script"),
+    smartContextEncrypted: text("smart_context_encrypted"),
+    smartContextGeneratedAt: timestamp("smart_context_generated_at"),
     DEPRECATED_disableGitCheckpointing: boolean("disable_git_checkpointing")
       .notNull()
       .default(false),
