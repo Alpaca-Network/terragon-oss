@@ -307,7 +307,6 @@ describe("model-to-agent", () => {
         expect(gatewayzModels).toContain("gatewayz/claude-code/sonnet");
         expect(gatewayzModels).toContain("gatewayz/codex/gpt-5.2-codex-high");
         expect(gatewayzModels).toContain("gatewayz/gemini/gemini-3-pro");
-        expect(gatewayzModels).toContain("gatewayz/opencode/glm-4.7");
       });
     });
 

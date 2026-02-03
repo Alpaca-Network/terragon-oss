@@ -219,6 +219,7 @@ export async function createNewThread({
       agent,
       permissionMode: message.permissionMode || "allowAll",
       status: scheduleAt ? "scheduled" : saveAsDraft ? "draft" : "queued",
+      lastUsedModel: modelOrDefault,
     },
     enableThreadChatCreation,
   });

@@ -129,8 +129,8 @@ export function GenericPromptBox({
     handleFilesAttached,
     removeFile,
     submitForm,
-    permissionMode,
-    setPermissionMode,
+    taskMode,
+    setTaskMode,
     selectedModel,
     selectedModels,
     setSelectedModel,
@@ -202,8 +202,8 @@ export function GenericPromptBox({
       supportSaveAsDraft={supportSaveAsDraft}
       supportSchedule={supportSchedule}
       typeahead={repositoryCache}
-      permissionMode={permissionMode}
-      onPermissionModeChange={setPermissionMode}
+      taskMode={taskMode}
+      onTaskModeChange={setTaskMode}
       hideModelSelector={hideModelSelector}
       hideModeSelector={hideModeSelector}
       hideAddContextButton={hideAddContextButton}
