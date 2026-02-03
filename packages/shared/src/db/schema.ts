@@ -362,6 +362,18 @@ export const thread = pgTable(
       table.sandboxProvider,
       table.codesandboxId,
     ),
+    // Covering indexes for common list queries (active tasks, archived, backlog)
+    // These indexes include updatedAt for efficient ORDER BY DESC
+    index("user_id_archived_updated_at_index").on(
+      table.userId,
+      table.archived,
+      table.updatedAt,
+    ),
+    index("user_id_is_backlog_updated_at_index").on(
+      table.userId,
+      table.isBacklog,
+      table.updatedAt,
+    ),
   ],
 );
 
@@ -390,6 +402,8 @@ export const threadChat = pgTable(
       table.userId,
       table.threadId,
     ),
+    // Index for efficient batch lookups by threadId (used in thread list queries)
+    index("thread_chat_thread_id_index").on(table.threadId),
   ],
 );
 

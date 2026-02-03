@@ -37,6 +37,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import { usePrefetchPRFeedback } from "@/hooks/use-prefetch-pr-feedback";
 import { useAtom } from "jotai";
 import { kanbanQuickAddBacklogOpenAtom } from "@/atoms/user-cookies";
 import { TaskViewToggle } from "@/components/task-view-toggle";
@@ -346,6 +347,13 @@ export const KanbanBoard = memo(function KanbanBoard({
 
     return groups;
   }, [threads, backlogThreads, threadIds, archivedThreads, matchesSearchQuery]);
+
+  // Prefetch PR feedback for all visible threads to avoid N+1 requests
+  const allVisibleThreads = useMemo(
+    () => [...threads, ...backlogThreads, ...archivedThreads],
+    [threads, backlogThreads, archivedThreads],
+  );
+  usePrefetchPRFeedback(allVisibleThreads);
 
   const showArchived = queryFilters.archived ?? false;
   const automationId = queryFilters.automationId;
