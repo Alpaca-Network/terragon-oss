@@ -107,30 +107,8 @@ async function getThreadsInner({
   if (where?.agent !== undefined) {
     whereConditions.push(eq(schema.thread.agent, where.agent));
   }
-  const threadChatSubQuery = db
-    .select({
-      threadChats: sql<
-        Pick<
-          ThreadChat,
-          "id" | "agent" | "status" | "errorMessage" | "lastUsedModel"
-        >[]
-      >`jsonb_agg(jsonb_build_object(
-          'id', ${schema.threadChat.id},
-          'agent', ${schema.threadChat.agent},
-          'status', ${schema.threadChat.status},
-          'errorMessage', ${schema.threadChat.errorMessage},
-          'lastUsedModel', ${schema.threadChat.lastUsedModel}
-        ))
-      `.as("threadChats"),
-    })
-    .from(schema.threadChat)
-    .where(
-      and(
-        eq(schema.threadChat.userId, userIdOrNull ?? schema.thread.userId),
-        eq(schema.threadChat.threadId, schema.thread.id),
-      ),
-    )
-    .as("threadChatsAggregated");
+  // Optimized: Fetch threads first, then batch fetch threadChats
+  // This avoids the slow LATERAL JOIN pattern
   const query = db
     .select({
       id: schema.thread.id,
@@ -186,7 +164,6 @@ async function getThreadsInner({
       prChecksStatus: schema.githubPR.checksStatus,
       visibility: schema.threadVisibility.visibility,
       isUnread: sql<boolean>`NOT COALESCE(${schema.threadReadStatus.isRead}, true)`,
-      threadChats: threadChatSubQuery.threadChats,
     })
     .from(schema.thread)
     .limit(limit)
@@ -214,20 +191,66 @@ async function getThreadsInner({
         eq(schema.threadReadStatus.threadId, schema.thread.id),
       ),
     )
-    .leftJoinLateral(threadChatSubQuery, sql`true`)
     .where(and(...whereConditions));
 
   const threads = await query;
   if (threads.length === 0) {
     return [];
   }
+
+  // Batch fetch threadChats for all threads in a single query (avoiding N+1)
+  const threadIds = threads.map((t) => t.id);
+
+  // Build where clause for threadChats query
+  // For admin queries (userIdOrNull is null), we need to match each thread's userId
+  // For regular queries, we filter by the single userId
+  const threadChatsWhereClause = userIdOrNull
+    ? and(
+        inArray(schema.threadChat.threadId, threadIds),
+        eq(schema.threadChat.userId, userIdOrNull),
+      )
+    : inArray(schema.threadChat.threadId, threadIds);
+
+  const threadChatsResult = await db
+    .select({
+      threadId: schema.threadChat.threadId,
+      id: schema.threadChat.id,
+      agent: schema.threadChat.agent,
+      status: schema.threadChat.status,
+      errorMessage: schema.threadChat.errorMessage,
+      lastUsedModel: schema.threadChat.lastUsedModel,
+      userId: schema.threadChat.userId,
+    })
+    .from(schema.threadChat)
+    .where(threadChatsWhereClause);
+
+  // Group threadChats by threadId for O(1) lookup
+  // For admin queries, we need to match both threadId and userId
+  const threadChatsMap = new Map<
+    string,
+    Pick<
+      ThreadChat,
+      "id" | "agent" | "status" | "errorMessage" | "lastUsedModel"
+    >[]
+  >();
+
+  // Create a map key that includes userId for admin queries
+  const getMapKey = (threadId: string, threadUserId: string) =>
+    userIdOrNull ? threadId : `${threadId}:${threadUserId}`;
+
+  for (const chat of threadChatsResult) {
+    const { threadId, userId: chatUserId, ...chatData } = chat;
+    const mapKey = getMapKey(threadId, chatUserId);
+    if (!threadChatsMap.has(mapKey)) {
+      threadChatsMap.set(mapKey, []);
+    }
+    threadChatsMap.get(mapKey)!.push(chatData);
+  }
+
   return threads.map((thread) => {
-    const {
-      user = null,
-      legacyThreadChat,
-      threadChats,
-      ...threadWithoutChats
-    } = thread;
+    const { user = null, legacyThreadChat, ...threadWithoutChats } = thread;
+    const mapKey = getMapKey(thread.id, thread.userId);
+    const threadChats = threadChatsMap.get(mapKey);
     if (threadChats?.length) {
       return {
         user,
