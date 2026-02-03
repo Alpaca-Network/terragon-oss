@@ -257,6 +257,10 @@ async function proxyRequest(
         }
       } catch (error) {
         console.error("Failed to log Google AI Studio usage (json)", error);
+        // Ensure responseBody is set to empty string if reading body failed
+        if (responseBody === response.body) {
+          responseBody = "";
+        }
       }
     }
   }
@@ -284,7 +288,7 @@ async function proxyRequest(
     responseHeaders.set("Access-Control-Allow-Origin", "*");
   }
 
-  return new Response(responseBody, {
+  return new Response(responseBody ?? "", {
     status: response.status,
     statusText: response.statusText,
     headers: responseHeaders,
