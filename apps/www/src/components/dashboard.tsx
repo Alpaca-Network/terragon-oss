@@ -112,20 +112,34 @@ export function Dashboard({
   const selectedModel = useAtomValue(selectedModelAtom);
 
   // Determine if there are any active tasks; used for onboarding state
-  const { data } = useInfiniteThreadList({ archived: false });
+  const {
+    data,
+    isLoading: isLoadingThreads,
+    isError: isThreadsError,
+  } = useInfiniteThreadList({
+    archived: false,
+  });
   const activeTaskCount = (data?.pages.flatMap((page) => page) ?? []).length;
 
   // Fetch user repos for onboarding
-  const { data: reposResult } = useServerActionQuery({
+  const {
+    data: reposResult,
+    isLoading: isLoadingRepos,
+    isError: isReposError,
+  } = useServerActionQuery({
     queryKey: ["user-repos"],
     queryFn: getUserRepos,
   });
   const userRepos = reposResult?.repos ?? [];
   const repoCount = userRepos.length;
 
-  // Determine user state for onboarding
-  const isNewUser = activeTaskCount === 0;
-  const isGrowingUser = activeTaskCount > 0 && activeTaskCount < 3;
+  // Determine user state for onboarding - only calculate once data is loaded successfully
+  // Don't show onboarding content if queries are loading or have errored
+  const isDataLoaded =
+    !isLoadingThreads && !isLoadingRepos && !isThreadsError && !isReposError;
+  const isNewUser = isDataLoaded && activeTaskCount === 0;
+  const isGrowingUser =
+    isDataLoaded && activeTaskCount > 0 && activeTaskCount < 3;
 
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
@@ -167,34 +181,37 @@ export function Dashboard({
           />
 
           {/* Onboarding content - conditional based on user state */}
-          <div className="space-y-4">
-            {/* Recent Repos - for growing users with repos */}
-            {isGrowingUser && repoCount >= 1 && (
-              <RecentReposQuickAccess
-                repos={userRepos.slice(0, 5)}
-                onTaskSelect={(p) => setPromptText(p)}
-              />
-            )}
-
-            {/* Template Selector - for new users or users with few repos */}
-            {(isNewUser || repoCount < 3) && <TemplateRepoSelector />}
-
-            {/* Kanban Promotion - for engaged but not power users */}
-            {isGrowingUser && <KanbanPromotionBanner />}
-
-            {/* Task Ideas - always show for growing users */}
-            {isGrowingUser && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground/70">
-                  Task Ideas
-                </h3>
-                <RecommendedTasks
+          {/* Only show after data is loaded to prevent flash of content */}
+          {isDataLoaded && (
+            <div className="space-y-4">
+              {/* Recent Repos - for growing users with repos */}
+              {isGrowingUser && repoCount >= 1 && (
+                <RecentReposQuickAccess
+                  repos={userRepos.slice(0, 5)}
                   onTaskSelect={(p) => setPromptText(p)}
-                  selectedModel={selectedModel}
                 />
-              </div>
-            )}
-          </div>
+              )}
+
+              {/* Template Selector - for new users or users with few repos */}
+              {(isNewUser || repoCount < 3) && <TemplateRepoSelector />}
+
+              {/* Kanban Promotion - for engaged but not power users */}
+              {isGrowingUser && <KanbanPromotionBanner />}
+
+              {/* Task Ideas - always show for growing users */}
+              {isGrowingUser && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground/70">
+                    Task Ideas
+                  </h3>
+                  <RecommendedTasks
+                    onTaskSelect={(p) => setPromptText(p)}
+                    selectedModel={selectedModel}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
