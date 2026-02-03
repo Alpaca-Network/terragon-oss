@@ -74,8 +74,10 @@ async function fetchPRWithMergeablePolling({
       lastData = data;
       lastError = null;
 
+      // GitHub returns "unknown" string when computing mergeability, or null when not yet computed
       const isComputingMergeableState =
-        data.mergeable_state == null && data.mergeable == null;
+        (data.mergeable_state == null || data.mergeable_state === "unknown") &&
+        data.mergeable == null;
 
       if (!isComputingMergeableState) {
         return data;
