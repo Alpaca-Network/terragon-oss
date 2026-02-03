@@ -1,20 +1,31 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import {
+  FileText,
+  TestTube,
+  Bug,
+  BookOpen,
+  Zap,
+  Shield,
+  type LucideIcon,
+} from "lucide-react";
 import type { AIModel } from "@terragon/agent/types";
-import { tasksForModel } from "./recommended-tasks.utils";
+import { tasksForModel, type RecommendedTask } from "./recommended-tasks.utils";
 import { usePostHog } from "posthog-js/react";
-
-interface RecommendedTask {
-  id: string;
-  label: string;
-  prompt: string;
-}
 
 interface RecommendedTasksProps {
   onTaskSelect: (prompt: string) => void;
   selectedModel?: AIModel;
 }
+
+const TASK_ICONS: Record<string, LucideIcon> = {
+  "file-text": FileText,
+  "test-tube": TestTube,
+  bug: Bug,
+  "book-open": BookOpen,
+  zap: Zap,
+  shield: Shield,
+};
 
 function ListRecommendedTaskItem({
   task,
@@ -26,9 +37,11 @@ function ListRecommendedTaskItem({
   selectedModel?: AIModel;
 }) {
   const posthog = usePostHog();
+  const Icon = TASK_ICONS[task.icon] || FileText;
 
   const handleClick = () => {
-    posthog?.capture("recommended_task_clicked", {
+    posthog?.capture("enhanced_task_template_clicked", {
+      taskId: task.id,
       taskLabel: task.label,
       selectedModel: selectedModel,
     });
@@ -39,17 +52,12 @@ function ListRecommendedTaskItem({
   return (
     <button
       onClick={handleClick}
-      className="block rounded-md transition-colors py-2 hover:bg-muted/50 w-full cursor-pointer"
+      className="flex items-start gap-3 py-2.5 px-2 hover:bg-muted/50 w-full rounded-md transition-colors text-left"
     >
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 flex-shrink-0 flex items-center justify-center">
-            <Sparkles className="size-3 text-muted-foreground/50" />
-          </div>
-          <p className="text-sm truncate font-medium text-muted-foreground/50">
-            {task.label}
-          </p>
-        </div>
+      <Icon className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{task.label}</p>
+        <p className="text-xs text-muted-foreground">{task.shortDescription}</p>
       </div>
     </button>
   );

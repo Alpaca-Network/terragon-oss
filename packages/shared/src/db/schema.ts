@@ -870,6 +870,13 @@ export const userFlags = pgTable(
     // Feature upsell toast last seen version. Increment FEATURE_UPSELL_VERSION
     // in apps/www/src/lib/constants.ts to show the upsell again.
     lastSeenFeatureUpsellVersion: integer("last_seen_feature_upsell_version"),
+    // Track recently used repos (max 5, FIFO)
+    recentRepos: jsonb("recent_repos").$type<string[]>(),
+    // Track if user has ever used Kanban view (for promotion dismissal)
+    hasUsedKanbanView: boolean("has_used_kanban_view").default(false),
+    // Track repo creation count for rate limiting (resets daily)
+    repoCreationCount: integer("repo_creation_count").default(0),
+    repoCreationResetDate: timestamp("repo_creation_reset_date"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
