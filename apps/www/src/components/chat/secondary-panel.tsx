@@ -144,9 +144,24 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
     staleTime: 30000, // 30 seconds
     refetchInterval: (query): number => {
       const mergeableState = query.state.data?.feedback?.mergeableState;
+      const now = Date.now();
+      if (
+        mergeableState === "unknown" &&
+        mergeablePollingRef.current.until === null
+      ) {
+        mergeablePollingRef.current = {
+          ...nextMergeablePollingState({
+            mergeableState,
+            now,
+            state: mergeablePollingRef.current,
+            didRefetch: true,
+          }),
+          lastDataUpdatedAt: query.state.dataUpdatedAt ?? null,
+        };
+      }
       return getMergeablePollingInterval({
         mergeableState,
-        now: Date.now(),
+        now,
         state: mergeablePollingRef.current,
         defaultIntervalMs: 60000,
       });
@@ -166,6 +181,7 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
           mergeableState: feedback?.mergeableState,
           now: Date.now(),
           state: mergeablePollingRef.current,
+          didRefetch: true,
         }),
         lastDataUpdatedAt: dataUpdatedAt,
       };

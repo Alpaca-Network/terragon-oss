@@ -859,6 +859,34 @@ describe("fetch functions", () => {
     }
   });
 
+  it("fetchPRDetails should retry on network errors", async () => {
+    vi.useFakeTimers();
+    mockOctokit.rest.pulls.get
+      .mockRejectedValueOnce({ code: "ECONNRESET" })
+      .mockResolvedValueOnce({ data: { mergeable_state: "clean" } });
+
+    try {
+      const promise = fetchPRDetails(mockOctokit as any, "owner", "repo", 123);
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(mockOctokit.rest.pulls.get).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({ mergeable_state: "clean" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fetchPRDetails should not retry on non-retryable errors", async () => {
+    mockOctokit.rest.pulls.get.mockRejectedValueOnce({ status: 404 });
+
+    await expect(
+      fetchPRDetails(mockOctokit as any, "owner", "repo", 123),
+    ).rejects.toEqual({ status: 404 });
+
+    expect(mockOctokit.rest.pulls.get).toHaveBeenCalledTimes(1);
+  });
+
   it("fetchPRChecks should call the correct endpoint", async () => {
     mockOctokit.rest.checks.listForRef.mockResolvedValue({ data: {} });
     await fetchPRChecks(mockOctokit as any, "owner", "repo", "abc123");

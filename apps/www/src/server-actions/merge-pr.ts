@@ -7,6 +7,7 @@ import {
   parseRepoFullName,
   updateGitHubPR,
 } from "@/lib/github";
+import { fetchPRWithMergeablePolling } from "@/lib/github-pulls";
 import { getThreadMinimal } from "@terragon/shared/model/threads";
 import { UserFacingError } from "@/lib/server-actions";
 import { getPostHogServer } from "@/lib/posthog-server";
@@ -29,68 +30,11 @@ type MergePRResult = {
   message: string;
 };
 
-const MERGEABLE_STATE_POLL_ATTEMPTS = 5;
-const MERGEABLE_STATE_POLL_DELAY_MS = 500;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 type PRGetResponse = Awaited<
   ReturnType<
     Awaited<ReturnType<typeof getOctokitForApp>>["rest"]["pulls"]["get"]
   >
 >["data"];
-
-async function fetchPRWithMergeablePolling({
-  octokit,
-  owner,
-  repo,
-  prNumber,
-}: {
-  octokit: Awaited<ReturnType<typeof getOctokitForApp>>;
-  owner: string;
-  repo: string;
-  prNumber: number;
-}): Promise<PRGetResponse> {
-  let lastData: PRGetResponse | null = null;
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MERGEABLE_STATE_POLL_ATTEMPTS; attempt += 1) {
-    try {
-      const { data } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: prNumber,
-      });
-      lastData = data;
-      lastError = null;
-
-      const isComputingMergeableState =
-        data.mergeable_state == null && data.mergeable == null;
-
-      if (!isComputingMergeableState) {
-        return data;
-      }
-
-      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
-        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
-      }
-    } catch (error) {
-      lastError = error as Error;
-      // Only retry on network errors, not on 404s or other API errors
-      if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
-        await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
-      }
-    }
-  }
-
-  if (lastData === null) {
-    throw lastError ?? new Error("Failed to fetch PR data after all attempts");
-  }
-
-  return lastData;
-}
 
 /**
  * Merges a PR on GitHub

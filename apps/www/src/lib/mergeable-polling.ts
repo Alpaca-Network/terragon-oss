@@ -36,16 +36,22 @@ export function nextMergeablePollingState({
   mergeableState,
   now,
   state,
+  didRefetch = true,
 }: {
   mergeableState: GithubPRMergeableState | undefined;
   now: number;
   state: MergeablePollingState;
+  didRefetch?: boolean;
 }): MergeablePollingState {
   if (mergeableState !== "unknown") {
     if (state.until === null && state.count === 0) {
       return state;
     }
     return { until: null, count: 0 };
+  }
+
+  if (!didRefetch) {
+    return state;
   }
 
   if (state.until === null) {

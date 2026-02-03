@@ -31,6 +31,19 @@ describe("mergeable polling helpers", () => {
     expect(state.until).toBe(now + MERGEABLE_POLL_WINDOW_MS);
   });
 
+  it("does not increment polling attempts without a refetch", () => {
+    const now = 1_000_000;
+    const state = nextMergeablePollingState({
+      mergeableState: "unknown",
+      now,
+      state: { until: now + MERGEABLE_POLL_WINDOW_MS, count: 3 },
+      didRefetch: false,
+    });
+
+    expect(state.count).toBe(3);
+    expect(state.until).toBe(now + MERGEABLE_POLL_WINDOW_MS);
+  });
+
   it("resets polling state when mergeable becomes known", () => {
     const state = nextMergeablePollingState({
       mergeableState: "clean",

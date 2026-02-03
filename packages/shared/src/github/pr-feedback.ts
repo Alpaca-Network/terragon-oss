@@ -181,6 +181,33 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const RETRYABLE_ERROR_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EPIPE",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "ECONNABORTED",
+]);
+
+function isRetryablePullError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as { status?: number; code?: string };
+  if (typeof maybeError.status === "number") {
+    return maybeError.status >= 500 && maybeError.status < 600;
+  }
+
+  if (typeof maybeError.code === "string") {
+    return RETRYABLE_ERROR_CODES.has(maybeError.code);
+  }
+
+  return false;
+}
+
 export async function fetchPRDetails(
   octokit: Octokit,
   owner: string,
@@ -212,7 +239,11 @@ export async function fetchPRDetails(
       }
     } catch (error) {
       lastError = error as Error;
-      // Only retry on network errors, not on 404s or other API errors
+      // Only retry on network/transient errors, not on 404s or other API errors.
+      if (!isRetryablePullError(error)) {
+        throw error;
+      }
+
       if (attempt < MERGEABLE_STATE_POLL_ATTEMPTS - 1) {
         await sleep(MERGEABLE_STATE_POLL_DELAY_MS);
       }
