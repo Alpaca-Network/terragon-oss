@@ -194,7 +194,9 @@ export async function fetchPRDetails(
   owner: string,
   repo: string,
   prNumber: number,
+  options?: { skipMergeablePolling?: boolean },
 ): Promise<PRGetResponse> {
+  const skipPolling = options?.skipMergeablePolling ?? false;
   let lastData: PRGetResponse | null = null;
   let lastError: Error | null = null;
 
@@ -207,6 +209,11 @@ export async function fetchPRDetails(
       });
       lastData = data;
       lastError = null;
+
+      // Skip polling if requested - return immediately after first fetch
+      if (skipPolling) {
+        return data;
+      }
 
       const isComputingMergeableState =
         data.mergeable_state == null && data.mergeable == null;
@@ -400,7 +407,10 @@ export async function aggregatePRFeedback(
   prNumber: number,
 ): Promise<PRFeedback> {
   // Fetch PR details first to get head SHA
-  const prDetails = await fetchPRDetails(octokit, owner, repo, prNumber);
+  // Skip mergeable state polling - the UI handles refetching when state is unknown
+  const prDetails = await fetchPRDetails(octokit, owner, repo, prNumber, {
+    skipMergeablePolling: true,
+  });
 
   // Fetch remaining data in parallel
   const [rawComments, rawChecks, resolutionStatus] = await Promise.all([
