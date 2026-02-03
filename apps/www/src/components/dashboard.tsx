@@ -127,7 +127,6 @@ export function Dashboard({
   // Determine user state for onboarding
   const isNewUser = activeTaskCount === 0;
   const isGrowingUser = activeTaskCount > 0 && activeTaskCount < 3;
-  const isPowerUser = activeTaskCount >= 3;
 
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;

@@ -28,8 +28,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAtomValue } from "jotai";
-import { selectedModelAtom, selectedModelsAtom } from "@/atoms/user-flags";
+import {
+  selectedModelAtom,
+  selectedModelsPersistedAtom,
+} from "@/atoms/user-flags";
 import { useRouter } from "next/navigation";
+import { unwrapResult } from "@/lib/server-actions";
 
 interface CreateRepoDialogProps {
   template: TemplateRepo;
@@ -49,7 +53,7 @@ export function CreateRepoDialog({
   const [isPending, startTransition] = useTransition();
   const platform = usePlatform();
   const selectedModel = useAtomValue(selectedModelAtom);
-  const selectedModels = useAtomValue(selectedModelsAtom);
+  const selectedModels = useAtomValue(selectedModelsPersistedAtom);
   const router = useRouter();
 
   const handleCreate = () => {
@@ -88,14 +92,17 @@ export function CreateRepoDialog({
           });
         }
 
-        if (result.success) {
-          toast.success(result.message);
-          onOpenChange(false);
-          onSuccess?.();
+        const unwrapped = unwrapResult(result) as {
+          repoFullName: string;
+          threadId: string;
+          message: string;
+        };
+        toast.success(unwrapped.message);
+        onOpenChange(false);
+        onSuccess?.();
 
-          // Navigate to the new thread
-          router.push(`/t/${result.threadId}`);
-        }
+        // Navigate to the new thread
+        router.push(`/t/${unwrapped.threadId}`);
       } catch (error: any) {
         console.error("Failed to create repository:", error);
         toast.error(error.message || "Failed to create repository");

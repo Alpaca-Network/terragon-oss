@@ -28,8 +28,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAtomValue } from "jotai";
-import { selectedModelAtom, selectedModelsAtom } from "@/atoms/user-flags";
+import {
+  selectedModelAtom,
+  selectedModelsPersistedAtom,
+} from "@/atoms/user-flags";
 import { useRouter } from "next/navigation";
+import { unwrapResult } from "@/lib/server-actions";
 
 interface TemplateSearchDialogProps {
   open: boolean;
@@ -44,7 +48,7 @@ interface SearchResult {
   owner: string;
   stargazers_count: number;
   language: string | null;
-  is_template: boolean;
+  is_template: boolean | null;
 }
 
 export function TemplateSearchDialog({
@@ -63,7 +67,7 @@ export function TemplateSearchDialog({
   const [isCreating, startCreateTransition] = useTransition();
   const platform = usePlatform();
   const selectedModel = useAtomValue(selectedModelAtom);
-  const selectedModels = useAtomValue(selectedModelsAtom);
+  const selectedModels = useAtomValue(selectedModelsPersistedAtom);
   const router = useRouter();
 
   const handleSearch = () => {
@@ -77,9 +81,20 @@ export function TemplateSearchDialog({
         const result = await searchGitHubTemplate({
           query: searchQuery.trim(),
         });
-        setSearchResults(result.repos);
+        const unwrapped = unwrapResult(result) as {
+          repos: Array<{
+            full_name: string;
+            name: string;
+            description: string | null;
+            owner: string;
+            stargazers_count: number;
+            language: string | null;
+            is_template: boolean | null;
+          }>;
+        };
+        setSearchResults(unwrapped.repos);
 
-        if (result.repos.length === 0) {
+        if (unwrapped.repos.length === 0) {
           toast.info("No templates found. Try a different search query.");
         }
       } catch (error: any) {
@@ -106,7 +121,14 @@ export function TemplateSearchDialog({
       return;
     }
 
-    const [owner, repo] = selectedResult.full_name.split("/");
+    const parts = selectedResult.full_name.split("/");
+    const owner = parts[0];
+    const repo = parts[1];
+
+    if (!owner || !repo) {
+      toast.error("Invalid repository format");
+      return;
+    }
 
     startCreateTransition(async () => {
       try {
@@ -120,20 +142,23 @@ export function TemplateSearchDialog({
           selectedModels: selectedModels || { primary: selectedModel },
         });
 
-        if (result.success) {
-          toast.success(result.message);
-          onOpenChange(false);
-          onSuccess?.();
+        const unwrapped = unwrapResult(result) as {
+          repoFullName: string;
+          threadId: string;
+          message: string;
+        };
+        toast.success(unwrapped.message);
+        onOpenChange(false);
+        onSuccess?.();
 
-          // Reset state
-          setSearchQuery("");
-          setSearchResults([]);
-          setSelectedResult(null);
-          setRepoName("");
+        // Reset state
+        setSearchQuery("");
+        setSearchResults([]);
+        setSelectedResult(null);
+        setRepoName("");
 
-          // Navigate to the new thread
-          router.push(`/t/${result.threadId}`);
-        }
+        // Navigate to the new thread
+        router.push(`/t/${unwrapped.threadId}`);
       } catch (error: any) {
         console.error("Failed to create repository:", error);
         toast.error(error.message || "Failed to create repository");

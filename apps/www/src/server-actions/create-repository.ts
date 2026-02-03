@@ -1,14 +1,19 @@
 "use server";
 
 import { userOnlyAction } from "@/lib/auth-server";
-import { UserFacingError } from "@/lib/server-actions";
+import { UserFacingError, unwrapResult } from "@/lib/server-actions";
 import { Octokit } from "octokit";
 import { getGitHubUserAccessTokenWithRefresh } from "@/lib/github-oauth";
-import { getUserFlags, updateUserFlags } from "@terragon/shared/model/user";
+import {
+  getUserFlags,
+  updateUserFlags,
+} from "@terragon/shared/model/user-flags";
 import { getOrCreateEnvironment } from "@terragon/shared/model/environments";
 import { getPostHogServer } from "@/lib/posthog-server";
 import { newThread } from "./new-thread";
 import { SelectedAIModels } from "@terragon/agent/types";
+import { db } from "@/lib/db";
+import { env } from "@terragon/env/apps-www";
 
 interface CreateRepoFromTemplateArgs {
   templateOwner: string;
@@ -37,15 +42,19 @@ const MAX_REPOS_PER_DAY = 3;
  * Check and enforce rate limiting for repo creation (3 per day per user)
  */
 async function checkRepoCreationRateLimit(userId: string) {
-  const userFlags = await getUserFlags(userId);
+  const userFlags = await getUserFlags({ db, userId });
   const today = new Date().toDateString();
   const lastResetDate = userFlags?.repoCreationResetDate?.toDateString();
 
   if (lastResetDate !== today) {
     // Reset counter for new day
-    await updateUserFlags(userId, {
-      repoCreationCount: 0,
-      repoCreationResetDate: new Date(),
+    await updateUserFlags({
+      db,
+      userId,
+      updates: {
+        repoCreationCount: 0,
+        repoCreationResetDate: new Date(),
+      },
     });
     return 0; // Return current count after reset
   }
@@ -67,8 +76,12 @@ async function incrementRepoCreationCount(
   userId: string,
   currentCount: number,
 ) {
-  await updateUserFlags(userId, {
-    repoCreationCount: currentCount + 1,
+  await updateUserFlags({
+    db,
+    userId,
+    updates: {
+      repoCreationCount: currentCount + 1,
+    },
   });
 }
 
@@ -80,9 +93,13 @@ async function selectRepo(
   repoFullName: string,
   defaultBranch: string,
 ) {
-  await updateUserFlags(userId, {
-    selectedRepo: repoFullName,
-    selectedBranch: defaultBranch,
+  await updateUserFlags({
+    db,
+    userId,
+    updates: {
+      selectedRepo: repoFullName,
+      selectedBranch: defaultBranch,
+    },
   });
 }
 
@@ -105,7 +122,13 @@ export const createRepositoryFromTemplate = userOnlyAction(
     const currentCount = await checkRepoCreationRateLimit(userId);
 
     // Get user's GitHub token
-    const token = await getGitHubUserAccessTokenWithRefresh(userId);
+    const token = await getGitHubUserAccessTokenWithRefresh({
+      db,
+      userId,
+      encryptionKey: env.ENCRYPTION_MASTER_KEY,
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
+    });
     const octokit = new Octokit({ auth: token });
 
     // Get user's GitHub username
@@ -130,6 +153,7 @@ export const createRepositoryFromTemplate = userOnlyAction(
 
       // Create environment for the repo
       await getOrCreateEnvironment({
+        db,
         userId,
         repoFullName,
       });
@@ -138,12 +162,17 @@ export const createRepositoryFromTemplate = userOnlyAction(
       await selectRepo(userId, repoFullName, defaultBranch);
 
       // Auto-create task with suggested prompt
-      const thread = await newThread(userId, {
-        message: suggestedFirstTask,
+      const threadResult = await newThread({
+        message: {
+          type: "user",
+          model: null,
+          parts: [{ type: "text", text: suggestedFirstTask }],
+        },
         githubRepoFullName: repoFullName,
         branchName: defaultBranch,
         selectedModels,
       });
+      const thread = unwrapResult(threadResult);
 
       // Track event
       const posthog = getPostHogServer();
@@ -158,7 +187,6 @@ export const createRepositoryFromTemplate = userOnlyAction(
       });
 
       return {
-        success: true,
         repoFullName,
         threadId: thread.threadId,
         message: "Repository created and task started!",
@@ -183,6 +211,7 @@ export const createRepositoryFromTemplate = userOnlyAction(
       );
     }
   },
+  { defaultErrorMessage: "Failed to create repository from template" },
 );
 
 /**
@@ -203,7 +232,13 @@ export const createBlankRepository = userOnlyAction(
     const currentCount = await checkRepoCreationRateLimit(userId);
 
     // Get user's GitHub token
-    const token = await getGitHubUserAccessTokenWithRefresh(userId);
+    const token = await getGitHubUserAccessTokenWithRefresh({
+      db,
+      userId,
+      encryptionKey: env.ENCRYPTION_MASTER_KEY,
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
+    });
     const octokit = new Octokit({ auth: token });
 
     try {
@@ -224,6 +259,7 @@ export const createBlankRepository = userOnlyAction(
 
       // Create environment for the repo
       await getOrCreateEnvironment({
+        db,
         userId,
         repoFullName,
       });
@@ -232,12 +268,17 @@ export const createBlankRepository = userOnlyAction(
       await selectRepo(userId, repoFullName, defaultBranch);
 
       // Auto-create task with suggested prompt
-      const thread = await newThread(userId, {
-        message: suggestedFirstTask,
+      const threadResult = await newThread({
+        message: {
+          type: "user",
+          model: null,
+          parts: [{ type: "text", text: suggestedFirstTask }],
+        },
         githubRepoFullName: repoFullName,
         branchName: defaultBranch,
         selectedModels,
       });
+      const thread = unwrapResult(threadResult);
 
       // Track event
       const posthog = getPostHogServer();
@@ -251,7 +292,6 @@ export const createBlankRepository = userOnlyAction(
       });
 
       return {
-        success: true,
         repoFullName,
         threadId: thread.threadId,
         message: "Repository created and task started!",
@@ -270,6 +310,7 @@ export const createBlankRepository = userOnlyAction(
       );
     }
   },
+  { defaultErrorMessage: "Failed to create blank repository" },
 );
 
 /**
@@ -281,7 +322,13 @@ export const searchGitHubTemplate = userOnlyAction(
     { query }: SearchTemplateArgs,
   ) {
     // Get user's GitHub token
-    const token = await getGitHubUserAccessTokenWithRefresh(userId);
+    const token = await getGitHubUserAccessTokenWithRefresh({
+      db,
+      userId,
+      encryptionKey: env.ENCRYPTION_MASTER_KEY,
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
+    });
     const octokit = new Octokit({ auth: token });
 
     try {
@@ -336,7 +383,7 @@ export const searchGitHubTemplate = userOnlyAction(
             full_name: item.full_name,
             name: item.name,
             description: item.description,
-            owner: item.owner.login,
+            owner: item.owner?.login || "",
             stargazers_count: item.stargazers_count,
             language: item.language,
             is_template: item.is_template,
@@ -355,4 +402,5 @@ export const searchGitHubTemplate = userOnlyAction(
       );
     }
   },
+  { defaultErrorMessage: "Failed to search templates" },
 );

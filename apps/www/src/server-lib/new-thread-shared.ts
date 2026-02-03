@@ -240,7 +240,7 @@ export async function createNewThread({
   const updateThreadMetadata = () => {
     // Track recently used repo
     waitUntil(
-      trackRecentRepo(userId, githubRepoFullName).catch((error) => {
+      trackRecentRepo(githubRepoFullName).catch((error) => {
         console.error("Failed to track recent repo:", error);
       }),
     );
