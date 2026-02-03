@@ -30,6 +30,7 @@ import {
   HandleSubmit,
   HandleUpdate,
 } from "@/components/promptbox/use-promptbox";
+import { SmartContextSection } from "@/components/environments/smart-context-section";
 
 interface NewTaskDialogProps {
   open: boolean;
@@ -202,6 +203,11 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
               onCreateNewBranchChange={setCreateNewBranch}
               createNewBranchDisabled={!repoFullName}
             />
+          </div>
+
+          {/* Smart Context Section */}
+          <div className="border-t pt-3 mt-1">
+            <SmartContextSection repoFullName={repoFullName} />
           </div>
         </div>
       </DialogContent>
