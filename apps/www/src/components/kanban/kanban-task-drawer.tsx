@@ -35,11 +35,19 @@ const FuturisticLoader = () => (
 );
 
 // Preload functions for dynamic imports - call these before drawer opens
-export const preloadChatUI = () => import("@/components/chat/chat-ui");
+// Each has a .catch to avoid unhandled promise rejections if preload fails
+export const preloadChatUI = () =>
+  import("@/components/chat/chat-ui").catch((err) => {
+    console.error("Failed to preload ChatUI:", err);
+  });
 export const preloadGitDiffView = () =>
-  import("@/components/chat/git-diff-view");
+  import("@/components/chat/git-diff-view").catch((err) => {
+    console.error("Failed to preload GitDiffView:", err);
+  });
 export const preloadCodeReviewView = () =>
-  import("@/components/chat/code-review-view");
+  import("@/components/chat/code-review-view").catch((err) => {
+    console.error("Failed to preload CodeReviewView:", err);
+  });
 
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
   ssr: false,

@@ -6,7 +6,7 @@ import { ThreadInfo } from "@terragon/shared";
 import { threadQueryOptions } from "@/queries/thread-queries";
 
 // Maximum number of threads to prefetch at once to avoid over-fetching
-const MAX_PREFETCH_COUNT = 5;
+export const MAX_PREFETCH_COUNT = 5;
 
 /**
  * Prefetches thread detail data for visible threads and populates the React Query cache.

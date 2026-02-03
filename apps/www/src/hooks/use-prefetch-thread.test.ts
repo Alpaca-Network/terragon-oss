@@ -12,6 +12,7 @@ vi.mock("@/queries/thread-queries", () => ({
 
 // Import after mocking
 import { threadQueryOptions } from "@/queries/thread-queries";
+import { MAX_PREFETCH_COUNT } from "./use-prefetch-thread";
 
 describe("use-prefetch-thread", () => {
   beforeEach(() => {
@@ -39,13 +40,16 @@ describe("use-prefetch-thread", () => {
   });
 
   describe("prefetch constants", () => {
-    // Testing the module-level constant indirectly through behavior
-    it("should have appropriate MAX_PREFETCH_COUNT for performance", () => {
+    it("should export MAX_PREFETCH_COUNT with appropriate value for performance", () => {
       // The hook limits prefetching to avoid overwhelming the network
-      // We test this behavior through the exported constants in the main module
-      const MAX_PREFETCH_COUNT = 5; // This matches the constant in the hook
+      // Using the actual exported constant to ensure test fails if value changes
       expect(MAX_PREFETCH_COUNT).toBeGreaterThanOrEqual(3); // Reasonable minimum
       expect(MAX_PREFETCH_COUNT).toBeLessThanOrEqual(10); // Reasonable maximum
+    });
+
+    it("should have MAX_PREFETCH_COUNT set to 5", () => {
+      // Document the expected value - test will fail if constant changes
+      expect(MAX_PREFETCH_COUNT).toBe(5);
     });
   });
 
