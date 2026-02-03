@@ -200,6 +200,17 @@ async function getThreadsInner({
 
   // Batch fetch threadChats for all threads in a single query (avoiding N+1)
   const threadIds = threads.map((t) => t.id);
+
+  // Build where clause for threadChats query
+  // For admin queries (userIdOrNull is null), we need to match each thread's userId
+  // For regular queries, we filter by the single userId
+  const threadChatsWhereClause = userIdOrNull
+    ? and(
+        inArray(schema.threadChat.threadId, threadIds),
+        eq(schema.threadChat.userId, userIdOrNull),
+      )
+    : inArray(schema.threadChat.threadId, threadIds);
+
   const threadChatsResult = await db
     .select({
       threadId: schema.threadChat.threadId,
@@ -208,16 +219,13 @@ async function getThreadsInner({
       status: schema.threadChat.status,
       errorMessage: schema.threadChat.errorMessage,
       lastUsedModel: schema.threadChat.lastUsedModel,
+      userId: schema.threadChat.userId,
     })
     .from(schema.threadChat)
-    .where(
-      and(
-        inArray(schema.threadChat.threadId, threadIds),
-        eq(schema.threadChat.userId, userIdOrNull ?? threads[0]!.userId),
-      ),
-    );
+    .where(threadChatsWhereClause);
 
   // Group threadChats by threadId for O(1) lookup
+  // For admin queries, we need to match both threadId and userId
   const threadChatsMap = new Map<
     string,
     Pick<
@@ -225,17 +233,24 @@ async function getThreadsInner({
       "id" | "agent" | "status" | "errorMessage" | "lastUsedModel"
     >[]
   >();
+
+  // Create a map key that includes userId for admin queries
+  const getMapKey = (threadId: string, threadUserId: string) =>
+    userIdOrNull ? threadId : `${threadId}:${threadUserId}`;
+
   for (const chat of threadChatsResult) {
-    const { threadId, ...chatData } = chat;
-    if (!threadChatsMap.has(threadId)) {
-      threadChatsMap.set(threadId, []);
+    const { threadId, userId: chatUserId, ...chatData } = chat;
+    const mapKey = getMapKey(threadId, chatUserId);
+    if (!threadChatsMap.has(mapKey)) {
+      threadChatsMap.set(mapKey, []);
     }
-    threadChatsMap.get(threadId)!.push(chatData);
+    threadChatsMap.get(mapKey)!.push(chatData);
   }
 
   return threads.map((thread) => {
     const { user = null, legacyThreadChat, ...threadWithoutChats } = thread;
-    const threadChats = threadChatsMap.get(thread.id);
+    const mapKey = getMapKey(thread.id, thread.userId);
+    const threadChats = threadChatsMap.get(mapKey);
     if (threadChats?.length) {
       return {
         user,

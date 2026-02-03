@@ -5,6 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ThreadInfo } from "@terragon/shared";
 import { getPRFeedbackBatch } from "@/server-actions/get-pr-feedback-batch";
 
+// Must match MAX_BATCH_SIZE in get-pr-feedback-batch.ts
+const MAX_BATCH_SIZE = 10;
+
 /**
  * Prefetches PR feedback for threads that have PRs and populates the React Query cache.
  * This allows individual PRFeedbackBadge components to use the cached data
@@ -27,9 +30,15 @@ export function usePrefetchPRFeedback(threads: ThreadInfo[]) {
       return;
     }
 
-    // Mark threads as being prefetched to avoid duplicate requests
-    const threadIds = threadsWithPRs.map((t) => t.id);
-    threadIds.forEach((id) => prefetchedRef.current.add(id));
+    // Only take threads up to the batch limit to avoid marking threads
+    // that won't actually be fetched
+    const limitedThreads = threadsWithPRs.slice(0, MAX_BATCH_SIZE);
+    const threadIds = limitedThreads.map((t) => t.id);
+
+    // Mark only the threads we're actually fetching as prefetched
+    for (const id of threadIds) {
+      prefetchedRef.current.add(id);
+    }
 
     // Batch fetch PR feedback
     const fetchBatch = async () => {
@@ -69,7 +78,9 @@ export function usePrefetchPRFeedback(threads: ThreadInfo[]) {
       } catch (error) {
         console.error("Error prefetching PR feedback batch:", error);
         // Remove failed thread IDs from prefetched set so they can be retried
-        threadIds.forEach((id) => prefetchedRef.current.delete(id));
+        for (const id of threadIds) {
+          prefetchedRef.current.delete(id);
+        }
       }
     };
 
