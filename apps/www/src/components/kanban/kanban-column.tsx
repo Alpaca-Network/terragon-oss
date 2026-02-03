@@ -97,7 +97,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       viewport.removeEventListener("scroll", updateHint);
       resizeObserver.disconnect();
     };
-  }, [threads.length]);
+  }, [threads.length, isCollapsed]);
 
   if (!columnConfig) {
     return null;
@@ -188,6 +188,9 @@ export const KanbanColumn = memo(function KanbanColumn({
                   size="icon"
                   className={cn("h-6 w-6", isCollapsed && "bg-muted/50")}
                   onClick={onToggleCollapse}
+                  aria-label={
+                    isCollapsed ? "Expand Done column" : "Collapse Done column"
+                  }
                 >
                   {isCollapsed ? (
                     <ChevronDown className="h-3.5 w-3.5" />
