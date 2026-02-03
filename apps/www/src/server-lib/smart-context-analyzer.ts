@@ -474,11 +474,13 @@ async function runAIAnalysis(
 
 async function safeReadFile(
   session: ISandboxSession,
-  path: string,
+  relativePath: string,
   maxLength?: number,
 ): Promise<string | null> {
   try {
-    const content = await session.readTextFile(path);
+    // Convert relative path to absolute path using session.repoDir
+    const absolutePath = `${session.repoDir}/${relativePath}`;
+    const content = await session.readTextFile(absolutePath);
     if (maxLength && content.length > maxLength) {
       return content.slice(0, maxLength) + "\n... (truncated)";
     }

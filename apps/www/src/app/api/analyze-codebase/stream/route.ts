@@ -37,7 +37,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bodyJSON = await request.json();
+  let bodyJSON: unknown;
+  try {
+    bodyJSON = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON in request body" },
+      { status: 400 },
+    );
+  }
+
   const bodyResult = bodySchema.safeParse(bodyJSON);
   if (!bodyResult.success) {
     return NextResponse.json(
