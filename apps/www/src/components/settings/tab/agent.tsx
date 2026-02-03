@@ -314,6 +314,7 @@ function AgentModelItem({
   isEnabled: boolean;
   onToggle: (enabled: boolean) => void;
 }) {
+  const userSettings = useAtomValue(userSettingsAtom);
   const openCodeOpenAIAnthropicModel = useFeatureFlag(
     "opencodeOpenAIAnthropicModelOption",
   );
@@ -324,6 +325,7 @@ function AgentModelItem({
     agentVersion: "latest",
     enableOpenRouterOpenAIAnthropicModel: openCodeOpenAIAnthropicModel,
     enableOpencodeGemini3ProModelOption: openCodeGemini3ProModel,
+    codeRouterSettings: userSettings?.codeRouterSettings ?? undefined,
   });
   const agentLabel = getAgentDisplayName(agent);
   const agentInfo = getAgentInfo(agent);

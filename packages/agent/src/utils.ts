@@ -236,17 +236,22 @@ export function agentToModels(
     agentVersion: number | "latest";
     enableOpenRouterOpenAIAnthropicModel: boolean;
     enableOpencodeGemini3ProModelOption: boolean;
+    codeRouterSettings?: CodeRouterSettings;
   },
 ): AIModel[] {
   agent = agent ?? defaultAgent;
   switch (agent) {
     case "gatewayz": {
-      // Gatewayz Router provides access to models from multiple agents
+      // If Code Router is enabled, only show Code Router models
+      if (options.codeRouterSettings?.enabled) {
+        return [
+          "gatewayz/code-router",
+          "gatewayz/code-router/price",
+          "gatewayz/code-router/quality",
+        ];
+      }
+      // Otherwise show individual models (without Code Router options)
       return [
-        // Code Router - intelligent model selection
-        "gatewayz/code-router",
-        "gatewayz/code-router/price",
-        "gatewayz/code-router/quality",
         // Claude Code models via Gatewayz
         "gatewayz/claude-code/sonnet",
         "gatewayz/claude-code/opus",
@@ -900,6 +905,7 @@ export function getAgentModelGroups({
     agentVersion: number;
     enableOpenRouterOpenAIAnthropicModel: boolean;
     enableOpencodeGemini3ProModelOption: boolean;
+    codeRouterSettings?: CodeRouterSettings;
   };
 }): AgentModelGroup {
   return {
