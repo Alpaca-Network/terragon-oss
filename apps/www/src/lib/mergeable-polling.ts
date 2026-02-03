@@ -20,13 +20,13 @@ export function getMergeablePollingInterval({
   state: MergeablePollingState;
   defaultIntervalMs: number;
 }) {
-  if (
-    mergeableState === "unknown" &&
-    state.until !== null &&
-    now < state.until &&
-    state.count < MERGEABLE_POLL_MAX_ATTEMPTS
-  ) {
-    return MERGEABLE_POLL_INTERVAL_MS;
+  if (mergeableState === "unknown") {
+    if (state.until === null) {
+      return MERGEABLE_POLL_INTERVAL_MS;
+    }
+    if (now < state.until && state.count < MERGEABLE_POLL_MAX_ATTEMPTS) {
+      return MERGEABLE_POLL_INTERVAL_MS;
+    }
   }
 
   return defaultIntervalMs;

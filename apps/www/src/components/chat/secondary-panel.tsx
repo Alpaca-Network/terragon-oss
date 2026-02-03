@@ -22,7 +22,10 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
-import { getPRFeedback } from "@/server-actions/get-pr-feedback";
+import {
+  getPRFeedback,
+  GetPRFeedbackResult,
+} from "@/server-actions/get-pr-feedback";
 import { PRCommentsSection } from "./code-review/pr-comments-section";
 import { ChecksSection } from "./code-review/checks-section";
 import { CoverageSection } from "./code-review/coverage-section";
@@ -127,49 +130,44 @@ function ViewTab({
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
   const [refreshKey, setRefreshKey] = React.useState(0);
-  const mergeablePollingRef = React.useRef<{
-    until: number | null;
-    count: number;
-    lastDataUpdatedAt: number | null;
-  }>({ until: null, count: 0, lastDataUpdatedAt: null });
+  const mergeablePollingRef = React.useRef({ until: null, count: 0 });
+  const lastDataUpdatedAtRef = React.useRef(0);
 
   const hasPR =
     thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
 
   // Fetch PR feedback data when thread has a PR
-  const { data, isLoading, error, dataUpdatedAt } = useServerActionQuery({
-    queryKey: ["pr-feedback", thread?.id, refreshKey],
-    queryFn: () => getPRFeedback({ threadId: thread!.id }),
-    enabled: hasPR && !!thread,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: (query): number => {
-      const mergeableState = query.state.data?.feedback?.mergeableState;
-      return getMergeablePollingInterval({
-        mergeableState,
-        now: Date.now(),
-        state: mergeablePollingRef.current,
-        defaultIntervalMs: 60000,
-      });
-    },
-  });
+  const { data, isLoading, error, dataUpdatedAt } =
+    useServerActionQuery<GetPRFeedbackResult>({
+      queryKey: ["pr-feedback", thread?.id, refreshKey],
+      queryFn: () => getPRFeedback({ threadId: thread!.id }),
+      enabled: hasPR && !!thread,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: (query): number => {
+        const mergeableState = query.state.data?.feedback?.mergeableState;
+        return getMergeablePollingInterval({
+          mergeableState,
+          now: Date.now(),
+          state: mergeablePollingRef.current,
+          defaultIntervalMs: 60000,
+        });
+      },
+    });
 
   const feedback = data?.feedback;
   const summary = feedback ? createFeedbackSummary(feedback) : null;
 
   // Update polling state when data changes - only increment count on actual refetch
   React.useEffect(() => {
-    const isNewFetch =
-      dataUpdatedAt !== mergeablePollingRef.current.lastDataUpdatedAt;
-    if (isNewFetch) {
-      mergeablePollingRef.current = {
-        ...nextMergeablePollingState({
-          mergeableState: feedback?.mergeableState,
-          now: Date.now(),
-          state: mergeablePollingRef.current,
-        }),
-        lastDataUpdatedAt: dataUpdatedAt,
-      };
+    if (dataUpdatedAt === lastDataUpdatedAtRef.current) {
+      return;
     }
+    lastDataUpdatedAtRef.current = dataUpdatedAt;
+    mergeablePollingRef.current = nextMergeablePollingState({
+      mergeableState: feedback?.mergeableState,
+      now: Date.now(),
+      state: mergeablePollingRef.current,
+    });
   }, [feedback?.mergeableState, dataUpdatedAt]);
 
   if (!thread) {
