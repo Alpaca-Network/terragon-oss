@@ -549,6 +549,15 @@ export function AddClaudeCredentialDialog({
       );
       return;
     }
+    // Validate required fields before sending to server
+    if (!parsed.claudeAiOauth || typeof parsed.claudeAiOauth !== "object") {
+      toast.error("Invalid credentials format. Missing claudeAiOauth object.");
+      return;
+    }
+    if (!parsed.claudeAiOauth.accessToken) {
+      toast.error("Invalid credentials. Missing accessToken field.");
+      return;
+    }
     await saveCredentialsJsonMutation.mutateAsync({
       credentialsJson: JSON.stringify(parsed),
     });
