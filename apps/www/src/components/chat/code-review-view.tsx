@@ -126,8 +126,10 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
               prNumber={feedback.prNumber}
               prTitle={feedback.prTitle}
               isMergeable={feedback.isMergeable}
+              isAutoMergeEnabled={feedback.isAutoMergeEnabled}
               threadId={thread.id}
               onMerged={() => setRefreshKey((k) => k + 1)}
+              onAutoMergeChanged={() => setRefreshKey((k) => k + 1)}
             />
           </div>
         </div>

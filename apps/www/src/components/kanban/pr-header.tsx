@@ -33,8 +33,10 @@ export function PRHeader({ feedback, thread, onMerged }: PRHeaderProps) {
             prNumber={feedback.prNumber}
             prTitle={feedback.prTitle}
             isMergeable={feedback.isMergeable}
+            isAutoMergeEnabled={feedback.isAutoMergeEnabled}
             threadId={thread.id}
             onMerged={onMerged}
+            onAutoMergeChanged={onMerged}
           />
         </div>
       </div>

@@ -439,6 +439,7 @@ export async function aggregatePRFeedback(
     mergeableState,
     hasConflicts,
     isMergeable,
+    isAutoMergeEnabled: prDetails.auto_merge !== null,
   };
 }
 
