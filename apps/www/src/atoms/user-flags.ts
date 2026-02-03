@@ -13,6 +13,7 @@ import type { AIModel, SelectedAIModels } from "@terragon/agent/types";
 import { atom, Getter, Setter } from "jotai";
 import { RELEASE_NOTES_VERSION, FEATURE_UPSELL_VERSION } from "@/lib/constants";
 import { userCredentialsAtom } from "./user-credentials";
+import { userSettingsAtom } from "./user";
 import { getDefaultModel } from "@/lib/default-ai-model";
 import { ServerActionResult, unwrapResult } from "@/lib/server-actions";
 
@@ -66,7 +67,12 @@ export const selectedModelAtom = atom<AIModel, [AIModel], void>(
     }
     const userFlags = get(userFlagsAtom);
     const userCredentials = get(userCredentialsAtom);
-    return getDefaultModel({ userCredentials, userFlags });
+    const userSettings = get(userSettingsAtom);
+    return getDefaultModel({
+      userCredentials,
+      userFlags,
+      codeRouterSettings: userSettings?.codeRouterSettings,
+    });
   },
   (_get, set, model) => {
     set(selectedModalLocalAtom, model);

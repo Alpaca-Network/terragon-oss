@@ -5,6 +5,8 @@ import {
   AgentModelPreferences,
   AIModelSchema,
   AIModelExternal,
+  CodeRouterMode,
+  CodeRouterSettings,
 } from "./types";
 
 const defaultAgent: AIAgent = "claudeCode";
@@ -34,6 +36,54 @@ export function ensureAgent(agent: AIAgent | null | undefined): AIAgent {
  */
 export function isGatewayzModel(model: AIModel | null): boolean {
   return !!model && model.startsWith("gatewayz/");
+}
+
+/**
+ * Checks if a model is a Gatewayz Code Router model
+ */
+export function isCodeRouterModel(model: AIModel | null): boolean {
+  return !!model && model.startsWith("gatewayz/code-router");
+}
+
+/**
+ * Gets the Code Router optimization mode from a model string
+ */
+export function getCodeRouterMode(model: AIModel | null): CodeRouterMode {
+  if (!model || !isCodeRouterModel(model)) {
+    return "balanced";
+  }
+  if (model === "gatewayz/code-router/price") {
+    return "price";
+  }
+  if (model === "gatewayz/code-router/quality") {
+    return "quality";
+  }
+  return "balanced";
+}
+
+/**
+ * Gets the Code Router model string for a given mode
+ */
+export function getCodeRouterModelForMode(mode: CodeRouterMode): AIModel {
+  switch (mode) {
+    case "price":
+      return "gatewayz/code-router/price";
+    case "quality":
+      return "gatewayz/code-router/quality";
+    case "balanced":
+    default:
+      return "gatewayz/code-router";
+  }
+}
+
+/**
+ * Gets the default Code Router settings
+ */
+export function getDefaultCodeRouterSettings(): CodeRouterSettings {
+  return {
+    enabled: false,
+    mode: "balanced",
+  };
 }
 
 /**
@@ -98,6 +148,10 @@ export function modelToAgent(model: AIModel | null): AIAgent {
     return defaultAgent;
   }
   switch (model) {
+    // Gatewayz Code Router models
+    case "gatewayz/code-router":
+    case "gatewayz/code-router/price":
+    case "gatewayz/code-router/quality":
     // Gatewayz Router models
     case "gatewayz/claude-code/opus":
     case "gatewayz/claude-code/sonnet":
@@ -182,12 +236,21 @@ export function agentToModels(
     agentVersion: number | "latest";
     enableOpenRouterOpenAIAnthropicModel: boolean;
     enableOpencodeGemini3ProModelOption: boolean;
+    codeRouterSettings?: CodeRouterSettings;
   },
 ): AIModel[] {
   agent = agent ?? defaultAgent;
   switch (agent) {
     case "gatewayz": {
-      // Gatewayz Router provides access to models from multiple agents
+      // If Code Router is enabled, only show Code Router models
+      if (options.codeRouterSettings?.enabled) {
+        return [
+          "gatewayz/code-router",
+          "gatewayz/code-router/price",
+          "gatewayz/code-router/quality",
+        ];
+      }
+      // Otherwise show individual models (without Code Router options)
       return [
         // Claude Code models via Gatewayz
         "gatewayz/claude-code/sonnet",
@@ -283,12 +346,18 @@ export function agentToModels(
 export function getDefaultModelForAgent({
   agent,
   agentVersion,
+  codeRouterSettings,
 }: {
   agent: AIAgent;
   agentVersion: number | "latest";
+  codeRouterSettings?: CodeRouterSettings;
 }): AIModel {
   switch (agent) {
     case "gatewayz":
+      // If Code Router is enabled, use the Code Router model based on mode
+      if (codeRouterSettings?.enabled) {
+        return getCodeRouterModelForMode(codeRouterSettings.mode);
+      }
       return "gatewayz/claude-code/sonnet";
     case "claudeCode":
       return "sonnet";
@@ -311,6 +380,10 @@ export function getDefaultModelForAgent({
 }
 
 export function isImageUploadSupported(model: AIModel | null): boolean {
+  // Code Router models support image upload (routing may select a model that supports it)
+  if (isCodeRouterModel(model)) {
+    return true;
+  }
   // For Gatewayz models, check the underlying agent's support
   if (isGatewayzModel(model)) {
     const underlyingAgent = getUnderlyingAgentForGatewayzModel(model!);
@@ -343,6 +416,10 @@ function isImageUploadSupportedForAgent(agent: AIAgent): boolean {
 }
 
 export function isPlanModeSupported(model: AIModel | null): boolean {
+  // Code Router models support plan mode (routing may select Claude)
+  if (isCodeRouterModel(model)) {
+    return true;
+  }
   // For Gatewayz models, check if the underlying agent supports plan mode
   if (isGatewayzModel(model)) {
     const underlyingAgent = getUnderlyingAgentForGatewayzModel(model!);
@@ -451,6 +528,25 @@ type ModelDisplayName = {
 
 export function getModelDisplayName(model: AIModel): ModelDisplayName {
   switch (model) {
+    // Gatewayz Code Router models
+    case "gatewayz/code-router":
+      return {
+        fullName: "Code Router (Balanced)",
+        mainName: "Code Router",
+        subName: "Balanced",
+      };
+    case "gatewayz/code-router/price":
+      return {
+        fullName: "Code Router (Price)",
+        mainName: "Code Router",
+        subName: "Optimize Price",
+      };
+    case "gatewayz/code-router/quality":
+      return {
+        fullName: "Code Router (Quality)",
+        mainName: "Code Router",
+        subName: "Optimize Quality",
+      };
     // Gatewayz Router - Claude Code models
     case "gatewayz/claude-code/opus":
       return {
@@ -809,6 +905,7 @@ export function getAgentModelGroups({
     agentVersion: number;
     enableOpenRouterOpenAIAnthropicModel: boolean;
     enableOpencodeGemini3ProModelOption: boolean;
+    codeRouterSettings?: CodeRouterSettings;
   };
 }): AgentModelGroup {
   return {
@@ -924,6 +1021,10 @@ export function isModelEnabledByDefault({
   agentVersion: number | "latest";
 }): boolean {
   switch (model) {
+    // Gatewayz Code Router models - all enabled by default
+    case "gatewayz/code-router":
+    case "gatewayz/code-router/price":
+    case "gatewayz/code-router/quality":
     // Gatewayz Router models - all enabled by default
     case "gatewayz/claude-code/opus":
     case "gatewayz/claude-code/sonnet":
@@ -1023,6 +1124,12 @@ export function getModelInfo(model: AIModel): string {
   switch (model) {
     case "sonnet":
       return "Recommended for most tasks";
+    case "gatewayz/code-router":
+      return "Intelligent routing - balanced price/quality";
+    case "gatewayz/code-router/price":
+      return "Intelligent routing - optimized for cost";
+    case "gatewayz/code-router/quality":
+      return "Intelligent routing - optimized for quality";
   }
   return "";
 }

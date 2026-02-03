@@ -330,6 +330,33 @@ function parseModelFromBodyBuffer(
 }
 
 /**
+ * Check if a model is a Code Router model
+ * Code Router models follow the pattern: gatewayz/code-router[/mode]
+ */
+function isCodeRouterModel(model: string | null): boolean {
+  return !!model && model.startsWith("gatewayz/code-router");
+}
+
+/**
+ * Extract the Code Router mode from a model string
+ * Returns 'balanced', 'price', or 'quality'
+ */
+function getCodeRouterMode(
+  model: string | null,
+): "balanced" | "price" | "quality" {
+  if (!model || !isCodeRouterModel(model)) {
+    return "balanced";
+  }
+  if (model === "gatewayz/code-router/price") {
+    return "price";
+  }
+  if (model === "gatewayz/code-router/quality") {
+    return "quality";
+  }
+  return "balanced";
+}
+
+/**
  * OpenCode models that free-tier users can access with credits.
  * These are specific models routed through OpenCode - not to be confused with
  * the broader model families (e.g., "claude-sonnet" here refers only to the
@@ -430,6 +457,14 @@ async function proxyRequest(
   headers.set("Authorization", `Bearer ${env.GATEWAYZ_API_KEY}`);
   headers.set("X-GatewayZ-User-Id", authContext.userId);
   headers.set("X-GatewayZ-Tier", authContext.gwTier);
+
+  // Check if this is a Code Router request and set the appropriate headers
+  const requestedModel = parseModelFromBodyBuffer(authContext.bodyBuffer);
+  if (isCodeRouterModel(requestedModel)) {
+    const codeRouterMode = getCodeRouterMode(requestedModel);
+    headers.set("X-GatewayZ-Code-Router", "true");
+    headers.set("X-GatewayZ-Code-Router-Mode", codeRouterMode);
+  }
 
   const body =
     request.method === "GET" || request.method === "HEAD"

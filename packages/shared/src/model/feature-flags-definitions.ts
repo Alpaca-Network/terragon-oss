@@ -130,6 +130,12 @@ export const featureFlagsDefinitions = {
     description:
       "Enable shutdown mode - shows shutdown banner and blocks new subscriptions. Used for Terragon shutdown on February 14th, 2026.",
   },
+  gatewayzCodeRouter: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables the Gatewayz Code Router integration, allowing intelligent model selection based on optimization mode (balanced, price, or quality).",
+  },
 } as const satisfies Record<string, FeatureFlagDefinition>;
 
 export type FeatureFlagName = keyof typeof featureFlagsDefinitions;
