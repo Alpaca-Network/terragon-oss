@@ -165,6 +165,12 @@ const createThread = os.threads.create.handler(
           message: error.message,
         });
       }
+      // If the error is a timeout, preserve the timeout message for better diagnostics
+      if (error instanceof Error && error.message.includes("timeout")) {
+        throw errors.INTERNAL_ERROR({
+          message: error.message,
+        });
+      }
       // Otherwise, the repository might not exist or there's a GitHub API issue
       throw errors.INTERNAL_ERROR({
         message: `Unable to access repository ${githubRepoFullName}. Please ensure the repository exists and you have access to it.`,

@@ -2,8 +2,11 @@ import { App } from "@octokit/app";
 
 let appInstance: App | null = null;
 
-// Default timeout for GitHub API calls (10 seconds)
-const GITHUB_API_TIMEOUT_MS = 10000;
+// Default timeout for GitHub API calls (10 seconds), configurable via environment variable
+const GITHUB_API_TIMEOUT_MS = parseInt(
+  process.env.GITHUB_API_TIMEOUT_MS || "10000",
+  10,
+);
 
 /**
  * Wraps a promise with a timeout
@@ -17,20 +20,24 @@ async function withTimeout<T>(
   timeoutMs: number,
   errorMessage: string,
 ): Promise<T> {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: NodeJS.Timeout | undefined;
 
   const timeoutPromise = new Promise<"timeout">((resolve) => {
     timeoutId = setTimeout(() => resolve("timeout"), timeoutMs);
   });
 
-  // Attach a no-op catch to prevent unhandled rejection if the original promise
-  // rejects after the timeout
-  promise.catch(() => {});
+  // Attach a catch handler to prevent unhandled rejection if the original promise
+  // rejects after the timeout - log for debugging purposes
+  promise.catch((err) => {
+    console.debug("Promise rejected after timeout:", err);
+  });
 
   const result = await Promise.race([promise, timeoutPromise]);
 
   // Clear the timeout if the promise resolved before the timeout
-  clearTimeout(timeoutId!);
+  if (timeoutId !== undefined) {
+    clearTimeout(timeoutId);
+  }
 
   if (result === "timeout") {
     throw new Error(errorMessage);
