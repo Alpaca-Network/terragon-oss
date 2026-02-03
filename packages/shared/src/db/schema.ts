@@ -282,6 +282,7 @@ const threadChatShared = {
     .$type<"allowAll" | "plan" | "loop">()
     .default("allowAll"),
   loopConfig: jsonb("loop_config").$type<LoopConfig>(),
+  lastUsedModel: text("last_used_model").$type<AIModel>(),
 };
 
 export const thread = pgTable(

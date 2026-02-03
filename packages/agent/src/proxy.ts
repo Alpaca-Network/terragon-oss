@@ -94,6 +94,7 @@ const MODEL_PROVIDER_CONFIG: Record<ModelProvider, ModelValidationConfig> = {
       // Z.AI models
       startsWithMatcher("glm-4"),
       // Chinese/other models
+      includesMatcher("grok"),
       startsWithMatcher("qwen"),
       startsWithMatcher("kimi"),
       startsWithMatcher("deepseek"),

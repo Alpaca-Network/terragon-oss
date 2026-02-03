@@ -79,7 +79,8 @@ export const ThreadPromptBox = React.forwardRef<
     removeFile,
     submitForm,
     stopThread,
-    permissionMode,
+    taskMode,
+    setTaskMode,
     setPermissionMode,
     loopConfig,
     setLoopConfig,
@@ -171,8 +172,8 @@ export const ThreadPromptBox = React.forwardRef<
         forcedAgent={forcedAgent}
         forcedAgentVersion={props.agentVersion}
         typeahead={repositoryCache}
-        permissionMode={permissionMode}
-        onPermissionModeChange={setPermissionMode}
+        taskMode={taskMode}
+        onTaskModeChange={setTaskMode}
         loopConfig={loopConfig}
         onLoopConfigChange={setLoopConfig}
       />

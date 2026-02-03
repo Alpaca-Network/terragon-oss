@@ -156,6 +156,42 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
   }, []);
 
+  const handleColumnWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      const scrollContainer = scrollAreaRef.current?.querySelector(
+        '[data-slot="scroll-area-viewport"]',
+      );
+      if (!scrollContainer) return;
+
+      const target = event.target as HTMLElement | null;
+      const closestViewport = target?.closest(
+        '[data-slot="scroll-area-viewport"]',
+      ) as HTMLElement | null;
+      const isNestedViewport =
+        closestViewport && closestViewport !== scrollContainer;
+      const nestedOverflowThresholdPx = 16;
+      if (
+        isNestedViewport &&
+        closestViewport.scrollHeight >
+          closestViewport.clientHeight + nestedOverflowThresholdPx
+      ) {
+        return;
+      }
+
+      const hasHorizontalOverflow =
+        scrollContainer.scrollWidth > scrollContainer.clientWidth + 1;
+      if (!hasHorizontalOverflow) return;
+
+      const absX = Math.abs(event.deltaX);
+      const absY = Math.abs(event.deltaY);
+      if (absY <= absX) return;
+
+      scrollContainer.scrollBy({ left: event.deltaY, behavior: "auto" });
+      event.preventDefault();
+    },
+    [],
+  );
+
   // Update scroll state on mount, resize, and when scrollAreaRef changes
   useEffect(() => {
     // Copy ref value to local variable for cleanup
@@ -578,6 +614,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                 threads={columnThreads[currentColumn.id]}
                 selectedThreadId={selectedThreadId}
                 onThreadSelect={handleThreadSelect}
+                onAddToBacklog={
+                  currentColumn.id === "backlog"
+                    ? handleOpenQuickAddBacklog
+                    : undefined
+                }
                 onThreadCommentsClick={handleThreadCommentsClick}
                 showArchivedToggle={
                   currentColumn.id === "done" && !queryFilters.archived
@@ -760,7 +801,11 @@ export const KanbanBoard = memo(function KanbanBoard({
             selectedThreadId && "min-w-[300px]",
           )}
         >
-          <ScrollArea ref={scrollAreaRef} className="h-full w-full">
+          <ScrollArea
+            ref={scrollAreaRef}
+            className="h-full w-full"
+            onWheel={handleColumnWheel}
+          >
             <div className="flex gap-4 p-4 h-full min-h-[500px]">
               {KANBAN_COLUMNS.map((column) => (
                 <KanbanColumn

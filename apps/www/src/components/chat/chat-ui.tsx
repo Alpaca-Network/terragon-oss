@@ -383,8 +383,13 @@ function ChatPromptBox({
 
   const lastUsedModel = useMemo(() => {
     const dbMessages = (threadChat.messages as DBMessage[]) ?? [];
-    return getLastUserMessageModel(dbMessages);
-  }, [threadChat.messages]);
+    const messageModel = getLastUserMessageModel(dbMessages);
+
+    // Use message-derived model if available, as it's always the most recent.
+    // Fall back to lastUsedModel from DB for backwards compatibility with
+    // threads created before lastUsedModel was added, or when no messages exist yet.
+    return messageModel ?? threadChat.lastUsedModel ?? null;
+  }, [threadChat.lastUsedModel, threadChat.messages]);
 
   const updateThreadChat = useOptimisticUpdateThreadChat({
     threadId,
