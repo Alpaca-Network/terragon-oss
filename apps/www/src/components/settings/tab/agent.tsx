@@ -444,7 +444,7 @@ function CodeRouterSettingsSection() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {hasGatewayz
                   ? "Automatically select the best model for each task"
-                  : "Requires a Gatewayz subscription (Pro or Max)"}
+                  : "Connect your subscription to enable this feature"}
               </p>
             </div>
             <Switch
