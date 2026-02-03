@@ -34,6 +34,21 @@ const FuturisticLoader = () => (
   </div>
 );
 
+// Preload functions for dynamic imports - call these before drawer opens
+// Each has a .catch to avoid unhandled promise rejections if preload fails
+export const preloadChatUI = () =>
+  import("@/components/chat/chat-ui").catch((err) => {
+    console.error("Failed to preload ChatUI:", err);
+  });
+export const preloadGitDiffView = () =>
+  import("@/components/chat/git-diff-view").catch((err) => {
+    console.error("Failed to preload GitDiffView:", err);
+  });
+export const preloadCodeReviewView = () =>
+  import("@/components/chat/code-review-view").catch((err) => {
+    console.error("Failed to preload CodeReviewView:", err);
+  });
+
 const ChatUI = dynamic(() => import("@/components/chat/chat-ui"), {
   ssr: false,
   loading: FuturisticLoader,
@@ -112,6 +127,20 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
       setActiveTab(initialTab);
     }
   }, [open, initialTab]);
+
+  // Preload dynamic import chunks when threadId is set (before drawer fully opens)
+  useEffect(() => {
+    if (threadId) {
+      // Preload ChatUI immediately as it's the default tab
+      preloadChatUI();
+      // Preload other tabs with slight delay to prioritize ChatUI
+      const timer = setTimeout(() => {
+        preloadGitDiffView();
+        preloadCodeReviewView();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [threadId]);
 
   // Clear any pending reset timeout on unmount or when drawer opens
   useEffect(() => {

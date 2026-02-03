@@ -26,6 +26,7 @@ import {
   useInfiniteThreadList,
 } from "@/queries/thread-queries";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
+import { usePrefetchThreads } from "@/hooks/use-prefetch-thread";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
 import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
@@ -213,6 +214,10 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
 
     return groups;
   }, [threads, backlogThreads, threadIds, archivedThreads, matchesSearchQuery]);
+
+  // Prefetch thread details for visible column threads to speed up drawer opening
+  const visibleThreads = columnThreads[activeColumn];
+  usePrefetchThreads(visibleThreads);
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {

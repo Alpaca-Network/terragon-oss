@@ -70,6 +70,9 @@ export function threadQueryOptions(threadId: string) {
     queryFn: async () => {
       return getThreadAction(threadId);
     },
+    // Cache thread data to improve mobile performance when opening task drawer
+    staleTime: 30000, // 30 seconds - data is fresh, no refetch needed
+    gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache for quick re-access
   });
 }
 
