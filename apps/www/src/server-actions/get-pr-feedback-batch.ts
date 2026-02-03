@@ -50,7 +50,8 @@ export const getPRFeedbackBatch = cache(
       );
 
       // Fetch PR feedback in parallel for all threads with PRs
-      const feedbackResults = await Promise.allSettled(
+      // Using Promise.all with try/catch inside each promise to handle errors gracefully
+      const feedbackResults = await Promise.all(
         threadsWithPRs.map(async (thread) => {
           const [owner, repo] = parseRepoFullName(thread.githubRepoFullName);
           try {
@@ -62,14 +63,19 @@ export const getPRFeedbackBatch = cache(
               thread.githubPRNumber,
             );
             const summary = createFeedbackSummary(feedback);
-            return { threadId: thread.id, feedback, summary };
+            return { threadId: thread.id, feedback, summary, error: null };
           } catch (error) {
             // Log error but continue with other threads
             console.error(
               `Failed to fetch PR feedback for thread ${thread.id}:`,
               error,
             );
-            return { threadId: thread.id, error };
+            return {
+              threadId: thread.id,
+              feedback: null,
+              summary: null,
+              error,
+            };
           }
         }),
       );
@@ -83,12 +89,10 @@ export const getPRFeedbackBatch = cache(
       }
 
       // Fill in successful results
-      for (const settledResult of feedbackResults) {
-        if (settledResult.status === "fulfilled") {
-          const { threadId, feedback, summary } = settledResult.value;
-          if (feedback && summary) {
-            result[threadId] = { feedback, summary };
-          }
+      for (const feedbackResult of feedbackResults) {
+        const { threadId, feedback, summary } = feedbackResult;
+        if (feedback && summary) {
+          result[threadId] = { feedback, summary };
         }
       }
 
