@@ -20,6 +20,7 @@ import {
   AIAgent,
   SelectedAIModels,
   AgentModelPreferences,
+  CodeRouterSettings,
 } from "@terragon/agent/types";
 import {
   GithubPRStatus,
@@ -531,6 +532,10 @@ export const userSettings = pgTable(
     agentModelPreferences: jsonb(
       "agent_model_preferences",
     ).$type<AgentModelPreferences>(),
+    // Code Router settings for Gatewayz integration
+    codeRouterSettings: jsonb(
+      "code_router_settings",
+    ).$type<CodeRouterSettings>(),
   },
   (table) => [uniqueIndex("user_id_unique").on(table.userId)],
 );

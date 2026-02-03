@@ -18,7 +18,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsSection, SettingsWithCTA } from "../settings-row";
-import { AIAgent, AIModel } from "@terragon/agent/types";
+import { AIAgent, AIModel, CodeRouterMode } from "@terragon/agent/types";
 import { Plus } from "lucide-react";
 import {
   Dialog,
@@ -36,7 +36,11 @@ import {
   getModelDisplayName,
   isModelEnabledByDefault,
   isConnectedCredentialsSupported,
+  getDefaultCodeRouterSettings,
 } from "@terragon/agent/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { userCredentialsAtom } from "@/atoms/user-credentials";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AgentIcon } from "@/components/chat/agent-icon";
@@ -46,6 +50,8 @@ import { useFeatureFlag } from "@/hooks/use-feature-flag";
 export function AgentSettings() {
   const user = useAtomValue(userAtom);
   const userSettings = useAtomValue(userSettingsAtom);
+  const codeRouterEnabled = useFeatureFlag("gatewayzCodeRouter");
+
   if (!user || !userSettings) {
     return null;
   }
@@ -57,6 +63,7 @@ export function AgentSettings() {
       >
         <CustomSystemPromptSetting />
       </SettingsSection>
+      {codeRouterEnabled && <CodeRouterSettingsSection />}
       <AgentAndModelsEnabledSection />
       <AgentProvidersSection />
     </div>
@@ -392,5 +399,119 @@ function ModelItem({
         )}
       </label>
     </>
+  );
+}
+
+function CodeRouterSettingsSection() {
+  const userSettings = useAtomValue(userSettingsAtom);
+  const userCredentials = useAtomValue(userCredentialsAtom);
+  const userSettingsMutation = useUpdateUserSettingsMutation();
+
+  const codeRouterSettings =
+    userSettings?.codeRouterSettings ?? getDefaultCodeRouterSettings();
+  const hasGatewayz = userCredentials?.hasGatewayz ?? false;
+
+  const updateCodeRouterEnabled = async (enabled: boolean) => {
+    await userSettingsMutation.mutateAsync({
+      codeRouterSettings: {
+        ...codeRouterSettings,
+        enabled,
+      },
+    });
+  };
+
+  const updateCodeRouterMode = async (mode: CodeRouterMode) => {
+    await userSettingsMutation.mutateAsync({
+      codeRouterSettings: {
+        ...codeRouterSettings,
+        mode,
+      },
+    });
+  };
+
+  return (
+    <div id="code-router-settings">
+      <SettingsSection
+        label="Gatewayz Code Router"
+        description="Enable intelligent model routing for Gatewayz to automatically select the best model based on your optimization preference"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <Label className="text-sm font-medium">Enable Code Router</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {hasGatewayz
+                  ? "Let Gatewayz automatically select the best model for each task"
+                  : "Requires a Gatewayz subscription (Pro or Max)"}
+              </p>
+            </div>
+            <Switch
+              checked={codeRouterSettings.enabled}
+              onCheckedChange={updateCodeRouterEnabled}
+              disabled={!hasGatewayz}
+            />
+          </div>
+
+          {codeRouterSettings.enabled && (
+            <div className="pt-2">
+              <Label className="text-sm font-medium mb-3 block">
+                Optimization Mode
+              </Label>
+              <RadioGroup
+                value={codeRouterSettings.mode}
+                onValueChange={(value) =>
+                  updateCodeRouterMode(value as CodeRouterMode)
+                }
+                className="space-y-3"
+              >
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="balanced" id="mode-balanced" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="mode-balanced"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Balanced
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Optimal balance between cost and quality (recommended)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="price" id="mode-price" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="mode-price"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Optimize for Price
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Minimize costs by using more efficient models when
+                      possible
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="quality" id="mode-quality" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="mode-quality"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Optimize for Quality
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Always use the highest quality models for best results
+                    </p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+    </div>
   );
 }
