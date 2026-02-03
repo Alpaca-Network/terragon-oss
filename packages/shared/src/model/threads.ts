@@ -291,13 +291,10 @@ async function getThreadsInner({
     const mapKey = getMapKey(thread.id, thread.userId);
     const threadChats = threadChatsMap.get(mapKey);
     // Compute isUnread from batch-fetched read status
-    // If no read status record exists, thread is considered read (false)
-    // If record exists with isRead=false, thread is unread (true)
+    // If no record exists, default to read (isUnread=false), matching SQL: NOT COALESCE(isRead, true)
     // For admin queries (userIdOrNull is null), always set isUnread to false
     const isUnread = userIdOrNull
-      ? readStatusMap.has(thread.id)
-        ? !readStatusMap.get(thread.id)
-        : false
+      ? !(readStatusMap.get(thread.id) ?? true)
       : false;
     // Get visibility from batch-fetched results (null if not set)
     const visibility = visibilityMap.get(thread.id) ?? null;
