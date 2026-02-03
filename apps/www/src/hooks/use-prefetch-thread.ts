@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThreadInfo } from "@terragon/shared";
 import { threadQueryOptions } from "@/queries/thread-queries";
@@ -16,6 +16,13 @@ export const MAX_PREFETCH_COUNT = 5;
 export function usePrefetchThreads(threads: ThreadInfo[]) {
   const queryClient = useQueryClient();
   const prefetchedRef = useRef<Set<string>>(new Set());
+
+  // Create a stable dependency based on thread IDs to avoid re-running effect
+  // when array identity changes but content is the same
+  const threadIds = useMemo(
+    () => threads.map((t) => t.id).join(","),
+    [threads],
+  );
 
   useEffect(() => {
     // Find threads that haven't been prefetched yet
@@ -45,7 +52,8 @@ export function usePrefetchThreads(threads: ThreadInfo[]) {
           prefetchedRef.current.delete(thread.id);
         });
     }
-  }, [threads, queryClient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- using threadIds for stable comparison
+  }, [threadIds, queryClient]);
 }
 
 /**
@@ -56,6 +64,10 @@ export function usePrefetchThread() {
   const queryClient = useQueryClient();
 
   return (threadId: string) => {
-    queryClient.prefetchQuery(threadQueryOptions(threadId));
+    queryClient.prefetchQuery(threadQueryOptions(threadId)).catch((error) => {
+      // Silently handle prefetch errors - prefetching is an optimization,
+      // the actual fetch will happen when the drawer opens if this fails
+      console.error(`Error prefetching thread ${threadId}:`, error);
+    });
   };
 }
