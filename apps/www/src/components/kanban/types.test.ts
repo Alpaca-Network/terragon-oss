@@ -71,7 +71,7 @@ function createMockThread(
 
 describe("Kanban Types", () => {
   describe("KANBAN_COLUMNS", () => {
-    it("should have exactly 5 columns", () => {
+    it("should have exactly 4 columns", () => {
       expect(KANBAN_COLUMNS).toHaveLength(4);
     });
 
