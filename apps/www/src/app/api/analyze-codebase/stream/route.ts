@@ -71,9 +71,39 @@ export async function POST(request: NextRequest) {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
+  // Track if stream is still open to prevent writes after client disconnection
+  let isStreamClosed = false;
+  // Track sandbox for cleanup on disconnection
+  let activeSandbox: { shutdown: () => Promise<void> } | null = null;
+
+  // Handle client disconnection via AbortSignal
+  request.signal.addEventListener("abort", () => {
+    isStreamClosed = true;
+    // Clean up sandbox if client disconnects
+    if (activeSandbox) {
+      activeSandbox.shutdown().catch((err) => {
+        console.error(
+          "Error shutting down sandbox after client disconnect:",
+          err,
+        );
+      });
+      activeSandbox = null;
+    }
+  });
+
   const sendEvent = async (event: Record<string, unknown>) => {
-    const data = `data: ${JSON.stringify(event)}\n\n`;
-    await writer.write(encoder.encode(data));
+    if (isStreamClosed) return; // Don't write to closed stream
+    try {
+      const data = `data: ${JSON.stringify(event)}\n\n`;
+      await writer.write(encoder.encode(data));
+    } catch (error) {
+      // Stream likely closed by client
+      isStreamClosed = true;
+      console.error(
+        "Error writing to stream (client may have disconnected):",
+        error,
+      );
+    }
   };
 
   const sendProgress = async (step: string, message: string) => {
@@ -86,13 +116,25 @@ export async function POST(request: NextRequest) {
   };
 
   const sendComplete = async (data?: Record<string, unknown>) => {
+    if (isStreamClosed) return;
     await sendEvent({ type: "complete", data });
-    await writer.close();
+    try {
+      await writer.close();
+    } catch {
+      // Stream already closed
+    }
+    isStreamClosed = true;
   };
 
   const sendError = async (error: string) => {
+    if (isStreamClosed) return;
     await sendEvent({ type: "error", error });
-    await writer.close();
+    try {
+      await writer.close();
+    } catch {
+      // Stream already closed
+    }
+    isStreamClosed = true;
   };
 
   // Run the analysis in the background
@@ -169,6 +211,7 @@ export async function POST(request: NextRequest) {
 
       // Create a new sandbox
       const sandbox = await getOrCreateSandbox(null, sandboxOptions);
+      activeSandbox = sandbox; // Track for cleanup on client disconnect
 
       await sendProgress("created", `Sandbox created: ${sandbox.sandboxId}`);
 
@@ -227,8 +270,10 @@ export async function POST(request: NextRequest) {
         await sendProgress("cleanup", "Shutting down sandbox...");
         try {
           await sandbox.shutdown();
+          activeSandbox = null; // Clear after successful shutdown
         } catch (error) {
           console.error("Error shutting down sandbox:", error);
+          activeSandbox = null;
         }
 
         await sendComplete({
@@ -239,11 +284,13 @@ export async function POST(request: NextRequest) {
         // Make sure to shutdown sandbox on error
         try {
           await sandbox.shutdown();
+          activeSandbox = null;
         } catch (shutdownError) {
           console.error(
             "Error shutting down sandbox after failure:",
             shutdownError,
           );
+          activeSandbox = null;
         }
         throw error;
       }
