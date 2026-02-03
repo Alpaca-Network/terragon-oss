@@ -781,6 +781,11 @@ export const threadReadStatus = pgTable(
   },
   (table) => [
     uniqueIndex("user_thread_unique").on(table.threadId, table.userId),
+    // Index for efficient batch lookups by userId (used in thread list queries)
+    index("thread_read_status_user_id_thread_id_index").on(
+      table.userId,
+      table.threadId,
+    ),
   ],
 );
 
