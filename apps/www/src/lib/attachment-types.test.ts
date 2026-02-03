@@ -46,21 +46,24 @@ describe("attachment-types", () => {
 
   describe("Attachment type with lineCount", () => {
     it("should allow lineCount field in attachment", () => {
+      const lineCount = 150;
+      const fileName = `pasted-text-${lineCount}-lines.txt`;
       const attachment: Attachment = {
         id: "test-id",
         mimeType: "text/plain",
         fileType: "text-file",
-        fileName: "pasted-text.txt",
-        lineCount: 150,
+        fileName,
+        lineCount,
         uploadStatus: "pending",
         base64: "data:text/plain;base64,SGVsbG8gV29ybGQ=",
-        file: new File(["Hello World"], "pasted-text.txt", {
+        file: new File(["Hello World"], fileName, {
           type: "text/plain",
         }),
       };
 
       expect(attachment.lineCount).toBe(150);
       expect(attachment.fileType).toBe("text-file");
+      expect(attachment.fileName).toBe("pasted-text-150-lines.txt");
     });
 
     it("should allow attachment without lineCount field", () => {

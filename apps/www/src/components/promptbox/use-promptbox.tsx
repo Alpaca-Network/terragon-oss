@@ -427,7 +427,9 @@ export function usePromptBox({
 
           // For large pastes, add as a text file attachment instead
           if (isLargePaste) {
-            const file = new File([textContent], "pasted-text.txt", {
+            const lineCount = lines.length;
+            const fileName = `pasted-text-${lineCount}-lines.txt`;
+            const file = new File([textContent], fileName, {
               type: "text/plain",
             });
             const id = nanoid();
@@ -438,8 +440,8 @@ export function usePromptBox({
                 id,
                 mimeType: "text/plain",
                 fileType: "text-file",
-                fileName: "pasted-text.txt",
-                lineCount: lines.length,
+                fileName,
+                lineCount,
                 base64,
                 file,
                 uploadStatus: "pending",
