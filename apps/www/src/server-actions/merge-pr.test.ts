@@ -11,14 +11,17 @@
  */
 
 import { describe, expect, it } from "vitest";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const mergePrFilePath = path.join(__dirname, "merge-pr.ts");
 
 describe("merge-pr logic validation", () => {
   it("should have draft PR check in mergePR function", async () => {
-    const fs = await import("fs/promises");
-    const content = await fs.readFile(
-      "/root/repo/apps/www/src/server-actions/merge-pr.ts",
-      "utf-8",
-    );
+    const content = await fs.readFile(mergePrFilePath, "utf-8");
 
     // Verify the draft check exists in mergePR
     expect(content).toContain("if (pr.draft) {");
@@ -34,11 +37,7 @@ describe("merge-pr logic validation", () => {
   });
 
   it("should have draft PR check in canMergePR function", async () => {
-    const fs = await import("fs/promises");
-    const content = await fs.readFile(
-      "/root/repo/apps/www/src/server-actions/merge-pr.ts",
-      "utf-8",
-    );
+    const content = await fs.readFile(mergePrFilePath, "utf-8");
 
     // Find the canMergePR function content
     const canMergePRStart = content.indexOf("export const canMergePR");
@@ -51,11 +50,7 @@ describe("merge-pr logic validation", () => {
   });
 
   it("should check for closed PR before draft PR", async () => {
-    const fs = await import("fs/promises");
-    const content = await fs.readFile(
-      "/root/repo/apps/www/src/server-actions/merge-pr.ts",
-      "utf-8",
-    );
+    const content = await fs.readFile(mergePrFilePath, "utf-8");
 
     // Find mergePR function
     const mergePRStart = content.indexOf("export const mergePR");
