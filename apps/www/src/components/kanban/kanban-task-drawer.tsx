@@ -11,8 +11,8 @@ import {
   Minimize2,
   GitPullRequest,
   AlertCircle,
-  XCircle,
   SquarePen,
+  XCircle,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";

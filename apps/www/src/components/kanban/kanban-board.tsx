@@ -689,7 +689,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* View toggle and close button */}
+              {/* View toggle, New Task and Close buttons */}
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -700,6 +700,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                   aria-label="Show all columns"
                 >
                   <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setNewTaskDialogOpen(true)}
+                  title="Create new task"
+                  aria-label="Create new task"
+                >
+                  <SquarePen className="h-4 w-4" />
+                  <span className="text-xs">New Task</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -918,7 +929,18 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* Close button */}
+              {/* New Task and Close buttons */}
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setNewTaskDialogOpen(true)}
+                title="Create new task"
+                aria-label="Create new task"
+              >
+                <SquarePen className="h-4 w-4" />
+                <span className="text-xs">New Task</span>
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
