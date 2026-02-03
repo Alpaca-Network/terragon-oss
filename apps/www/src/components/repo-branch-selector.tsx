@@ -85,6 +85,14 @@ function RepoSelectorInner({
   );
 }
 
+/**
+ * Extracts just the repo name from a full repo path (owner/repo-name -> repo-name)
+ */
+function getRepoNameOnly(fullName: string): string {
+  const parts = fullName.split("/");
+  return parts.length > 1 ? (parts[1] ?? fullName) : fullName;
+}
+
 function RepoBranchSelectorInner({
   hideRepoSelector,
   repoSelectorClassName,
@@ -121,12 +129,15 @@ function RepoBranchSelectorInner({
         ...repos.map((repo) => ({
           value: repo.full_name,
           label: repo.full_name,
+          // Mobile-friendly label shows just repo name
+          mobileLabel: getRepoNameOnly(repo.full_name),
         })),
       );
     } else if (selectedRepoFullName) {
       items.push({
         value: selectedRepoFullName,
         label: selectedRepoFullName,
+        mobileLabel: getRepoNameOnly(selectedRepoFullName),
       });
     }
     return items;

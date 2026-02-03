@@ -8,7 +8,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Github, GitBranch, Plus } from "lucide-react";
 import { DashboardPromptBox } from "../promptbox/dashboard-promptbox";
 import { newThread } from "@/server-actions/new-thread";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,6 +19,13 @@ import { DashboardPromptBoxHandleSubmit } from "../promptbox/dashboard-promptbox
 import { HandleUpdate } from "../promptbox/use-promptbox";
 import { convertToPlainText } from "@/lib/db-message-helpers";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import {
+  useSelectedRepo,
+  useSelectedBranch,
+} from "@/hooks/useSelectedRepoAndBranch";
+import { NewProjectView } from "../onboarding/new-project-view";
+
+type ViewMode = "task" | "new-project";
 
 export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
   open,
@@ -33,6 +40,12 @@ export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
   const [placeholder, setPlaceholder] = useState(
     "Type your message here... Use @ to mention files (Enter to send)",
   );
+  const [selectedRepo] = useSelectedRepo();
+  const [selectedBranch] = useSelectedBranch();
+  const [viewMode, setViewMode] = useState<ViewMode>("task");
+
+  // Extract repo name for display (owner/repo -> repo)
+  const repoDisplayName = selectedRepo?.split("/")[1] || null;
 
   const handleSubmit = useCallback<DashboardPromptBoxHandleSubmit>(
     async ({
@@ -97,38 +110,101 @@ export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
+      // Reset view mode when closing
+      setViewMode("task");
     }
+  };
+
+  const handleNewProjectCreated = () => {
+    onClose();
+    setViewMode("task");
+    queryClient.refetchQueries({
+      queryKey: threadQueryKeys.list(queryFilters),
+    });
   };
 
   return (
     <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerContent className="h-[85vh] max-h-[85vh]">
-        <DrawerHeader className="flex flex-row items-center justify-between border-b py-2 px-3 flex-shrink-0">
-          <VisuallyHidden>
-            <DrawerTitle>New Task</DrawerTitle>
-          </VisuallyHidden>
-          <span className="text-sm font-medium">New Task</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8"
-            aria-label="Close new task drawer"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </DrawerHeader>
+        {viewMode === "new-project" ? (
+          <>
+            <VisuallyHidden>
+              <DrawerHeader>
+                <DrawerTitle>New Project</DrawerTitle>
+              </DrawerHeader>
+            </VisuallyHidden>
+            <NewProjectView
+              onBack={() => setViewMode("task")}
+              onRepoCreated={handleNewProjectCreated}
+              className="h-full"
+            />
+          </>
+        ) : (
+          <>
+            <DrawerHeader className="flex flex-col gap-1 border-b py-2 px-3 flex-shrink-0">
+              <div className="flex flex-row items-center justify-between">
+                <VisuallyHidden>
+                  <DrawerTitle>New Task</DrawerTitle>
+                </VisuallyHidden>
+                <span className="text-sm font-medium">New Task</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="h-8 w-8"
+                  aria-label="Close new task drawer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              {/* Mobile-friendly repo and branch display */}
+              {repoDisplayName && (
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Github className="h-3 w-3" />
+                    <span className="font-medium text-foreground">
+                      {repoDisplayName}
+                    </span>
+                  </span>
+                  {selectedBranch && (
+                    <span className="flex items-center gap-1">
+                      <GitBranch className="h-3 w-3" />
+                      <span>{selectedBranch}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+            </DrawerHeader>
 
-        <div className="flex-1 overflow-auto p-4">
-          <DashboardPromptBox
-            placeholder={placeholder}
-            status={null}
-            threadId={null}
-            onUpdate={onUpdate}
-            handleStop={handleStop}
-            handleSubmit={handleSubmit}
-          />
-        </div>
+            <div className="flex-1 overflow-auto p-4">
+              <DashboardPromptBox
+                placeholder={placeholder}
+                status={null}
+                threadId={null}
+                onUpdate={onUpdate}
+                handleStop={handleStop}
+                handleSubmit={handleSubmit}
+              />
+
+              {/* New Project button when no repo is selected */}
+              {!selectedRepo && (
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => setViewMode("new-project")}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>New Project</span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      Create a new repository
+                    </span>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </DrawerContent>
     </Drawer>
   );
