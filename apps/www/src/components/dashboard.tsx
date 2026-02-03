@@ -112,20 +112,26 @@ export function Dashboard({
   const selectedModel = useAtomValue(selectedModelAtom);
 
   // Determine if there are any active tasks; used for onboarding state
-  const { data } = useInfiniteThreadList({ archived: false });
+  const { data, isLoading: isLoadingThreads } = useInfiniteThreadList({
+    archived: false,
+  });
   const activeTaskCount = (data?.pages.flatMap((page) => page) ?? []).length;
 
   // Fetch user repos for onboarding
-  const { data: reposResult } = useServerActionQuery({
-    queryKey: ["user-repos"],
-    queryFn: getUserRepos,
-  });
+  const { data: reposResult, isLoading: isLoadingRepos } = useServerActionQuery(
+    {
+      queryKey: ["user-repos"],
+      queryFn: getUserRepos,
+    },
+  );
   const userRepos = reposResult?.repos ?? [];
   const repoCount = userRepos.length;
 
-  // Determine user state for onboarding
-  const isNewUser = activeTaskCount === 0;
-  const isGrowingUser = activeTaskCount > 0 && activeTaskCount < 3;
+  // Determine user state for onboarding - only calculate once data is loaded
+  const isDataLoaded = !isLoadingThreads && !isLoadingRepos;
+  const isNewUser = isDataLoaded && activeTaskCount === 0;
+  const isGrowingUser =
+    isDataLoaded && activeTaskCount > 0 && activeTaskCount < 3;
 
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
