@@ -1,12 +1,15 @@
 import { App } from "@octokit/app";
+import { z } from "zod";
 
 let appInstance: App | null = null;
 
 // Default timeout for GitHub API calls (10 seconds), configurable via environment variable
-const GITHUB_API_TIMEOUT_MS = parseInt(
-  process.env.GITHUB_API_TIMEOUT_MS || "10000",
-  10,
-);
+const GITHUB_API_TIMEOUT_MS = z.coerce
+  .number()
+  .int()
+  .positive()
+  .catch(10000)
+  .parse(process.env.GITHUB_API_TIMEOUT_MS);
 
 /**
  * Wraps a promise with a timeout
@@ -20,30 +23,38 @@ async function withTimeout<T>(
   timeoutMs: number,
   errorMessage: string,
 ): Promise<T> {
-  let timeoutId: NodeJS.Timeout | undefined;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
 
   const timeoutPromise = new Promise<"timeout">((resolve) => {
-    timeoutId = setTimeout(() => resolve("timeout"), timeoutMs);
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      resolve("timeout");
+    }, timeoutMs);
   });
 
   // Attach a catch handler to prevent unhandled rejection if the original promise
-  // rejects after the timeout - log for debugging purposes
+  // rejects after the timeout - only log if actually timed out
   promise.catch((err) => {
-    console.debug("Promise rejected after timeout:", err);
+    if (timedOut) {
+      console.debug("Promise rejected after timeout:", err);
+    }
   });
 
-  const result = await Promise.race([promise, timeoutPromise]);
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
 
-  // Clear the timeout if the promise resolved before the timeout
-  if (timeoutId !== undefined) {
-    clearTimeout(timeoutId);
+    if (result === "timeout") {
+      throw new Error(errorMessage);
+    }
+
+    return result as T;
+  } finally {
+    // Clear the timeout to prevent keeping the event loop busy
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   }
-
-  if (result === "timeout") {
-    throw new Error(errorMessage);
-  }
-
-  return result as T;
 }
 
 // Export for testing purposes only
