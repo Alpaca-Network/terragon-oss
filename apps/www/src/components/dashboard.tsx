@@ -4,7 +4,6 @@ import {
   DashboardPromptBoxHandleSubmit,
   DashboardPromptBox,
 } from "./promptbox/dashboard-promptbox";
-import { ThreadListMain, ThreadViewFilter } from "./thread-list/main";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
@@ -131,12 +130,7 @@ export function Dashboard({
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
 
-  // Determine view filter and query filters
-  const viewFilter: ThreadViewFilter = showArchived
-    ? "archived"
-    : showBacklog
-      ? "backlog"
-      : "active";
+  // Determine query filters for Kanban view
   const queryFilters = showArchived
     ? { archived: true }
     : showBacklog
@@ -204,47 +198,23 @@ export function Dashboard({
         </>
       )}
 
-      {/* Desktop: Show Kanban or Inbox based on viewMode */}
-      {mounted && (
+      {/* Desktop: Show Kanban view when in kanban mode */}
+      {mounted && showKanbanView && (
         <div className="hidden lg:flex flex-1 min-h-0">
-          {showKanbanView ? (
-            <KanbanBoard
-              queryFilters={queryFilters}
-              initialSelectedTaskId={initialTaskId}
-            />
-          ) : (
-            <div className="w-full">
-              <ThreadListMain
-                queryFilters={queryFilters}
-                viewFilter={viewFilter}
-                allowGroupBy={true}
-                showSuggestedTasks={false} // Onboarding is now in dashboard.tsx
-                setPromptText={setPromptText}
-                showViewToggle={true}
-              />
-            </div>
-          )}
+          <KanbanBoard
+            queryFilters={queryFilters}
+            initialSelectedTaskId={initialTaskId}
+          />
         </div>
       )}
 
-      {/* Mobile: Show Kanban or Inbox based on viewMode */}
-      {mounted && (
+      {/* Mobile: Show Kanban view when in kanban mode */}
+      {mounted && showKanbanView && (
         <div className="lg:hidden flex flex-col flex-1 min-h-0">
-          {showKanbanView ? (
-            <KanbanBoard
-              queryFilters={queryFilters}
-              initialSelectedTaskId={initialTaskId}
-            />
-          ) : (
-            <ThreadListMain
-              queryFilters={queryFilters}
-              viewFilter={viewFilter}
-              allowGroupBy={true}
-              showSuggestedTasks={false} // Onboarding is now in dashboard.tsx
-              setPromptText={setPromptText}
-              showViewToggle={true}
-            />
-          )}
+          <KanbanBoard
+            queryFilters={queryFilters}
+            initialSelectedTaskId={initialTaskId}
+          />
         </div>
       )}
     </div>
