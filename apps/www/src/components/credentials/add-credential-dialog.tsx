@@ -18,6 +18,7 @@ import {
   useExchangeGoogleAuthorizationCodeMutation,
   useSaveCodexAuthJsonMutation,
   useSaveApiKeyMutation,
+  useSaveClaudeCredentialsJsonMutation,
 } from "@/queries/credentials-queries";
 import type { AuthType } from "@/lib/claude-oauth";
 import type { GeminiAuthType } from "@/lib/google-oauth";
@@ -425,16 +426,21 @@ export function AddClaudeCredentialDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [mode, setMode] = useState<"api-key" | "subscription" | null>(null);
+  const [mode, setMode] = useState<
+    "api-key" | "subscription" | "paste-credentials" | null
+  >(null);
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authType, setAuthType] = useState<AuthType | null>(null);
   const [codeVerifier, setCodeVerifier] = useState("");
   const [authCode, setAuthCode] = useState("");
+  const [credentialsJson, setCredentialsJson] = useState("");
+  const [showClaudeHelp, setShowClaudeHelp] = useState(false);
 
   const saveApiKeyMutation = useSaveApiKeyMutation();
   const exchangeCodeMutation = useExchangeClaudeAuthorizationCodeMutation();
+  const saveCredentialsJsonMutation = useSaveClaudeCredentialsJsonMutation();
 
   const resetForm = () => {
     setMode(null);
@@ -444,6 +450,8 @@ export function AddClaudeCredentialDialog({
     setAuthCode("");
     setAuthType(null);
     setLoading(false);
+    setCredentialsJson("");
+    setShowClaudeHelp(false);
   };
 
   useEffect(() => {
@@ -525,6 +533,29 @@ export function AddClaudeCredentialDialog({
     resetForm();
   };
 
+  const handleSaveCredentialsJson = async () => {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(credentialsJson);
+    } catch (e) {
+      toast.error(
+        "Invalid JSON format. Please check your credentials.json and try again.",
+      );
+      return;
+    }
+    if (!parsed || typeof parsed !== "object") {
+      toast.error(
+        "Invalid credentials.json. Make sure it contains valid credential data.",
+      );
+      return;
+    }
+    await saveCredentialsJsonMutation.mutateAsync({
+      credentialsJson: JSON.stringify(parsed),
+    });
+    onOpenChange(false);
+    resetForm();
+  };
+
   useEffect(() => {
     if (!open) {
       resetForm();
@@ -541,7 +572,9 @@ export function AddClaudeCredentialDialog({
               ? "Choose how you'd like to add credentials for Claude."
               : mode === "api-key"
                 ? "Add a new API key for Claude."
-                : "Connect your Claude subscription."}
+                : mode === "paste-credentials"
+                  ? "Paste your Claude credentials file."
+                  : "Connect your Claude subscription."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -567,6 +600,14 @@ export function AddClaudeCredentialDialog({
                 onClick={() => setMode("api-key")}
               >
                 Add API Key
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setMode("paste-credentials")}
+              >
+                Paste credentials.json
               </Button>
             </div>
           ) : mode === "api-key" ? (
@@ -604,6 +645,50 @@ export function AddClaudeCredentialDialog({
                   )}
                 </Button>
               </div>
+            </div>
+          ) : mode === "paste-credentials" ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Paste your{" "}
+                <code className="font-mono rounded bg-muted px-1">
+                  ~/.claude/.credentials.json
+                </code>{" "}
+                below:
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-0 text-xs text-muted-foreground justify-start"
+                onClick={() => setShowClaudeHelp((v) => !v)}
+              >
+                {showClaudeHelp ? (
+                  <ChevronDown className="mr-1 h-3 w-3" />
+                ) : (
+                  <ChevronRight className="mr-1 h-3 w-3" />
+                )}
+                {showClaudeHelp
+                  ? "Hide setup instructions"
+                  : "How to get credentials.json"}
+              </Button>
+              {showClaudeHelp && (
+                <div className="mt-2 space-y-2 text-sm">
+                  <pre className="rounded-md bg-muted p-2 overflow-x-auto">
+                    <code>{`# Copy credentials.json (macOS/Linux)
+cat ~/.claude/.credentials.json | pbcopy
+
+# Or on Linux with xclip
+cat ~/.claude/.credentials.json | xclip -selection clipboard`}</code>
+                  </pre>
+                  <p className="text-muted-foreground">Then paste it below.</p>
+                </div>
+              )}
+              <Textarea
+                placeholder={`{\n  "claudeAiOauth": {\n    "accessToken": "...",\n    "refreshToken": "...",\n    "expiresAt": 1234567890,\n    "scopes": [...]\n  }\n}`}
+                value={credentialsJson}
+                onChange={(e) => setCredentialsJson(e.target.value)}
+                className="min-h-24 max-h-48 overflow-x-auto font-mono break-all"
+              />
             </div>
           ) : (
             <div className="space-y-2">
@@ -644,6 +729,16 @@ export function AddClaudeCredentialDialog({
               disabled={!authCode || exchangeCodeMutation.isPending}
             >
               {exchangeCodeMutation.isPending ? "Connecting..." : "Connect"}
+            </Button>
+          )}
+          {mode === "paste-credentials" && (
+            <Button
+              onClick={handleSaveCredentialsJson}
+              disabled={saveCredentialsJsonMutation.isPending}
+            >
+              {saveCredentialsJsonMutation.isPending
+                ? "Connecting..."
+                : "Connect"}
             </Button>
           )}
         </DialogFooter>
