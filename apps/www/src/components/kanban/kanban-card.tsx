@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useLongPress } from "@/hooks/useLongPress";
+import { usePrefetchThread } from "@/hooks/use-prefetch-thread";
 
 export const KanbanCard = memo(function KanbanCard({
   thread,
@@ -36,6 +37,7 @@ export const KanbanCard = memo(function KanbanCard({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const submitDraftMutation = useSubmitDraftThreadMutation();
+  const prefetchThread = usePrefetchThread();
   const isDraft = useMemo(() => isDraftThread(thread), [thread]);
   const isError = useMemo(() => isErrorThread(thread), [thread]);
   const title = useMemo(() => getThreadTitle(thread), [thread]);
@@ -79,6 +81,11 @@ export const KanbanCard = memo(function KanbanCard({
     setIsMenuOpen(true);
   }, []);
 
+  // Prefetch thread data on hover/touch for faster drawer opening
+  const handlePrefetch = useCallback(() => {
+    prefetchThread(thread.id);
+  }, [prefetchThread, thread.id]);
+
   const longPressHandlers = useLongPress({
     onLongPress: handleContextMenu,
   });
@@ -87,9 +94,13 @@ export const KanbanCard = memo(function KanbanCard({
     <div
       onClick={onClick}
       onContextMenu={longPressHandlers.onContextMenu}
-      onTouchStart={longPressHandlers.onTouchStart}
+      onTouchStart={(e) => {
+        longPressHandlers.onTouchStart(e);
+        handlePrefetch();
+      }}
       onTouchEnd={longPressHandlers.onTouchEnd}
       onTouchMove={longPressHandlers.onTouchMove}
+      onMouseEnter={handlePrefetch}
       className={cn(
         "group relative bg-card border rounded-xl p-2.5 cursor-pointer",
         "transition-all duration-200 ease-out",

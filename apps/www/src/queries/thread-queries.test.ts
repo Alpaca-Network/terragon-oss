@@ -3,6 +3,7 @@ import {
   isValidThreadListFilter,
   isMatchingThreadForFilter,
   ThreadListFilters,
+  threadQueryOptions,
 } from "./thread-queries";
 import { ThreadInfo } from "@terragon/shared";
 
@@ -206,5 +207,28 @@ describe("isMatchingThreadForFilter", () => {
         }),
       ).toBe(false);
     });
+  });
+});
+
+describe("threadQueryOptions", () => {
+  it("should return options with cache configuration for mobile performance", () => {
+    const options = threadQueryOptions("test-thread-id");
+
+    // Verify cache settings exist for mobile performance optimization
+    expect(options.staleTime).toBe(30000); // 30 seconds
+    expect(options.gcTime).toBe(5 * 60 * 1000); // 5 minutes
+  });
+
+  it("should include correct query key for thread detail", () => {
+    const threadId = "test-thread-123";
+    const options = threadQueryOptions(threadId);
+
+    expect(options.queryKey).toEqual(["threads", "detail", threadId]);
+  });
+
+  it("should include queryFn that can be called", () => {
+    const options = threadQueryOptions("test-thread-id");
+
+    expect(typeof options.queryFn).toBe("function");
   });
 });
