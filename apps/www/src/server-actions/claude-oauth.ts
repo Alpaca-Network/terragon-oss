@@ -98,9 +98,17 @@ export const saveClaudeCredentialsJson = userOnlyAction(
       );
     }
 
+    // Validate scopes is an array if provided
+    if (scopes !== undefined && !Array.isArray(scopes)) {
+      throw new UserFacingError(
+        "Invalid credentials format. scopes must be an array of strings.",
+      );
+    }
+
     // Try to refresh the token to verify it's valid
     let finalAccessToken = accessToken;
     let finalRefreshToken = refreshToken;
+    // expiresAt from credentials.json is in milliseconds (timestamp)
     let finalExpiresAt = expiresAt
       ? new Date(expiresAt)
       : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
@@ -128,7 +136,7 @@ export const saveClaudeCredentialsJson = userOnlyAction(
         refreshToken: finalRefreshToken,
         isSubscription: true,
         expiresAt: finalExpiresAt,
-        scope: scopes?.join(" "),
+        scope: Array.isArray(scopes) ? scopes.join(" ") : undefined,
         tokenType: "Bearer",
       },
     });
