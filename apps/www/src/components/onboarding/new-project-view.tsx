@@ -72,9 +72,18 @@ export function NewProjectView({
     setShowSearchDialog(true);
   };
 
+  // Clear selectedTemplate when dialog closes to reset form state
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    setShowCreateDialog(open);
+    if (!open) {
+      setSelectedTemplate(null);
+    }
+  };
+
   const handleRepoCreated = () => {
     setShowCreateDialog(false);
     setShowSearchDialog(false);
+    setSelectedTemplate(null);
     onRepoCreated?.();
   };
 
@@ -179,7 +188,7 @@ export function NewProjectView({
         <CreateRepoDialog
           template={selectedTemplate}
           open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
+          onOpenChange={handleCreateDialogOpenChange}
           onSuccess={handleRepoCreated}
         />
       )}

@@ -44,21 +44,42 @@ describe("NewProjectView", () => {
 
   describe("View state management", () => {
     it("should reset state when onRepoCreated is called", () => {
-      // The component should close dialogs when a repo is created
-      // This is verified by the handleRepoCreated function setting
-      // showCreateDialog and showSearchDialog to false
+      // The component should close dialogs and clear selected template when a repo is created
       let showCreateDialog = true;
       let showSearchDialog = true;
+      let selectedTemplate: { id: string } | null = { id: "test" };
 
       const handleRepoCreated = () => {
         showCreateDialog = false;
         showSearchDialog = false;
+        selectedTemplate = null;
       };
 
       handleRepoCreated();
 
       expect(showCreateDialog).toBe(false);
       expect(showSearchDialog).toBe(false);
+      expect(selectedTemplate).toBe(null);
+    });
+
+    it("should clear selectedTemplate when create dialog closes to reset form state", () => {
+      // When the dialog closes without creating, selectedTemplate should be cleared
+      // so that reopening the same template shows a fresh form
+      let showCreateDialog = true;
+      let selectedTemplate: { id: string } | null = { id: "nextjs" };
+
+      const handleCreateDialogOpenChange = (open: boolean) => {
+        showCreateDialog = open;
+        if (!open) {
+          selectedTemplate = null;
+        }
+      };
+
+      // Simulate closing the dialog
+      handleCreateDialogOpenChange(false);
+
+      expect(showCreateDialog).toBe(false);
+      expect(selectedTemplate).toBe(null);
     });
   });
 
