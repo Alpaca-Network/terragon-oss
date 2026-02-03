@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  LayoutGrid,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
@@ -155,6 +156,42 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
   }, []);
 
+  const handleColumnWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      const scrollContainer = scrollAreaRef.current?.querySelector(
+        '[data-slot="scroll-area-viewport"]',
+      );
+      if (!scrollContainer) return;
+
+      const target = event.target as HTMLElement | null;
+      const closestViewport = target?.closest(
+        '[data-slot="scroll-area-viewport"]',
+      ) as HTMLElement | null;
+      const isNestedViewport =
+        closestViewport && closestViewport !== scrollContainer;
+      const nestedOverflowThresholdPx = 16;
+      if (
+        isNestedViewport &&
+        closestViewport.scrollHeight >
+          closestViewport.clientHeight + nestedOverflowThresholdPx
+      ) {
+        return;
+      }
+
+      const hasHorizontalOverflow =
+        scrollContainer.scrollWidth > scrollContainer.clientWidth + 1;
+      if (!hasHorizontalOverflow) return;
+
+      const absX = Math.abs(event.deltaX);
+      const absY = Math.abs(event.deltaY);
+      if (absY <= absX) return;
+
+      scrollContainer.scrollBy({ left: event.deltaY, behavior: "auto" });
+      event.preventDefault();
+    },
+    [],
+  );
+
   // Update scroll state on mount, resize, and when scrollAreaRef changes
   useEffect(() => {
     // Copy ref value to local variable for cleanup
@@ -273,7 +310,6 @@ export const KanbanBoard = memo(function KanbanBoard({
       in_progress: [],
       in_review: [],
       done: [],
-      failed: [],
     };
 
     for (const thread of threads) {
@@ -437,6 +473,30 @@ export const KanbanBoard = memo(function KanbanBoard({
     });
   }, []);
 
+  // Add keyboard event listener for arrow key navigation in full-screen mode
+  useEffect(() => {
+    if (!isFullScreenTask) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (fullScreenColumnIndex > 0) {
+          navigateColumn("left");
+        }
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (fullScreenColumnIndex < KANBAN_COLUMNS.length - 1) {
+          navigateColumn("right");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullScreenTask, fullScreenColumnIndex, navigateColumn]);
+
   const handleOpenQuickAddBacklog = useCallback(() => {
     setIsQuickAddBacklogOpen(true);
   }, [setIsQuickAddBacklogOpen]);
@@ -554,6 +614,11 @@ export const KanbanBoard = memo(function KanbanBoard({
                 threads={columnThreads[currentColumn.id]}
                 selectedThreadId={selectedThreadId}
                 onThreadSelect={handleThreadSelect}
+                onAddToBacklog={
+                  currentColumn.id === "backlog"
+                    ? handleOpenQuickAddBacklog
+                    : undefined
+                }
                 onThreadCommentsClick={handleThreadCommentsClick}
                 showArchivedToggle={
                   currentColumn.id === "done" && !queryFilters.archived
@@ -624,28 +689,40 @@ export const KanbanBoard = memo(function KanbanBoard({
                 </Button>
               </div>
 
-              {/* New Task and Close buttons */}
-              <Button
-                variant="default"
-                size="sm"
-                className="h-8 gap-1.5"
-                onClick={() => setNewTaskDialogOpen(true)}
-                title="Create new task"
-                aria-label="Create new task"
-              >
-                <SquarePen className="h-4 w-4" />
-                <span className="text-xs">New Task</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseDetail}
-                className="h-8 w-8"
-                title="Close task details"
-                aria-label="Close task details"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {/* View toggle, New Task and Close buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsFullScreenTask(false)}
+                  className="h-8 w-8 flex-shrink-0"
+                  title="Show all columns"
+                  aria-label="Show all columns"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setNewTaskDialogOpen(true)}
+                  title="Create new task"
+                  aria-label="Create new task"
+                >
+                  <SquarePen className="h-4 w-4" />
+                  <span className="text-xs">New Task</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseDetail}
+                  className="h-8 w-8 flex-shrink-0"
+                  title="Close task details"
+                  aria-label="Close task details"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Tab content */}
@@ -735,7 +812,11 @@ export const KanbanBoard = memo(function KanbanBoard({
             selectedThreadId && "min-w-[300px]",
           )}
         >
-          <ScrollArea ref={scrollAreaRef} className="h-full w-full">
+          <ScrollArea
+            ref={scrollAreaRef}
+            className="h-full w-full"
+            onWheel={handleColumnWheel}
+          >
             <div className="flex gap-4 p-4 h-full min-h-[500px]">
               {KANBAN_COLUMNS.map((column) => (
                 <KanbanColumn

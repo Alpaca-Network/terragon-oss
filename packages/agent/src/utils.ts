@@ -201,10 +201,6 @@ export function agentToModels(
         // Gemini models via Gatewayz
         "gatewayz/gemini/gemini-3-pro",
         "gatewayz/gemini/gemini-2.5-pro",
-        // OpenCode models via Gatewayz
-        "gatewayz/opencode/glm-4.7",
-        "gatewayz/opencode/glm-4.6",
-        "gatewayz/opencode/kimi-k2",
       ];
     }
     case "gemini": {
@@ -378,8 +374,8 @@ export function isConnectedCredentialsSupported(agent: AIAgent): boolean {
     case "claudeCode":
     case "codex":
     case "amp":
-      return true;
     case "gemini":
+      return true;
     case "opencode":
       return false;
     default:

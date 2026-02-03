@@ -17,7 +17,6 @@ describe("Kanban Mobile Components", () => {
       expect(columnIds).toContain("in_progress");
       expect(columnIds).toContain("in_review");
       expect(columnIds).toContain("done");
-      expect(columnIds).toContain("failed");
     });
 
     it("should have titles suitable for mobile display (short enough)", () => {
@@ -59,11 +58,6 @@ describe("Kanban Mobile Components", () => {
     it("should return primary color for done", () => {
       const color = getColumnHeaderColor("done");
       expect(color).toContain("primary");
-    });
-
-    it("should return destructive color for failed", () => {
-      const color = getColumnHeaderColor("failed");
-      expect(color).toContain("destructive");
     });
 
     it("should have all columns with a defined color", () => {
@@ -207,9 +201,9 @@ describe("Kanban Mobile Components", () => {
       expect(column).toBe("backlog");
     });
 
-    it("should stay on last tab when swiping left from failed", () => {
-      const column = getNextColumnAfterSwipe("failed", "left");
-      expect(column).toBe("failed");
+    it("should stay on last tab when swiping left from done", () => {
+      const column = getNextColumnAfterSwipe("done", "left");
+      expect(column).toBe("done");
     });
 
     it("should correctly traverse all columns with left swipes", () => {
@@ -218,7 +212,6 @@ describe("Kanban Mobile Components", () => {
         "in_progress",
         "in_review",
         "done",
-        "failed",
       ];
       let currentColumn: KanbanColumn = "backlog";
 
@@ -230,13 +223,12 @@ describe("Kanban Mobile Components", () => {
 
     it("should correctly traverse all columns with right swipes", () => {
       const columnOrder: KanbanColumn[] = [
-        "failed",
         "done",
         "in_review",
         "in_progress",
         "backlog",
       ];
-      let currentColumn: KanbanColumn = "failed";
+      let currentColumn: KanbanColumn = "done";
 
       for (let i = 1; i < columnOrder.length; i++) {
         currentColumn = getNextColumnAfterSwipe(currentColumn, "right");
@@ -297,7 +289,6 @@ describe("Kanban Mobile Components", () => {
       expect(shouldShowArchiveToggle("backlog", false)).toBe(false);
       expect(shouldShowArchiveToggle("in_progress", false)).toBe(false);
       expect(shouldShowArchiveToggle("in_review", false)).toBe(false);
-      expect(shouldShowArchiveToggle("failed", false)).toBe(false);
     });
 
     it("should not show archive toggle when viewing archived tasks", () => {

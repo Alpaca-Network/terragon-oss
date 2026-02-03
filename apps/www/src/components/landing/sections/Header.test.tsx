@@ -16,10 +16,10 @@ describe("Header branding configuration", () => {
       expect(brandName).toBe("Gatewayz");
     });
 
-    it("should point to gatewayz documentation", () => {
-      // publicDocsUrl() should return gatewayz docs URL
-      const docsUrl = "https://docs.gatewayz.ai";
-      expect(docsUrl).toContain("gatewayz");
+    it("should point to documentation", () => {
+      // publicDocsUrl() should return base URL without /docs path
+      const docsUrl = "https://docs.terragonlabs.com";
+      expect(docsUrl).toContain("docs.terragonlabs.com");
     });
   });
 
@@ -28,7 +28,7 @@ describe("Header branding configuration", () => {
       { name: "How It Works", href: "#how-it-works" },
       { name: "Features", href: "#features" },
       { name: "Pricing", href: "#pricing" },
-      { name: "Documentation", href: "https://docs.gatewayz.ai" },
+      { name: "Documentation", href: "https://docs.terragonlabs.com/docs" },
     ];
 
     it("should have How It Works link", () => {
@@ -52,7 +52,7 @@ describe("Header branding configuration", () => {
     it("should have external Documentation link", () => {
       const link = navLinks.find((l) => l.name === "Documentation");
       expect(link).toBeDefined();
-      expect(link?.href).toContain("docs.gatewayz.ai");
+      expect(link?.href).toContain("docs.terragonlabs.com");
     });
   });
 

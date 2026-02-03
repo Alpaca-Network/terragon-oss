@@ -103,7 +103,7 @@ export function Hero() {
               variant="outline"
               asChild
             >
-              <Link target="_blank" href={publicDocsUrl()}>
+              <Link target="_blank" href={`${publicDocsUrl()}/docs`}>
                 Learn more
               </Link>
             </Button>

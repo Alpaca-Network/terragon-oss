@@ -47,13 +47,26 @@ export async function followUpInternal({
   if (!threadChat) {
     throw new Error("Thread chat not found");
   }
+
+  // Calculate the model early so we can include it in the status transition update
+  const messageWithModel = {
+    ...message,
+    model:
+      message.model ||
+      getLastUserMessageModel(threadChat.messages ?? []) ||
+      getDefaultModelForAgent({
+        agent: threadChat.agent,
+        agentVersion: threadChat.agentVersion,
+      }),
+  };
+
   getPostHogServer().capture({
     distinctId: userId,
     event: "follow_up",
     properties: {
       threadId,
-      model: message.model,
-      agentType: modelToAgent(message.model),
+      model: messageWithModel.model,
+      agentType: modelToAgent(messageWithModel.model),
       imageCount: imageCount(message),
       promptTextSize: estimateMessageSize(message),
       source,
@@ -69,6 +82,7 @@ export async function followUpInternal({
         errorMessage: null,
         errorMessageInfo: null,
         permissionMode: message.permissionMode || "allowAll",
+        lastUsedModel: messageWithModel.model,
       },
     });
   if (!didUpdateStatus) {
@@ -86,16 +100,7 @@ export async function followUpInternal({
     });
     return;
   }
-  const messageWithModel = {
-    ...message,
-    model:
-      message.model ||
-      getLastUserMessageModel(threadChat.messages ?? []) ||
-      getDefaultModelForAgent({
-        agent: threadChat.agent,
-        agentVersion: threadChat.agentVersion,
-      }),
-  };
+
   const thread = await getThreadMinimal({ db, threadId, userId });
   waitUntil(
     startAgentMessage({

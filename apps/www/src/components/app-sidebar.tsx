@@ -181,7 +181,7 @@ export function AppSidebar() {
                 <AppMenuItem>
                   <SidebarMenuButton asChild tooltip="Documentation">
                     <a
-                      href={publicDocsUrl()}
+                      href={`${publicDocsUrl()}/docs`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

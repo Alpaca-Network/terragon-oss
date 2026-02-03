@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+export const shouldShowAddToBacklog = (
+  column: KanbanColumnType,
+  onAddToBacklog?: () => void,
+) => column === "backlog" && Boolean(onAddToBacklog);
+
+const COLUMN_SCROLL_HINT_THRESHOLD_PX = 24;
+
+export const shouldShowScrollHint = (
+  scrollHeight: number,
+  clientHeight: number,
+  threshold = COLUMN_SCROLL_HINT_THRESHOLD_PX,
+) => scrollHeight > clientHeight + threshold;
 
 export const KanbanColumn = memo(function KanbanColumn({
   column,
@@ -52,6 +65,39 @@ export const KanbanColumn = memo(function KanbanColumn({
   onNavigateRight?: () => void;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+
+  // All hooks must be called before any conditional returns
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const viewport = scrollContainer.querySelector(
+      '[data-slot="scroll-area-viewport"]',
+    ) as HTMLDivElement | null;
+    if (!viewport) return;
+
+    const updateHint = () => {
+      setShowScrollHint(
+        shouldShowScrollHint(viewport.scrollHeight, viewport.clientHeight),
+      );
+    };
+
+    updateHint();
+    viewport.addEventListener("scroll", updateHint);
+
+    const resizeObserver = new ResizeObserver(updateHint);
+    resizeObserver.observe(viewport);
+    if (viewport.firstElementChild) {
+      resizeObserver.observe(viewport.firstElementChild);
+    }
+
+    return () => {
+      viewport.removeEventListener("scroll", updateHint);
+      resizeObserver.disconnect();
+    };
+  }, [threads.length]);
 
   if (!columnConfig) {
     return null;
@@ -67,12 +113,12 @@ export const KanbanColumn = memo(function KanbanColumn({
         return "bg-primary/10 text-primary border border-primary/20";
       case "done":
         return "bg-primary/10 text-primary border border-primary/20";
-      case "failed":
-        return "bg-destructive/10 text-destructive border border-destructive/20";
       default:
         return "bg-muted text-muted-foreground";
     }
   };
+
+  const showAddToBacklog = shouldShowAddToBacklog(column, onAddToBacklog);
 
   return (
     <div className="flex flex-col h-full min-w-[280px] max-w-[320px] flex-1">
@@ -116,7 +162,7 @@ export const KanbanColumn = memo(function KanbanColumn({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {column === "backlog" && onAddToBacklog && (
+          {showAddToBacklog && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -125,7 +171,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                   className="h-6 w-6 rounded-full hover:bg-muted/50"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAddToBacklog();
+                    onAddToBacklog?.();
                   }}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -159,7 +205,10 @@ export const KanbanColumn = memo(function KanbanColumn({
       </div>
 
       {/* Column content */}
-      <div className="flex-1 bg-muted/30 rounded-b-lg border border-t-0 min-h-0">
+      <div
+        ref={scrollContainerRef}
+        className="relative flex-1 bg-muted/30 rounded-b-lg border border-t-0 min-h-0"
+      >
         <ScrollArea className="h-full">
           <div className="p-2 space-y-2">
             {threads.length === 0 ? (
@@ -179,6 +228,14 @@ export const KanbanColumn = memo(function KanbanColumn({
             )}
           </div>
         </ScrollArea>
+        {showScrollHint && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0">
+            <div className="h-10 bg-gradient-to-t from-background/90 to-transparent" />
+            <div className="absolute inset-x-0 bottom-1 text-center text-[11px] text-muted-foreground">
+              Scroll for more
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

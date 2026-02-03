@@ -52,7 +52,7 @@ export function useCredentialInfoForAgent(
       hasCredentials = credentials.hasOpenAI;
       break;
     case "gemini":
-      hasCredentials = false;
+      hasCredentials = credentials.hasGemini;
       break;
     case "opencode":
       hasCredentials = false;

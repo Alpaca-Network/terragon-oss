@@ -113,8 +113,8 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
     handleFilesAttached,
     removeFile,
     submitForm,
-    permissionMode,
-    setPermissionMode,
+    taskMode,
+    setTaskMode,
     selectedModel,
     selectedModels,
     setSelectedModel,
@@ -181,8 +181,8 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
         typeahead={repositoryCache}
         supportSaveAsDraft={true}
         supportSchedule={true}
-        permissionMode={permissionMode}
-        onPermissionModeChange={setPermissionMode}
+        taskMode={taskMode}
+        onTaskModeChange={setTaskMode}
       />
       <CredentialsWarning selectedModel={selectedModel} />
       <div className="flex items-center justify-between w-full">

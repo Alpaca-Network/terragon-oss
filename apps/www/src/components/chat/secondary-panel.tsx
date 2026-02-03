@@ -22,7 +22,10 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
-import { getPRFeedback } from "@/server-actions/get-pr-feedback";
+import {
+  getPRFeedback,
+  GetPRFeedbackResult,
+} from "@/server-actions/get-pr-feedback";
 import { PRCommentsSection } from "./code-review/pr-comments-section";
 import { ChecksSection } from "./code-review/checks-section";
 import { CoverageSection } from "./code-review/coverage-section";
@@ -30,6 +33,11 @@ import { MergeStatusSection } from "./code-review/merge-status-section";
 import { MergeButton } from "./code-review/merge-button";
 import { AddressFeedbackDialog } from "./code-review/address-feedback-dialog";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import {
+  getMergeablePollingInterval,
+  nextMergeablePollingState,
+  type MergeablePollingState,
+} from "@/lib/mergeable-polling";
 
 const SECONDARY_PANEL_MIN_WIDTH = 300;
 const SECONDARY_PANEL_MAX_WIDTH_PERCENTAGE = 0.7;
@@ -123,25 +131,52 @@ function ViewTab({
 function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const [activeView, setActiveView] = useAtom(secondaryPanelViewAtom);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const mergeablePollingRef = React.useRef<MergeablePollingState>({
+    until: null,
+    count: 0,
+  });
+  const lastDataUpdatedAtRef = React.useRef(0);
 
   const hasPR =
     thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
 
   // Fetch PR feedback data when thread has a PR
-  const { data, isLoading, error } = useServerActionQuery({
-    queryKey: ["pr-feedback", thread?.id, refreshKey],
-    queryFn: () => getPRFeedback({ threadId: thread!.id }),
-    enabled: hasPR && !!thread,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // Refetch every minute
-  });
+  const { data, isLoading, error, dataUpdatedAt } =
+    useServerActionQuery<GetPRFeedbackResult>({
+      queryKey: ["pr-feedback", thread?.id, refreshKey],
+      queryFn: () => getPRFeedback({ threadId: thread!.id }),
+      enabled: hasPR && !!thread,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: (query): number => {
+        const mergeableState = query.state.data?.feedback?.mergeableState;
+        return getMergeablePollingInterval({
+          mergeableState,
+          now: Date.now(),
+          state: mergeablePollingRef.current,
+          defaultIntervalMs: 60000,
+        });
+      },
+    });
+
+  const feedback = data?.feedback;
+  const summary = feedback ? createFeedbackSummary(feedback) : null;
+
+  // Update polling state when data changes - only increment count on actual refetch
+  React.useEffect(() => {
+    if (dataUpdatedAt === lastDataUpdatedAtRef.current) {
+      return;
+    }
+    lastDataUpdatedAtRef.current = dataUpdatedAt;
+    mergeablePollingRef.current = nextMergeablePollingState({
+      mergeableState: feedback?.mergeableState,
+      now: Date.now(),
+      state: mergeablePollingRef.current,
+    });
+  }, [feedback?.mergeableState, dataUpdatedAt]);
 
   if (!thread) {
     return null;
   }
-
-  const feedback = data?.feedback;
-  const summary = feedback ? createFeedbackSummary(feedback) : null;
 
   // Calculate badge counts
   const commentCount = summary?.unresolvedCommentCount ?? 0;

@@ -69,14 +69,14 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   threadId,
   open,
   onClose,
-  onNewTaskClick,
   initialTab = "feed",
+  onNewTask,
 }: {
   threadId: string | null;
   open: boolean;
   onClose: () => void;
-  onNewTaskClick?: () => void;
   initialTab?: TabType;
+  onNewTask?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [currentSnap, setCurrentSnap] = useState<number | string | null>(
@@ -255,17 +255,15 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
                 <Maximize2 className="h-4 w-4" />
               )}
             </Button>
-            {onNewTaskClick && (
+            {onNewTask && (
               <Button
-                variant="default"
-                size="sm"
-                className="h-8 gap-1.5"
-                onClick={onNewTaskClick}
-                title="Create new task"
-                aria-label="Create new task"
+                variant="ghost"
+                size="icon"
+                onClick={onNewTask}
+                className="h-9 w-9 rounded-lg tap-highlight hover:bg-primary/10 transition-colors"
+                aria-label="New Task"
               >
                 <SquarePen className="h-4 w-4" />
-                <span className="text-xs">New Task</span>
               </Button>
             )}
             <Button

@@ -64,7 +64,7 @@ describe("Hero branding configuration", () => {
       },
       secondaryButton: {
         text: "Learn more",
-        href: "https://docs.gatewayz.ai",
+        href: "https://docs.terragonlabs.com",
         variant: "outline",
       },
     };
@@ -78,8 +78,8 @@ describe("Hero branding configuration", () => {
       expect(ctaConfig.secondaryButton.text).toBe("Learn more");
     });
 
-    it("should link Learn more to Gatewayz docs", () => {
-      expect(ctaConfig.secondaryButton.href).toContain("docs.gatewayz.ai");
+    it("should link Learn more to docs", () => {
+      expect(ctaConfig.secondaryButton.href).toContain("docs.terragonlabs.com");
     });
 
     it("should use primary color for main CTA", () => {

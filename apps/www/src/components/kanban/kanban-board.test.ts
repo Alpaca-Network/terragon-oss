@@ -32,18 +32,12 @@ describe("Kanban Board Desktop", () => {
 
     it("should not exceed max index when navigating right from last column", () => {
       const lastIndex = KANBAN_COLUMNS.length - 1;
-      const newIndex = navigateColumn(lastIndex, "right"); // failed
-      expect(newIndex).toBe(lastIndex); // stays at failed
+      const newIndex = navigateColumn(lastIndex, "right"); // done
+      expect(newIndex).toBe(lastIndex); // stays at done
     });
 
     it("should correctly traverse all columns with right navigation", () => {
-      const expectedOrder = [
-        "backlog",
-        "in_progress",
-        "in_review",
-        "done",
-        "failed",
-      ];
+      const expectedOrder = ["backlog", "in_progress", "in_review", "done"];
       let currentIndex = 0;
 
       for (let i = 0; i < expectedOrder.length; i++) {
@@ -55,13 +49,7 @@ describe("Kanban Board Desktop", () => {
     });
 
     it("should correctly traverse all columns with left navigation", () => {
-      const expectedOrder = [
-        "failed",
-        "done",
-        "in_review",
-        "in_progress",
-        "backlog",
-      ];
+      const expectedOrder = ["done", "in_review", "in_progress", "backlog"];
       let currentIndex = KANBAN_COLUMNS.length - 1;
 
       for (let i = 0; i < expectedOrder.length; i++) {
@@ -75,13 +63,12 @@ describe("Kanban Board Desktop", () => {
 
   describe("Full-screen mode", () => {
     it("should have all columns available for full-screen view", () => {
-      expect(KANBAN_COLUMNS.length).toBe(5);
+      expect(KANBAN_COLUMNS.length).toBe(4);
       expect(KANBAN_COLUMNS.map((c) => c.id)).toEqual([
         "backlog",
         "in_progress",
         "in_review",
         "done",
-        "failed",
       ]);
     });
 
@@ -90,6 +77,109 @@ describe("Kanban Board Desktop", () => {
         expect(column.title).toBeTruthy();
         expect(column.title.length).toBeGreaterThan(0);
       });
+    });
+  });
+
+  describe("Keyboard navigation in full-screen mode", () => {
+    // Helper to simulate keyboard navigation logic matching the component
+    const simulateArrowKey = (
+      currentIndex: number,
+      key: "ArrowLeft" | "ArrowRight",
+    ): number => {
+      if (key === "ArrowLeft" && currentIndex > 0) {
+        return Math.max(0, currentIndex - 1);
+      } else if (
+        key === "ArrowRight" &&
+        currentIndex < KANBAN_COLUMNS.length - 1
+      ) {
+        return Math.min(KANBAN_COLUMNS.length - 1, currentIndex + 1);
+      }
+      return currentIndex;
+    };
+
+    it("should navigate left with ArrowLeft key from middle column", () => {
+      const newIndex = simulateArrowKey(2, "ArrowLeft"); // in_review -> in_progress
+      expect(newIndex).toBe(1);
+    });
+
+    it("should navigate right with ArrowRight key from middle column", () => {
+      const newIndex = simulateArrowKey(2, "ArrowRight"); // in_review -> done
+      expect(newIndex).toBe(3);
+    });
+
+    it("should not navigate left from first column (backlog)", () => {
+      const newIndex = simulateArrowKey(0, "ArrowLeft");
+      expect(newIndex).toBe(0); // stays at backlog
+    });
+
+    it("should not navigate right from last column (done)", () => {
+      const lastIndex = KANBAN_COLUMNS.length - 1;
+      const newIndex = simulateArrowKey(lastIndex, "ArrowRight");
+      expect(newIndex).toBe(lastIndex); // stays at done
+    });
+
+    it("should navigate through all columns with right arrow keys", () => {
+      let currentIndex = 0; // Start at backlog
+      const expectedPath = [0, 1, 2, 3]; // All column indices
+
+      expectedPath.forEach((expectedIndex) => {
+        expect(currentIndex).toBe(expectedIndex);
+        currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+      });
+
+      // Final position should be at last column
+      expect(currentIndex).toBe(KANBAN_COLUMNS.length - 1);
+    });
+
+    it("should navigate through all columns with left arrow keys", () => {
+      let currentIndex = KANBAN_COLUMNS.length - 1; // Start at done
+      const expectedPath = [3, 2, 1, 0]; // All column indices in reverse
+
+      expectedPath.forEach((expectedIndex) => {
+        expect(currentIndex).toBe(expectedIndex);
+        currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+      });
+
+      // Final position should be at first column
+      expect(currentIndex).toBe(0);
+    });
+
+    it("should stay in bounds when rapidly pressing left arrow at start", () => {
+      let currentIndex = 0;
+      for (let i = 0; i < 10; i++) {
+        currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+        expect(currentIndex).toBe(0);
+        expect(currentIndex).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it("should stay in bounds when rapidly pressing right arrow at end", () => {
+      let currentIndex = KANBAN_COLUMNS.length - 1;
+      for (let i = 0; i < 10; i++) {
+        currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+        expect(currentIndex).toBe(KANBAN_COLUMNS.length - 1);
+        expect(currentIndex).toBeLessThan(KANBAN_COLUMNS.length);
+      }
+    });
+
+    it("should navigate bidirectionally without losing position", () => {
+      let currentIndex = 2; // Start at in_review
+
+      // Go right
+      currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+      expect(currentIndex).toBe(3); // done
+
+      // Go left
+      currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+      expect(currentIndex).toBe(2); // back to in_review
+
+      // Go left again
+      currentIndex = simulateArrowKey(currentIndex, "ArrowLeft");
+      expect(currentIndex).toBe(1); // in_progress
+
+      // Go right
+      currentIndex = simulateArrowKey(currentIndex, "ArrowRight");
+      expect(currentIndex).toBe(2); // back to in_review
     });
   });
 
@@ -173,6 +263,74 @@ describe("Kanban Board Desktop", () => {
 
     it("should have default width greater than half screen", () => {
       expect(TASK_PANEL_DEFAULT_WIDTH_PERCENT).toBeGreaterThan(50);
+    });
+  });
+
+  describe("Column wheel scrolling", () => {
+    const getWheelBehavior = (
+      scrollWidth: number,
+      clientWidth: number,
+      deltaX: number,
+      deltaY: number,
+      hasNestedScrollable: boolean,
+      nestedOverflowPx: number,
+      nestedOverflowThresholdPx = 16,
+    ): { shouldScroll: boolean; shouldPreventDefault: boolean } => {
+      if (hasNestedScrollable && nestedOverflowPx > nestedOverflowThresholdPx) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+      const hasHorizontalOverflow = scrollWidth > clientWidth + 1;
+      if (!hasHorizontalOverflow) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      if (absY <= absX) {
+        return { shouldScroll: false, shouldPreventDefault: false };
+      }
+
+      return { shouldScroll: true, shouldPreventDefault: true };
+    };
+
+    it("should not hijack wheel when columns fit", () => {
+      const result = getWheelBehavior(600, 600, 0, 120, false, 0);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should not hijack wheel when horizontal intent is stronger", () => {
+      const result = getWheelBehavior(900, 600, 120, 80, false, 0);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should convert vertical wheel to horizontal scroll when overflowing", () => {
+      const result = getWheelBehavior(900, 600, 10, 140, false, 0);
+      expect(result).toEqual({
+        shouldScroll: true,
+        shouldPreventDefault: true,
+      });
+    });
+
+    it("should allow nested column scroll to handle wheel", () => {
+      const result = getWheelBehavior(900, 600, 0, 140, true, 32);
+      expect(result).toEqual({
+        shouldScroll: false,
+        shouldPreventDefault: false,
+      });
+    });
+
+    it("should allow kanban scroll when nested overflow is tiny", () => {
+      const result = getWheelBehavior(900, 600, 0, 140, true, 8);
+      expect(result).toEqual({
+        shouldScroll: true,
+        shouldPreventDefault: true,
+      });
     });
   });
 

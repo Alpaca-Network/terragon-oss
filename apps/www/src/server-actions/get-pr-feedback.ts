@@ -16,7 +16,7 @@ type GetPRFeedbackParams =
   | { threadId: string }
   | { repoFullName: string; prNumber: number };
 
-type GetPRFeedbackResult = {
+export type GetPRFeedbackResult = {
   feedback: PRFeedback;
   summary: PRFeedbackSummary;
 };
