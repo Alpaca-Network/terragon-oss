@@ -628,6 +628,7 @@ export const KanbanBoard = memo(function KanbanBoard({
                 }
                 onNavigateLeft={() => navigateColumn("left")}
                 onNavigateRight={() => navigateColumn("right")}
+                className="max-w-none"
               />
             </div>
           </div>
