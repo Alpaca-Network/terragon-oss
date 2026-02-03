@@ -149,9 +149,12 @@ async function getThreadsInner({
     // PR status columns (from githubPR join)
     prStatus: schema.githubPR.status,
     prChecksStatus: schema.githubPR.checksStatus,
+    // Author info (from user join) - always included for kanban detail and share modal
+    authorName: schema.user.name,
+    authorImage: schema.user.image,
   };
 
-  // Only include user data when needed (admin queries)
+  // Only include detailed user data when needed (admin queries)
   const selectWithUser = includeUser
     ? {
         ...baseSelect,
@@ -160,16 +163,14 @@ async function getThreadsInner({
           name: schema.user.name,
           email: schema.user.email,
         },
-        authorName: schema.user.name,
-        authorImage: schema.user.image,
       }
     : baseSelect;
 
   // Build query with minimal JOINs
   // - githubPR: needed for PR status indicators
-  // - user: only when includeUser is true (admin queries)
+  // - user: needed for authorName/authorImage (used in kanban detail and share modal)
   // Removed: threadVisibility (batch fetched separately), threadReadStatus (batch fetched separately)
-  let query = db
+  const query = db
     .select(selectWithUser)
     .from(schema.thread)
     .limit(limit)
@@ -182,15 +183,8 @@ async function getThreadsInner({
         eq(schema.githubPR.number, schema.thread.githubPRNumber),
       ),
     )
+    .leftJoin(schema.user, eq(schema.user.id, schema.thread.userId))
     .where(and(...whereConditions));
-
-  // Only add user JOIN when needed
-  if (includeUser) {
-    query = query.leftJoin(
-      schema.user,
-      eq(schema.user.id, schema.thread.userId),
-    ) as typeof query;
-  }
 
   const threads = await query;
   if (threads.length === 0) {
@@ -287,12 +281,13 @@ async function getThreadsInner({
   }
 
   return threads.map((thread) => {
-    const { legacyThreadChat, ...threadWithoutChats } = thread;
-    const user = "user" in thread ? (thread as any).user : null;
-    const authorName =
-      "authorName" in thread ? (thread as any).authorName : null;
-    const authorImage =
-      "authorImage" in thread ? (thread as any).authorImage : null;
+    const { legacyThreadChat, authorName, authorImage, ...threadWithoutChats } =
+      thread;
+    // user object is only present when includeUser is true (admin queries)
+    const user =
+      "user" in thread
+        ? (thread as { user: { id: string; name: string; email: string } }).user
+        : null;
     const mapKey = getMapKey(thread.id, thread.userId);
     const threadChats = threadChatsMap.get(mapKey);
     // Compute isUnread from batch-fetched read status
