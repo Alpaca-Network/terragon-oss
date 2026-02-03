@@ -636,6 +636,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         open={!!selectedThreadId}
         onClose={handleCloseDrawer}
         initialTab={drawerInitialTab}
+        onNewTask={handleOpenNewTaskDrawer}
       />
 
       {/* New task drawer */}
