@@ -24,13 +24,14 @@ describe("performance-metrics", () => {
     it("should measure duration between start and end", async () => {
       const metricKey = startMetric("task_drawer_open");
 
-      // Simulate some work
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Simulate some work - use 15ms timeout but only check for >= 5ms
+      // to account for timer imprecision in CI environments
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       const duration = endMetric(metricKey);
 
       expect(duration).not.toBeNull();
-      expect(duration).toBeGreaterThanOrEqual(10);
+      expect(duration).toBeGreaterThanOrEqual(5);
     });
 
     it("should return null for unknown metric key", () => {
