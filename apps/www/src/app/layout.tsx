@@ -64,11 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {process.env.NODE_ENV === "development" ? (
-          <link rel="icon" href="/favicon-dev.png" />
-        ) : (
-          <link rel="icon" href="/favicon.png" />
-        )}
+        <link rel="icon" href="/gatewayz-logo-icon.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link

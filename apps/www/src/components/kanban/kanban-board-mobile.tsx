@@ -87,8 +87,10 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
       setSelectedThreadId(initialSelectedTaskId);
     }
   }, [initialSelectedTaskId]);
+
+  // Default to Review tab on mobile
   const [activeColumn, setActiveColumn] =
-    useState<KanbanColumnType>("in_progress");
+    useState<KanbanColumnType>("in_review");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
   const [drawerInitialTab, setDrawerInitialTab] = useState<
     "feed" | "changes" | "code-review"
