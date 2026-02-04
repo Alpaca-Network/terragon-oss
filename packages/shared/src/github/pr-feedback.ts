@@ -349,8 +349,22 @@ function groupCommentsIntoThreads(
       // Treat outdated comments (where code has changed) as resolved since
       // they no longer apply to the current code
       isResolved = graphqlStatus.isResolved || graphqlStatus.isOutdated;
-    } else {
-      // Fall back to heuristic: if the last comment mentions resolution keywords
+    }
+
+    // If not resolved via GraphQL, check for bot-specific "addressed" markers
+    // Bots like CodeRabbit edit their original comment to add "✅ Addressed in commit X"
+    if (!isResolved) {
+      const botAddressedPattern = /✅\s*Addressed\s*(in\s+commit)?/i;
+      for (const comment of threadComments) {
+        if (botAddressedPattern.test(comment.body)) {
+          isResolved = true;
+          break;
+        }
+      }
+    }
+
+    // Final fallback: check if the last comment mentions resolution keywords
+    if (!isResolved) {
       const lastComment = threadComments[threadComments.length - 1];
       const resolvedKeywords =
         /\b(done|fixed|addressed|resolved|updated|applied)\b/i;

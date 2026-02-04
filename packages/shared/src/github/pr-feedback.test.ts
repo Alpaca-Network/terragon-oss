@@ -724,6 +724,65 @@ describe("aggregatePRFeedback", () => {
     expect(feedback.comments.unresolved.length).toBe(0);
   });
 
+  it("should detect bot 'Addressed' markers in comment bodies", async () => {
+    const prDetails = {
+      html_url: "https://github.com/owner/repo/pull/123",
+      title: "Test PR",
+      draft: false,
+      closed_at: null,
+      merged_at: null,
+      base: { ref: "main" },
+      head: { ref: "feature", sha: "abc123" },
+      mergeable: true,
+      mergeable_state: "clean",
+    };
+
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          // CodeRabbit-style comment with "✅ Addressed" marker edited into the body
+          body: `_⚠️ Potential issue_ | _🟡 Minor_
+
+**Some issue description.**
+
+Details here...
+
+✅ Addressed in commit d929b07`,
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: {
+            login: "coderabbitai[bot]",
+            avatar_url: "https://example.com",
+          },
+          created_at: "2024-01-01T00:00:00Z",
+          updated_at: "2024-01-01T00:01:00Z",
+          in_reply_to_id: null,
+          html_url: "https://github.com",
+        },
+      ],
+    });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    // GraphQL fails or returns no resolution status
+    mockOctokit.graphql.mockRejectedValue(new Error("GraphQL error"));
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    // Thread should be marked as resolved based on "✅ Addressed" marker in comment body
+    expect(feedback.comments.resolved.length).toBe(1);
+    expect(feedback.comments.unresolved.length).toBe(0);
+  });
+
   it("should identify coverage check", async () => {
     const prDetails = {
       html_url: "https://github.com/owner/repo/pull/123",
