@@ -59,31 +59,9 @@ WHERE selected_model IN (
 
 -- Step 5: Update thread.selected_models JSONB column
 -- Rename keys in the JSONB object
+-- Note: COALESCE handles edge case where selected_models is empty {} (jsonb_object_agg returns NULL for no rows)
 UPDATE thread
-SET selected_models = (
-    SELECT jsonb_object_agg(
-        CASE key
-            WHEN 'gatewayz/code-router' THEN 'gatewayz:code:balanced'
-            WHEN 'gatewayz/code-router/price' THEN 'gatewayz:code:price'
-            WHEN 'gatewayz/code-router/quality' THEN 'gatewayz:code:performance'
-            ELSE key
-        END,
-        value
-    )
-    FROM jsonb_each(selected_models)
-)
-WHERE selected_models ?| ARRAY[
-    'gatewayz/code-router',
-    'gatewayz/code-router/price',
-    'gatewayz/code-router/quality'
-];
-
--- Step 6: Update user_settings.agent_model_preferences JSONB column
--- Rename keys in the models object within agent_model_preferences
-UPDATE user_settings
-SET agent_model_preferences = jsonb_set(
-    agent_model_preferences,
-    '{models}',
+SET selected_models = COALESCE(
     (
         SELECT jsonb_object_agg(
             CASE key
@@ -94,7 +72,37 @@ SET agent_model_preferences = jsonb_set(
             END,
             value
         )
-        FROM jsonb_each(agent_model_preferences->'models')
+        FROM jsonb_each(selected_models)
+    ),
+    '{}'::jsonb
+)
+WHERE selected_models ?| ARRAY[
+    'gatewayz/code-router',
+    'gatewayz/code-router/price',
+    'gatewayz/code-router/quality'
+];
+
+-- Step 6: Update user_settings.agent_model_preferences JSONB column
+-- Rename keys in the models object within agent_model_preferences
+-- Note: COALESCE handles edge case where models object is empty {} (jsonb_object_agg returns NULL for no rows)
+UPDATE user_settings
+SET agent_model_preferences = jsonb_set(
+    agent_model_preferences,
+    '{models}',
+    COALESCE(
+        (
+            SELECT jsonb_object_agg(
+                CASE key
+                    WHEN 'gatewayz/code-router' THEN 'gatewayz:code:balanced'
+                    WHEN 'gatewayz/code-router/price' THEN 'gatewayz:code:price'
+                    WHEN 'gatewayz/code-router/quality' THEN 'gatewayz:code:performance'
+                    ELSE key
+                END,
+                value
+            )
+            FROM jsonb_each(agent_model_preferences->'models')
+        ),
+        '{}'::jsonb
     )
 )
 WHERE agent_model_preferences->'models' ?| ARRAY[
