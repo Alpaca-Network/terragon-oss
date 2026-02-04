@@ -73,9 +73,12 @@ export const calculateScrollToCenter = (
 export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters,
   initialSelectedTaskId,
+  hideViewToggle = false,
 }: {
   queryFilters: ThreadListFilters;
   initialSelectedTaskId?: string | null;
+  /** When true, the view toggle is rendered externally (e.g., by Dashboard) */
+  hideViewToggle?: boolean;
 }) {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
     initialSelectedTaskId ?? null,
@@ -454,7 +457,7 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Tasks</h2>
         </div>
-        <TaskViewToggle />
+        {!hideViewToggle && <TaskViewToggle />}
       </div>
 
       <Tabs
