@@ -42,7 +42,7 @@ export function isGatewayzModel(model: AIModel | null): boolean {
  * Checks if a model is a Gatewayz Code Router model
  */
 export function isCodeRouterModel(model: AIModel | null): boolean {
-  return !!model && model.startsWith("gatewayz/code-router");
+  return !!model && model.startsWith("gatewayz:code:");
 }
 
 /**
@@ -52,10 +52,10 @@ export function getCodeRouterMode(model: AIModel | null): CodeRouterMode {
   if (!model || !isCodeRouterModel(model)) {
     return "balanced";
   }
-  if (model === "gatewayz/code-router/price") {
+  if (model === "gatewayz:code:price") {
     return "price";
   }
-  if (model === "gatewayz/code-router/quality") {
+  if (model === "gatewayz:code:performance") {
     return "quality";
   }
   return "balanced";
@@ -67,12 +67,12 @@ export function getCodeRouterMode(model: AIModel | null): CodeRouterMode {
 export function getCodeRouterModelForMode(mode: CodeRouterMode): AIModel {
   switch (mode) {
     case "price":
-      return "gatewayz/code-router/price";
+      return "gatewayz:code:price";
     case "quality":
-      return "gatewayz/code-router/quality";
+      return "gatewayz:code:performance";
     case "balanced":
     default:
-      return "gatewayz/code-router";
+      return "gatewayz:code:balanced";
   }
 }
 
@@ -149,9 +149,9 @@ export function modelToAgent(model: AIModel | null): AIAgent {
   }
   switch (model) {
     // Gatewayz Code Router models
-    case "gatewayz/code-router":
-    case "gatewayz/code-router/price":
-    case "gatewayz/code-router/quality":
+    case "gatewayz:code:balanced":
+    case "gatewayz:code:price":
+    case "gatewayz:code:performance":
     // Gatewayz Router models
     case "gatewayz/claude-code/opus":
     case "gatewayz/claude-code/sonnet":
@@ -245,9 +245,9 @@ export function agentToModels(
       // If Code Router is enabled, only show Code Router models
       if (options.codeRouterSettings?.enabled) {
         return [
-          "gatewayz/code-router",
-          "gatewayz/code-router/price",
-          "gatewayz/code-router/quality",
+          "gatewayz:code:balanced",
+          "gatewayz:code:price",
+          "gatewayz:code:performance",
         ];
       }
       // Otherwise show individual models (without Code Router options)
@@ -529,23 +529,23 @@ type ModelDisplayName = {
 export function getModelDisplayName(model: AIModel): ModelDisplayName {
   switch (model) {
     // Gatewayz Code Router models
-    case "gatewayz/code-router":
+    case "gatewayz:code:balanced":
       return {
-        fullName: "Code Router (Balanced)",
-        mainName: "Code Router",
+        fullName: "Gatewayz Optimizer (Balanced)",
+        mainName: "Gatewayz Optimizer",
         subName: "Balanced",
       };
-    case "gatewayz/code-router/price":
+    case "gatewayz:code:price":
       return {
-        fullName: "Code Router (Price)",
-        mainName: "Code Router",
+        fullName: "Gatewayz Optimizer (Price)",
+        mainName: "Gatewayz Optimizer",
         subName: "Optimize Price",
       };
-    case "gatewayz/code-router/quality":
+    case "gatewayz:code:performance":
       return {
-        fullName: "Code Router (Quality)",
-        mainName: "Code Router",
-        subName: "Optimize Quality",
+        fullName: "Gatewayz Optimizer (Performance)",
+        mainName: "Gatewayz Optimizer",
+        subName: "Optimize Performance",
       };
     // Gatewayz Router - Claude Code models
     case "gatewayz/claude-code/opus":
@@ -1022,9 +1022,9 @@ export function isModelEnabledByDefault({
 }): boolean {
   switch (model) {
     // Gatewayz Code Router models - all enabled by default
-    case "gatewayz/code-router":
-    case "gatewayz/code-router/price":
-    case "gatewayz/code-router/quality":
+    case "gatewayz:code:balanced":
+    case "gatewayz:code:price":
+    case "gatewayz:code:performance":
     // Gatewayz Router models - all enabled by default
     case "gatewayz/claude-code/opus":
     case "gatewayz/claude-code/sonnet":
@@ -1124,12 +1124,12 @@ export function getModelInfo(model: AIModel): string {
   switch (model) {
     case "sonnet":
       return "Recommended for most tasks";
-    case "gatewayz/code-router":
-      return "Intelligent routing - balanced price/quality";
-    case "gatewayz/code-router/price":
-      return "Intelligent routing - optimized for cost";
-    case "gatewayz/code-router/quality":
-      return "Intelligent routing - optimized for quality";
+    case "gatewayz:code:balanced":
+      return "Improves code gen tasks while cutting the cost of inference by 35% to 71%";
+    case "gatewayz:code:price":
+      return "Maximize cost savings with intelligent model routing";
+    case "gatewayz:code:performance":
+      return "Maximize performance with intelligent model routing";
   }
   return "";
 }
@@ -1189,6 +1189,13 @@ export function parseModelOrNull({
       return "opencode-oai/gpt-5-codex";
     case "opencode/sonnet":
       return "opencode-ant/sonnet";
+    // Legacy gatewayz code router model names (for backward compatibility)
+    case "gatewayz/code-router":
+      return "gatewayz:code:balanced";
+    case "gatewayz/code-router/price":
+      return "gatewayz:code:price";
+    case "gatewayz/code-router/quality":
+      return "gatewayz:code:performance";
     default:
       const _exhaustiveCheck: never = modelAsExternal;
       console.warn("Unknown model name", _exhaustiveCheck);

@@ -99,8 +99,8 @@ const MODEL_PROVIDER_CONFIG: Record<ModelProvider, ModelValidationConfig> = {
       startsWithMatcher("kimi"),
       startsWithMatcher("deepseek"),
       startsWithMatcher("minimax"),
-      // Code Router models
-      includesMatcher("code-router"),
+      // Code Router models (gatewayz:code:balanced, gatewayz:code:price, gatewayz:code:performance)
+      startsWithMatcher("gatewayz:code:"),
     ],
     missingModelMessage: "Model must be specified in request body",
     unsupportedModelMessage: (model) =>

@@ -6,26 +6,26 @@ describe("validateProviderModel", () => {
     const provider: ModelProvider = "gatewayz";
 
     describe("Code Router models", () => {
-      it("should allow gatewayz/code-router model", () => {
+      it("should allow gatewayz:code:balanced model", () => {
         const result = validateProviderModel({
           provider,
-          model: "gatewayz/code-router",
+          model: "gatewayz:code:balanced",
         });
         expect(result).toEqual({ valid: true });
       });
 
-      it("should allow gatewayz/code-router/price model", () => {
+      it("should allow gatewayz:code:price model", () => {
         const result = validateProviderModel({
           provider,
-          model: "gatewayz/code-router/price",
+          model: "gatewayz:code:price",
         });
         expect(result).toEqual({ valid: true });
       });
 
-      it("should allow gatewayz/code-router/quality model", () => {
+      it("should allow gatewayz:code:performance model", () => {
         const result = validateProviderModel({
           provider,
-          model: "gatewayz/code-router/quality",
+          model: "gatewayz:code:performance",
         });
         expect(result).toEqual({ valid: true });
       });

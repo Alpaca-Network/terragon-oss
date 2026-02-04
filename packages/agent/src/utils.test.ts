@@ -175,6 +175,18 @@ describe("model-to-agent", () => {
       expect(parseModelOrNull({ modelName: "" })).toBe(null);
       expect(parseModelOrNull({ modelName: "gpt-4" })).toBe(null);
     });
+
+    it("should map legacy gatewayz code router model names to new format", () => {
+      expect(parseModelOrNull({ modelName: "gatewayz/code-router" })).toBe(
+        "gatewayz:code:balanced",
+      );
+      expect(
+        parseModelOrNull({ modelName: "gatewayz/code-router/price" }),
+      ).toBe("gatewayz:code:price");
+      expect(
+        parseModelOrNull({ modelName: "gatewayz/code-router/quality" }),
+      ).toBe("gatewayz:code:performance");
+    });
   });
 
   describe("gatewayz model utilities", () => {
@@ -315,9 +327,9 @@ describe("model-to-agent", () => {
         expect(gatewayzModels).toContain("gatewayz/codex/gpt-5.2-codex-high");
         expect(gatewayzModels).toContain("gatewayz/gemini/gemini-3-pro");
         // Should NOT include Code Router models when disabled
-        expect(gatewayzModels).not.toContain("gatewayz/code-router");
-        expect(gatewayzModels).not.toContain("gatewayz/code-router/price");
-        expect(gatewayzModels).not.toContain("gatewayz/code-router/quality");
+        expect(gatewayzModels).not.toContain("gatewayz:code:balanced");
+        expect(gatewayzModels).not.toContain("gatewayz:code:price");
+        expect(gatewayzModels).not.toContain("gatewayz:code:performance");
       });
 
       it("should return only Code Router models when Code Router is enabled", () => {
@@ -326,9 +338,9 @@ describe("model-to-agent", () => {
           codeRouterSettings: { enabled: true, mode: "balanced" },
         });
         // Should include only Code Router models
-        expect(gatewayzModels).toContain("gatewayz/code-router");
-        expect(gatewayzModels).toContain("gatewayz/code-router/price");
-        expect(gatewayzModels).toContain("gatewayz/code-router/quality");
+        expect(gatewayzModels).toContain("gatewayz:code:balanced");
+        expect(gatewayzModels).toContain("gatewayz:code:price");
+        expect(gatewayzModels).toContain("gatewayz:code:performance");
         expect(gatewayzModels).toHaveLength(3);
         // Should NOT include individual models
         expect(gatewayzModels).not.toContain("gatewayz/claude-code/opus");
@@ -402,9 +414,9 @@ describe("model-to-agent", () => {
   describe("Code Router utilities", () => {
     describe("isCodeRouterModel", () => {
       it("should return true for Code Router models", () => {
-        expect(isCodeRouterModel("gatewayz/code-router")).toBe(true);
-        expect(isCodeRouterModel("gatewayz/code-router/price")).toBe(true);
-        expect(isCodeRouterModel("gatewayz/code-router/quality")).toBe(true);
+        expect(isCodeRouterModel("gatewayz:code:balanced")).toBe(true);
+        expect(isCodeRouterModel("gatewayz:code:price")).toBe(true);
+        expect(isCodeRouterModel("gatewayz:code:performance")).toBe(true);
       });
 
       it("should return false for non-Code Router models", () => {
@@ -417,17 +429,15 @@ describe("model-to-agent", () => {
 
     describe("getCodeRouterMode", () => {
       it("should return balanced for default Code Router model", () => {
-        expect(getCodeRouterMode("gatewayz/code-router")).toBe("balanced");
+        expect(getCodeRouterMode("gatewayz:code:balanced")).toBe("balanced");
       });
 
       it("should return price for price-optimized model", () => {
-        expect(getCodeRouterMode("gatewayz/code-router/price")).toBe("price");
+        expect(getCodeRouterMode("gatewayz:code:price")).toBe("price");
       });
 
-      it("should return quality for quality-optimized model", () => {
-        expect(getCodeRouterMode("gatewayz/code-router/quality")).toBe(
-          "quality",
-        );
+      it("should return quality for performance-optimized model", () => {
+        expect(getCodeRouterMode("gatewayz:code:performance")).toBe("quality");
       });
 
       it("should return balanced for non-Code Router models", () => {
@@ -439,13 +449,11 @@ describe("model-to-agent", () => {
     describe("getCodeRouterModelForMode", () => {
       it("should return correct model for each mode", () => {
         expect(getCodeRouterModelForMode("balanced")).toBe(
-          "gatewayz/code-router",
+          "gatewayz:code:balanced",
         );
-        expect(getCodeRouterModelForMode("price")).toBe(
-          "gatewayz/code-router/price",
-        );
+        expect(getCodeRouterModelForMode("price")).toBe("gatewayz:code:price");
         expect(getCodeRouterModelForMode("quality")).toBe(
-          "gatewayz/code-router/quality",
+          "gatewayz:code:performance",
         );
       });
     });
@@ -465,7 +473,7 @@ describe("model-to-agent", () => {
           agentVersion: "latest",
           codeRouterSettings: { enabled: true, mode: "balanced" },
         });
-        expect(model).toBe("gatewayz/code-router");
+        expect(model).toBe("gatewayz:code:balanced");
       });
 
       it("should return price-optimized Code Router model when mode is price", () => {
@@ -474,16 +482,16 @@ describe("model-to-agent", () => {
           agentVersion: "latest",
           codeRouterSettings: { enabled: true, mode: "price" },
         });
-        expect(model).toBe("gatewayz/code-router/price");
+        expect(model).toBe("gatewayz:code:price");
       });
 
-      it("should return quality-optimized Code Router model when mode is quality", () => {
+      it("should return performance-optimized Code Router model when mode is quality", () => {
         const model = getDefaultModelForAgent({
           agent: "gatewayz",
           agentVersion: "latest",
           codeRouterSettings: { enabled: true, mode: "quality" },
         });
-        expect(model).toBe("gatewayz/code-router/quality");
+        expect(model).toBe("gatewayz:code:performance");
       });
 
       it("should return default Gatewayz model when Code Router is disabled", () => {
@@ -506,9 +514,9 @@ describe("model-to-agent", () => {
 
     describe("modelToAgent for Code Router models", () => {
       it("should return gatewayz for Code Router models", () => {
-        expect(modelToAgent("gatewayz/code-router")).toBe("gatewayz");
-        expect(modelToAgent("gatewayz/code-router/price")).toBe("gatewayz");
-        expect(modelToAgent("gatewayz/code-router/quality")).toBe("gatewayz");
+        expect(modelToAgent("gatewayz:code:balanced")).toBe("gatewayz");
+        expect(modelToAgent("gatewayz:code:price")).toBe("gatewayz");
+        expect(modelToAgent("gatewayz:code:performance")).toBe("gatewayz");
       });
     });
 
@@ -519,44 +527,38 @@ describe("model-to-agent", () => {
           ...options,
           codeRouterSettings: { enabled: true, mode: "balanced" },
         });
-        expect(gatewayzModelsWithRouter).toContain("gatewayz/code-router");
-        expect(gatewayzModelsWithRouter).toContain(
-          "gatewayz/code-router/price",
-        );
-        expect(gatewayzModelsWithRouter).toContain(
-          "gatewayz/code-router/quality",
-        );
+        expect(gatewayzModelsWithRouter).toContain("gatewayz:code:balanced");
+        expect(gatewayzModelsWithRouter).toContain("gatewayz:code:price");
+        expect(gatewayzModelsWithRouter).toContain("gatewayz:code:performance");
         expect(gatewayzModelsWithRouter).toHaveLength(3);
 
         // Without Code Router
         const gatewayzModelsWithoutRouter = agentToModels("gatewayz", options);
         expect(gatewayzModelsWithoutRouter).not.toContain(
-          "gatewayz/code-router",
+          "gatewayz:code:balanced",
         );
         expect(gatewayzModelsWithoutRouter).not.toContain(
-          "gatewayz/code-router/price",
+          "gatewayz:code:price",
         );
         expect(gatewayzModelsWithoutRouter).not.toContain(
-          "gatewayz/code-router/quality",
+          "gatewayz:code:performance",
         );
       });
     });
 
     describe("isPlanModeSupported for Code Router models", () => {
       it("should return true for Code Router models", () => {
-        expect(isPlanModeSupported("gatewayz/code-router")).toBe(true);
-        expect(isPlanModeSupported("gatewayz/code-router/price")).toBe(true);
-        expect(isPlanModeSupported("gatewayz/code-router/quality")).toBe(true);
+        expect(isPlanModeSupported("gatewayz:code:balanced")).toBe(true);
+        expect(isPlanModeSupported("gatewayz:code:price")).toBe(true);
+        expect(isPlanModeSupported("gatewayz:code:performance")).toBe(true);
       });
     });
 
     describe("isImageUploadSupported for Code Router models", () => {
       it("should return true for Code Router models", () => {
-        expect(isImageUploadSupported("gatewayz/code-router")).toBe(true);
-        expect(isImageUploadSupported("gatewayz/code-router/price")).toBe(true);
-        expect(isImageUploadSupported("gatewayz/code-router/quality")).toBe(
-          true,
-        );
+        expect(isImageUploadSupported("gatewayz:code:balanced")).toBe(true);
+        expect(isImageUploadSupported("gatewayz:code:price")).toBe(true);
+        expect(isImageUploadSupported("gatewayz:code:performance")).toBe(true);
       });
     });
   });
