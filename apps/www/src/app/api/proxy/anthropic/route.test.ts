@@ -335,4 +335,261 @@ describe("Anthropic proxy route", () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("transforms image_url attachments to Anthropic source format for R2 URLs", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: "https://r2.example.com/image-123.png",
+                mime_type: "image/png",
+              },
+              {
+                type: "text",
+                text: "What's in this image?",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the image was transformed to Anthropic format
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "url",
+        url: "https://r2.example.com/image-123.png",
+      },
+    });
+
+    // Verify text part is unchanged
+    expect(parsedBody.messages[0].content[1]).toEqual({
+      type: "text",
+      text: "What's in this image?",
+    });
+  });
+
+  it("transforms base64 image_url attachments to Anthropic source format", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const base64Data =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: `data:image/png;base64,${base64Data}`,
+                mime_type: "image/png",
+              },
+              {
+                type: "text",
+                text: "Analyze this image",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the base64 image was transformed to Anthropic format
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/png",
+        data: base64Data,
+      },
+    });
+  });
+
+  it("transforms base64 image_url with charset parameter to Anthropic source format", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const base64Data =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: `data:image/png;charset=utf-8;base64,${base64Data}`,
+                mime_type: "image/png",
+              },
+              {
+                type: "text",
+                text: "Analyze this image",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the base64 image was transformed to Anthropic format
+    // The charset parameter should be stripped, only media_type should remain
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/png",
+        data: base64Data,
+      },
+    });
+  });
+
+  it("transforms base64 image_url with name parameter to Anthropic source format", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const base64Data =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: `data:image/jpeg;name=photo.jpg;base64,${base64Data}`,
+                mime_type: "image/jpeg",
+              },
+              {
+                type: "text",
+                text: "Analyze this image",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the base64 image was transformed to Anthropic format
+    // The name parameter should be stripped, only media_type should remain
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/jpeg",
+        data: base64Data,
+      },
+    });
+  });
 });
