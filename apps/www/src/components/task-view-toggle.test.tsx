@@ -227,28 +227,38 @@ describe("TaskViewToggle logic", () => {
 
   describe("mobile behavior", () => {
     // Helper function to simulate the mobile default logic
+    // The actual implementation checks if the cookie exists - if not, it's a first-time user
     const shouldSwitchToNewProject = (
       platform: "mobile" | "desktop" | "unknown",
       viewMode: "list" | "kanban" | "new-project",
+      cookieExists: boolean,
     ) => {
-      return platform === "mobile" && viewMode === "list";
+      // Only switch for mobile users with list view who have never set a preference (no cookie)
+      return platform === "mobile" && viewMode === "list" && !cookieExists;
     };
 
-    it("should default to new-project view on mobile for better onboarding", () => {
-      // On mobile, when viewMode is list (default), it should switch to new-project
-      expect(shouldSwitchToNewProject("mobile", "list")).toBe(true);
+    it("should default to new-project view on mobile for first-time users", () => {
+      // On mobile, when viewMode is list and no cookie exists, it should switch to new-project
+      expect(shouldSwitchToNewProject("mobile", "list", false)).toBe(true);
     });
 
     it("should not switch view on desktop", () => {
-      expect(shouldSwitchToNewProject("desktop", "list")).toBe(false);
+      expect(shouldSwitchToNewProject("desktop", "list", false)).toBe(false);
+    });
+
+    it("should not switch if user has previously set a preference (cookie exists)", () => {
+      // Even if current mode is list, if cookie exists user explicitly chose it
+      expect(shouldSwitchToNewProject("mobile", "list", true)).toBe(false);
     });
 
     it("should not switch if user already chose kanban", () => {
-      expect(shouldSwitchToNewProject("mobile", "kanban")).toBe(false);
+      expect(shouldSwitchToNewProject("mobile", "kanban", true)).toBe(false);
     });
 
     it("should not switch if user already chose new-project", () => {
-      expect(shouldSwitchToNewProject("mobile", "new-project")).toBe(false);
+      expect(shouldSwitchToNewProject("mobile", "new-project", true)).toBe(
+        false,
+      );
     });
   });
 });
