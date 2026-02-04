@@ -7,6 +7,7 @@ import { ServerProviders } from "@/components/system/server-providers";
 import { KonamiVideo } from "@/components/konami-video";
 import { Suspense } from "react";
 import { GatewayZAutoAuth } from "@/components/system/gatewayz-auto-auth";
+import { EmbedModeFavicon } from "@/components/system/embed-mode-favicon";
 
 export const metadata: Metadata = {
   title: "Terragon",
@@ -111,6 +112,8 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <GatewayZAutoAuth />
             </Suspense>
+            {/* Update favicon to Gatewayz logo in embed mode */}
+            <EmbedModeFavicon />
           </UserAtomsHydratorServer>
         </ServerProviders>
       </body>

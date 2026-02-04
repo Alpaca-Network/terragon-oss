@@ -5,6 +5,7 @@ import { useDocumentVisibility } from "@/hooks/useDocumentVisibility";
 import { secondaryPaneClosedAtom } from "@/atoms/user-cookies";
 import { atom, useAtom } from "jotai";
 import { usePlatform } from "@/hooks/use-platform";
+import { useEmbedMode } from "@/hooks/use-embed-mode";
 import { threadQueryKeys } from "@/queries/thread-queries";
 import { ThreadChatInfoFull, ThreadInfoFull } from "@terragon/shared/db/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,6 +51,7 @@ export function useThreadDocumentTitleAndFavicon({
   isThreadUnread: boolean;
   isReadOnly: boolean;
 }) {
+  const isEmbedMode = useEmbedMode();
   // Update document title and favicon based on unread messages
   const documentTitle = name
     ? getThreadDocumentTitle({ name, isUnread: isThreadUnread })
@@ -64,7 +66,10 @@ export function useThreadDocumentTitleAndFavicon({
       "link[rel*='icon']",
     ) as HTMLLinkElement;
     if (favicon) {
-      if (process.env.NODE_ENV === "development") {
+      // In embed mode, always use Gatewayz logo
+      if (isEmbedMode) {
+        favicon.href = "/gatewayz-logo-icon.png";
+      } else if (process.env.NODE_ENV === "development") {
         favicon.href =
           isThreadUnread && !isReadOnly
             ? "/favicon-dev-badged.png"
@@ -76,7 +81,7 @@ export function useThreadDocumentTitleAndFavicon({
             : "/favicon.png";
       }
     }
-  }, [documentTitle, isThreadUnread, isReadOnly]);
+  }, [documentTitle, isThreadUnread, isReadOnly, isEmbedMode]);
 }
 
 const secondaryPanelIsOpenLocalAtom = atom<boolean>(false);
