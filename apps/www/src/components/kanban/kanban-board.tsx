@@ -95,9 +95,12 @@ const TASK_PANEL_DEFAULT_WIDTH_PERCENT = 55;
 export const KanbanBoard = memo(function KanbanBoard({
   queryFilters,
   initialSelectedTaskId,
+  hideViewToggle = false,
 }: {
   queryFilters: ThreadListFilters;
   initialSelectedTaskId?: string | null;
+  /** When true, the view toggle is rendered externally (e.g., by Dashboard) */
+  hideViewToggle?: boolean;
 }) {
   // All hooks must be called unconditionally at the top (React Rules of Hooks)
   const platform = usePlatform();
@@ -534,6 +537,7 @@ export const KanbanBoard = memo(function KanbanBoard({
       <KanbanBoardMobile
         queryFilters={queryFilters}
         initialSelectedTaskId={initialSelectedTaskId}
+        hideViewToggle={hideViewToggle}
       />
     );
   }
@@ -748,7 +752,7 @@ export const KanbanBoard = memo(function KanbanBoard({
       ref={containerRef}
       className="flex flex-col h-full w-full overflow-hidden"
     >
-      {/* Header with view toggle and new task button */}
+      {/* Header with search and new task button */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
@@ -763,7 +767,7 @@ export const KanbanBoard = memo(function KanbanBoard({
           />
         </div>
         <div className="flex items-center gap-2">
-          <TaskViewToggle />
+          {!hideViewToggle && <TaskViewToggle />}
           <Button
             variant="default"
             size="sm"

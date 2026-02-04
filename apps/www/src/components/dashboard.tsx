@@ -180,96 +180,93 @@ export function Dashboard({
   }, [setViewMode]);
 
   return (
-    <div
-      className={cn(
-        "flex flex-col h-full w-full",
-        showKanbanView || showNewProjectView
-          ? "max-w-full"
-          : "max-w-2xl mx-auto gap-8 pt-2.5",
-      )}
-    >
+    <div className="flex flex-col h-full w-full">
       <FeatureUpsellToast />
 
-      {/* Task View Toggle - shown at top in inbox view and new-project view */}
-      {mounted && !showKanbanView && (
-        <div
-          className={cn(
-            "flex justify-end items-center gap-2 pb-0",
-            showNewProjectView && "px-4 pt-2",
-          )}
-        >
+      {/* Task View Toggle - consistent position at top-right for all views */}
+      {mounted && (
+        <div className="flex justify-end items-center px-4 py-2 flex-shrink-0">
           <TaskViewToggle />
         </div>
       )}
 
-      {/* New Project view - full-page template selection */}
-      {showNewProjectView && (
-        <div className="flex-1 overflow-auto">
-          <NewProjectView
-            onBack={handleBackFromNewProject}
-            onRepoCreated={handleBackFromNewProject}
-            className="h-full"
-          />
-        </div>
-      )}
-
-      {/* Inbox view - prompt box and onboarding content */}
-      {showInboxView && (
-        <>
-          <DashboardPromptBox
-            placeholder={placeholder}
-            status={null}
-            threadId={null}
-            onUpdate={onUpdate}
-            handleStop={handleStop}
-            handleSubmit={handleSubmit}
-            promptText={promptText ?? undefined}
-          />
-
-          {/* Mobile: Show pending/ongoing tasks below prompt box */}
-          {platform === "mobile" && <MobilePendingTasks />}
-
-          {/* Onboarding content - conditional based on user state */}
-          <div className="space-y-4">
-            {/* Recent Repos - for growing users with repos */}
-            {isGrowingUser && repoCount >= 1 && (
-              <RecentReposQuickAccess
-                repos={userRepos.slice(0, 5)}
-                onTaskSelect={(p) => setPromptText(p)}
-              />
-            )}
-
-            {/* Template Selector - for new users or users with few repos */}
-            {shouldShowTemplateSelector && <TemplateRepoSelector />}
-
-            {/* Kanban Promotion - for engaged but not power users */}
-            {isGrowingUser && <KanbanPromotionBanner />}
-
-            {/* Task Ideas - always show for growing users */}
-            {isGrowingUser && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground/70">
-                  Task Ideas
-                </h3>
-                <RecommendedTasks
-                  onTaskSelect={(p) => setPromptText(p)}
-                  selectedModel={selectedModel}
-                />
-              </div>
-            )}
+      {/* View-specific content */}
+      <div
+        className={cn(
+          "flex flex-col flex-1 min-h-0",
+          !showKanbanView &&
+            !showNewProjectView &&
+            "max-w-2xl mx-auto w-full gap-8",
+        )}
+      >
+        {/* New Project view - full-page template selection */}
+        {showNewProjectView && (
+          <div className="flex-1 overflow-auto">
+            <NewProjectView
+              onBack={handleBackFromNewProject}
+              onRepoCreated={handleBackFromNewProject}
+              className="h-full"
+            />
           </div>
-        </>
-      )}
+        )}
 
-      {/* Kanban view - single component handles responsive layout internally */}
-      {showKanbanView && (
-        <div className="flex flex-col flex-1 min-h-0">
+        {/* Inbox view - prompt box and onboarding content */}
+        {showInboxView && (
+          <>
+            <DashboardPromptBox
+              placeholder={placeholder}
+              status={null}
+              threadId={null}
+              onUpdate={onUpdate}
+              handleStop={handleStop}
+              handleSubmit={handleSubmit}
+              promptText={promptText ?? undefined}
+            />
+
+            {/* Mobile: Show pending/ongoing tasks below prompt box */}
+            {platform === "mobile" && <MobilePendingTasks />}
+
+            {/* Onboarding content - conditional based on user state */}
+            <div className="space-y-4">
+              {/* Recent Repos - for growing users with repos */}
+              {isGrowingUser && repoCount >= 1 && (
+                <RecentReposQuickAccess
+                  repos={userRepos.slice(0, 5)}
+                  onTaskSelect={(p) => setPromptText(p)}
+                />
+              )}
+
+              {/* Template Selector - for new users or users with few repos */}
+              {shouldShowTemplateSelector && <TemplateRepoSelector />}
+
+              {/* Kanban Promotion - for engaged but not power users */}
+              {isGrowingUser && <KanbanPromotionBanner />}
+
+              {/* Task Ideas - always show for growing users */}
+              {isGrowingUser && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground/70">
+                    Task Ideas
+                  </h3>
+                  <RecommendedTasks
+                    onTaskSelect={(p) => setPromptText(p)}
+                    selectedModel={selectedModel}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Kanban view - single component handles responsive layout internally */}
+        {showKanbanView && (
           <KanbanBoard
             queryFilters={queryFilters}
             initialSelectedTaskId={initialTaskId}
+            hideViewToggle
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
