@@ -145,6 +145,7 @@
     "eslint-config-next": "^15.3.4",
     "eslint-plugin-react-hooks": "6.0.0-rc1",
     "postcss": "^8.5.5",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.10",
     "tsx": "^4.19.4",
     "tw-animate-css": "^1.3.0",
