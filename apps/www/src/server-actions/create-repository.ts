@@ -104,7 +104,9 @@ async function selectRepo(
 }
 
 /**
- * Create a new repository from a GitHub template
+ * Create a new repository from a GitHub template or by forking
+ * If the source repo is a GitHub template, uses the template API.
+ * Otherwise, falls back to forking the repository.
  */
 export const createRepositoryFromTemplate = userOnlyAction(
   async function createRepositoryFromTemplate(
@@ -135,15 +137,107 @@ export const createRepositoryFromTemplate = userOnlyAction(
     const { data: user } = await octokit.rest.users.getAuthenticated();
 
     try {
-      // Create repo from template
-      const { data: repo } = await octokit.rest.repos.createUsingTemplate({
-        template_owner: templateOwner,
-        template_repo: templateRepo,
-        owner: user.login,
-        name: repoName,
-        private: isPrivate,
-        description: `Created from ${templateOwner}/${templateRepo}`,
+      // First, check if the source repository is a GitHub template
+      const { data: sourceRepo } = await octokit.rest.repos.get({
+        owner: templateOwner,
+        repo: templateRepo,
       });
+
+      let repo;
+      let creationMethod: "template" | "fork";
+
+      if (sourceRepo.is_template) {
+        // Source repo is a template, use the template API
+        const { data: templateRepoData } =
+          await octokit.rest.repos.createUsingTemplate({
+            template_owner: templateOwner,
+            template_repo: templateRepo,
+            owner: user.login,
+            name: repoName,
+            private: isPrivate,
+            description: `Created from ${templateOwner}/${templateRepo}`,
+          });
+        repo = templateRepoData;
+        creationMethod = "template";
+      } else {
+        // Source repo is not a template, fall back to forking
+        const { data: forkedRepo } = await octokit.rest.repos.createFork({
+          owner: templateOwner,
+          repo: templateRepo,
+          name: repoName,
+          default_branch_only: true,
+        });
+
+        // Poll for fork readiness with exponential backoff instead of fixed delay
+        // GitHub fork creation is async and timing varies by repo size
+        const maxAttempts = 5;
+        const baseDelayMs = 1000;
+        let forkReady = false;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const { data: checkRepo } = await octokit.rest.repos.get({
+              owner: user.login,
+              repo: forkedRepo.name,
+            });
+            // Fork is ready when we can fetch it and it has content
+            if (checkRepo.size !== undefined) {
+              forkReady = true;
+              break;
+            }
+          } catch {
+            // Fork not ready yet, continue polling
+          }
+
+          if (attempt < maxAttempts) {
+            const delay = baseDelayMs * Math.pow(2, attempt - 1); // Exponential backoff
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+
+        if (!forkReady) {
+          console.warn(
+            `Fork ${user.login}/${forkedRepo.name} may not be fully ready after polling`,
+          );
+        }
+
+        // Track whether we successfully made the repo private
+        let madePrivate = forkedRepo.private;
+
+        // Update the forked repo's visibility if needed (forks default to same as parent)
+        // Note: Can only make a fork private if you have a paid plan and the source allows it
+        if (isPrivate && !forkedRepo.private) {
+          try {
+            await octokit.rest.repos.update({
+              owner: user.login,
+              repo: forkedRepo.name,
+              private: true,
+            });
+            madePrivate = true;
+          } catch {
+            // If we can't make it private, continue anyway but track this
+            console.warn(
+              "Could not make forked repository private. Continuing with public visibility.",
+            );
+            madePrivate = false;
+          }
+        }
+
+        // Fetch the updated repo info
+        const { data: updatedRepo } = await octokit.rest.repos.get({
+          owner: user.login,
+          repo: forkedRepo.name,
+        });
+
+        repo = updatedRepo;
+        creationMethod = "fork";
+
+        // If user requested private but we couldn't make it private, note this for later
+        if (isPrivate && !madePrivate && !updatedRepo.private) {
+          // Store this info to include in response message
+          (repo as any)._privacyWarning = true;
+        }
+      }
 
       const repoFullName = repo.full_name;
       const defaultBranch = repo.default_branch || "main";
@@ -183,26 +277,39 @@ export const createRepositoryFromTemplate = userOnlyAction(
           template: `${templateOwner}/${templateRepo}`,
           repoName,
           isPrivate,
+          creationMethod,
         },
       });
+
+      // Check if there was a privacy warning
+      const hasPrivacyWarning = (repo as any)._privacyWarning === true;
+      const message = hasPrivacyWarning
+        ? "Repository created and task started! Note: The repository could not be made private (requires a paid GitHub plan for private forks)."
+        : "Repository created and task started!";
 
       return {
         repoFullName,
         threadId: thread.threadId,
-        message: "Repository created and task started!",
+        message,
       };
     } catch (error: any) {
       console.error("Failed to create repository from template:", error);
 
       if (error.status === 404) {
         throw new UserFacingError(
-          `Template repository ${templateOwner}/${templateRepo} not found or is not a template.`,
+          `Repository ${templateOwner}/${templateRepo} not found.`,
         );
       }
 
       if (error.status === 422) {
         throw new UserFacingError(
           `Repository name "${repoName}" is already taken or invalid.`,
+        );
+      }
+
+      if (error.status === 403) {
+        throw new UserFacingError(
+          `Access denied. The repository ${templateOwner}/${templateRepo} may not allow forking, or you may have reached your repository limit.`,
         );
       }
 
