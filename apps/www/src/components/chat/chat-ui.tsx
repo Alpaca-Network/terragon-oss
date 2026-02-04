@@ -94,24 +94,29 @@ function ChatUI({
 
   // Handle initial panel from URL query parameter (e.g., ?panel=comments)
   // This is used when clicking notifications to navigate directly to comments
-  const hasHandledInitialPanel = useRef(false);
+  // Track the last threadId we handled to reset on navigation between tasks
+  const lastHandledThreadIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
-    if (hasHandledInitialPanel.current || !initialPanel) {
-      return;
+    // Reset when navigating to a different thread
+    if (lastHandledThreadIdRef.current !== threadId) {
+      lastHandledThreadIdRef.current = threadId;
+      // Only handle initialPanel on fresh navigation to this thread
+      if (!initialPanel) {
+        return;
+      }
+      const validPanels: SecondaryPanelView[] = [
+        "files-changed",
+        "comments",
+        "checks",
+        "coverage",
+        "merge",
+      ];
+      if (validPanels.includes(initialPanel as SecondaryPanelView)) {
+        setSecondaryPanelView(initialPanel as SecondaryPanelView);
+        setIsSecondaryPanelOpen(true);
+      }
     }
-    const validPanels: SecondaryPanelView[] = [
-      "files-changed",
-      "comments",
-      "checks",
-      "coverage",
-      "merge",
-    ];
-    if (validPanels.includes(initialPanel as SecondaryPanelView)) {
-      hasHandledInitialPanel.current = true;
-      setSecondaryPanelView(initialPanel as SecondaryPanelView);
-      setIsSecondaryPanelOpen(true);
-    }
-  }, [initialPanel, setSecondaryPanelView, setIsSecondaryPanelOpen]);
+  }, [threadId, initialPanel, setSecondaryPanelView, setIsSecondaryPanelOpen]);
 
   const promptBoxRef = useRef<{
     focus: () => void;
