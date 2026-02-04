@@ -168,8 +168,41 @@ export const createRepositoryFromTemplate = userOnlyAction(
           default_branch_only: true,
         });
 
-        // Wait a moment for GitHub to complete fork setup
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Poll for fork readiness with exponential backoff instead of fixed delay
+        // GitHub fork creation is async and timing varies by repo size
+        const maxAttempts = 5;
+        const baseDelayMs = 1000;
+        let forkReady = false;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const { data: checkRepo } = await octokit.rest.repos.get({
+              owner: user.login,
+              repo: forkedRepo.name,
+            });
+            // Fork is ready when we can fetch it and it has content
+            if (checkRepo.size !== undefined) {
+              forkReady = true;
+              break;
+            }
+          } catch {
+            // Fork not ready yet, continue polling
+          }
+
+          if (attempt < maxAttempts) {
+            const delay = baseDelayMs * Math.pow(2, attempt - 1); // Exponential backoff
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+
+        if (!forkReady) {
+          console.warn(
+            `Fork ${user.login}/${forkedRepo.name} may not be fully ready after polling`,
+          );
+        }
+
+        // Track whether we successfully made the repo private
+        let madePrivate = forkedRepo.private;
 
         // Update the forked repo's visibility if needed (forks default to same as parent)
         // Note: Can only make a fork private if you have a paid plan and the source allows it
@@ -180,11 +213,13 @@ export const createRepositoryFromTemplate = userOnlyAction(
               repo: forkedRepo.name,
               private: true,
             });
+            madePrivate = true;
           } catch {
-            // If we can't make it private, continue anyway
+            // If we can't make it private, continue anyway but track this
             console.warn(
               "Could not make forked repository private. Continuing with public visibility.",
             );
+            madePrivate = false;
           }
         }
 
@@ -196,6 +231,12 @@ export const createRepositoryFromTemplate = userOnlyAction(
 
         repo = updatedRepo;
         creationMethod = "fork";
+
+        // If user requested private but we couldn't make it private, note this for later
+        if (isPrivate && !madePrivate && !updatedRepo.private) {
+          // Store this info to include in response message
+          (repo as any)._privacyWarning = true;
+        }
       }
 
       const repoFullName = repo.full_name;
@@ -240,10 +281,16 @@ export const createRepositoryFromTemplate = userOnlyAction(
         },
       });
 
+      // Check if there was a privacy warning
+      const hasPrivacyWarning = (repo as any)._privacyWarning === true;
+      const message = hasPrivacyWarning
+        ? "Repository created and task started! Note: The repository could not be made private (requires a paid GitHub plan for private forks)."
+        : "Repository created and task started!";
+
       return {
         repoFullName,
         threadId: thread.threadId,
-        message: "Repository created and task started!",
+        message,
       };
     } catch (error: any) {
       console.error("Failed to create repository from template:", error);

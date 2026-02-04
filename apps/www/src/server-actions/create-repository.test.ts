@@ -110,7 +110,8 @@ describe("createRepositoryFromTemplate", () => {
     await mockWaitUntil();
     await mockLoggedInUser(session);
 
-    // Source repo is NOT a template
+    // Source repo is NOT a template (first call checks is_template)
+    // Subsequent calls are for polling fork readiness and fetching updated info
     mockOctokit.rest.repos.get
       .mockResolvedValueOnce({
         data: {
@@ -118,6 +119,16 @@ describe("createRepositoryFromTemplate", () => {
           full_name: "vercel/next.js",
         },
       })
+      // Polling call - fork is ready
+      .mockResolvedValueOnce({
+        data: {
+          full_name: "testuser/my-nextjs-app",
+          default_branch: "main",
+          private: false,
+          size: 1000,
+        },
+      })
+      // Final fetch for updated repo info
       .mockResolvedValueOnce({
         data: {
           full_name: "testuser/my-nextjs-app",
@@ -170,6 +181,16 @@ describe("createRepositoryFromTemplate", () => {
           full_name: "owner/repo",
         },
       })
+      // Polling call - fork is ready
+      .mockResolvedValueOnce({
+        data: {
+          full_name: "testuser/my-repo",
+          default_branch: "main",
+          private: false,
+          size: 1000,
+        },
+      })
+      // Final fetch for updated repo info (after making private)
       .mockResolvedValueOnce({
         data: {
           full_name: "testuser/my-repo",
@@ -210,7 +231,7 @@ describe("createRepositoryFromTemplate", () => {
     });
   });
 
-  it("should continue if making forked repo private fails", async () => {
+  it("should continue if making forked repo private fails and show warning in message", async () => {
     const { session } = await createTestUser({ db });
     await mockWaitUntil();
     await mockLoggedInUser(session);
@@ -223,6 +244,16 @@ describe("createRepositoryFromTemplate", () => {
           full_name: "owner/repo",
         },
       })
+      // Polling call - fork is ready
+      .mockResolvedValueOnce({
+        data: {
+          full_name: "testuser/my-repo",
+          default_branch: "main",
+          private: false,
+          size: 1000,
+        },
+      })
+      // Final fetch - still public because update failed
       .mockResolvedValueOnce({
         data: {
           full_name: "testuser/my-repo",
@@ -253,8 +284,10 @@ describe("createRepositoryFromTemplate", () => {
     });
     await waitUntilResolved();
 
-    // Should still succeed despite not being able to make private
+    // Should still succeed but with privacy warning in message
     expect(result.success).toBe(true);
+    const data = unwrapResult(result);
+    expect(data.message).toContain("could not be made private");
   });
 
   it("should return user-friendly error when source repo is not found", async () => {
