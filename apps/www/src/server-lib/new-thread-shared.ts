@@ -58,6 +58,8 @@ export interface CreateThreadOptions {
   scheduleAt?: number | null;
   disableGitCheckpointing?: boolean;
   skipSetup?: boolean;
+  autoFixFeedback?: boolean;
+  autoMergePR?: boolean;
   sourceType: ThreadSource;
   sourceMetadata?: ThreadSourceMetadata;
   delayMs?: number;
@@ -83,6 +85,8 @@ export async function createNewThread({
   scheduleAt = null,
   disableGitCheckpointing = false,
   skipSetup = false,
+  autoFixFeedback = false,
+  autoMergePR = false,
   sourceType,
   sourceMetadata,
   delayMs = 0,
@@ -213,6 +217,8 @@ export async function createNewThread({
       githubIssueNumber,
       disableGitCheckpointing,
       skipSetup,
+      autoFixFeedback,
+      autoMergePR,
       sourceType,
       sourceMetadata,
     },

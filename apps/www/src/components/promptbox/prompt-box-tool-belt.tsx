@@ -18,8 +18,12 @@ import {
   disableGitCheckpointingCookieAtom,
   createNewBranchCookieAtom,
   skipSetupCookieAtom,
+  autoFixFeedbackCookieAtom,
+  autoMergePRCookieAtom,
 } from "@/atoms/user-cookies";
 import { useAtom } from "jotai";
+import { AutoFixFeedbackToggle } from "./auto-fix-feedback-toggle";
+import { AutoMergeToggle } from "./auto-merge-toggle";
 
 interface PromptBoxToolBeltProps {
   /** Whether to show the skip archive button */
@@ -59,6 +63,28 @@ interface PromptBoxToolBeltProps {
   onCreateNewBranchChange?: (value: boolean) => void;
   /** Whether to disable create new branch button */
   createNewBranchDisabled?: boolean;
+
+  /** Whether to show the auto-fix feedback toggle button */
+  showAutoFixFeedback?: boolean;
+  /** Value for auto-fix feedback (true = auto-fix enabled) */
+  autoFixFeedbackValue?: boolean;
+  /** Handler for auto-fix feedback toggle */
+  onAutoFixFeedbackChange?: (value: boolean) => void;
+  /** Whether to disable auto-fix feedback button */
+  autoFixFeedbackDisabled?: boolean;
+  /** Whether to disable toast for auto-fix feedback */
+  autoFixFeedbackDisableToast?: boolean;
+
+  /** Whether to show the auto-merge PR toggle button */
+  showAutoMergePR?: boolean;
+  /** Value for auto-merge PR (true = auto-merge enabled) */
+  autoMergePRValue?: boolean;
+  /** Handler for auto-merge PR toggle */
+  onAutoMergePRChange?: (value: boolean) => void;
+  /** Whether to disable auto-merge PR button */
+  autoMergePRDisabled?: boolean;
+  /** Whether to disable toast for auto-merge PR */
+  autoMergePRDisableToast?: boolean;
 }
 
 export function PromptBoxToolBelt({
@@ -79,6 +105,16 @@ export function PromptBoxToolBelt({
   createNewBranchValue = true,
   onCreateNewBranchChange,
   createNewBranchDisabled = false,
+  showAutoFixFeedback = false,
+  autoFixFeedbackValue = false,
+  onAutoFixFeedbackChange,
+  autoFixFeedbackDisabled = false,
+  autoFixFeedbackDisableToast = false,
+  showAutoMergePR = false,
+  autoMergePRValue = false,
+  onAutoMergePRChange,
+  autoMergePRDisabled = false,
+  autoMergePRDisableToast = false,
 }: PromptBoxToolBeltProps) {
   const isBranchToggleEnabled = useFeatureFlag("branchCreationToggle");
 
@@ -86,6 +122,8 @@ export function PromptBoxToolBelt({
     !showSkipArchive &&
     !showSkipSetup &&
     !showCheckpoint &&
+    !showAutoFixFeedback &&
+    !showAutoMergePR &&
     (!showCreateNewBranchOption || !isBranchToggleEnabled)
   ) {
     return null;
@@ -134,6 +172,22 @@ export function PromptBoxToolBelt({
           showDialog={checkpointShowDialog}
         />
       )}
+      {showAutoFixFeedback && (
+        <AutoFixFeedbackToggle
+          disabled={autoFixFeedbackDisabled}
+          disableToast={autoFixFeedbackDisableToast}
+          value={autoFixFeedbackValue}
+          onChange={onAutoFixFeedbackChange!}
+        />
+      )}
+      {showAutoMergePR && (
+        <AutoMergeToggle
+          disabled={autoMergePRDisabled}
+          disableToast={autoMergePRDisableToast}
+          value={autoMergePRValue}
+          onChange={onAutoMergePRChange!}
+        />
+      )}
     </div>
   );
 }
@@ -144,12 +198,16 @@ export function usePromptBoxToolBeltOptions({
   initialSkipSetup,
   initialDisableGitCheckpointing,
   initialCreateNewBranch,
+  initialAutoFixFeedback,
+  initialAutoMergePR,
 }: {
   branchName: string | null;
   shouldUseCookieValues?: boolean;
   initialSkipSetup?: boolean;
   initialDisableGitCheckpointing?: boolean;
   initialCreateNewBranch?: boolean;
+  initialAutoFixFeedback?: boolean;
+  initialAutoMergePR?: boolean;
 }) {
   const [skipArchiving, setSkipArchiving] = useState<boolean>(false);
   const [skipSetupCookie, setSkipSetupCookie] = useAtom(skipSetupCookieAtom);
@@ -157,6 +215,12 @@ export function usePromptBoxToolBeltOptions({
     useAtom(disableGitCheckpointingCookieAtom);
   const [createNewBranchCookie, setCreateNewBranchCookie] = useAtom(
     createNewBranchCookieAtom,
+  );
+  const [autoFixFeedbackCookie, setAutoFixFeedbackCookie] = useAtom(
+    autoFixFeedbackCookieAtom,
+  );
+  const [autoMergePRCookie, setAutoMergePRCookie] = useAtom(
+    autoMergePRCookieAtom,
   );
 
   const [skipSetupLocal, setSkipSetupLocal] = useState<boolean>(
@@ -172,6 +236,14 @@ export function usePromptBoxToolBeltOptions({
     shouldUseCookieValues
       ? createNewBranchCookie
       : (initialCreateNewBranch ?? true),
+  );
+  const [autoFixFeedbackLocal, setAutoFixFeedbackLocal] = useState<boolean>(
+    shouldUseCookieValues
+      ? autoFixFeedbackCookie
+      : (initialAutoFixFeedback ?? false),
+  );
+  const [autoMergePRLocal, setAutoMergePRLocal] = useState<boolean>(
+    shouldUseCookieValues ? autoMergePRCookie : (initialAutoMergePR ?? false),
   );
 
   const createNewBranch = useMemo(() => {
@@ -215,6 +287,26 @@ export function usePromptBoxToolBeltOptions({
     [shouldUseCookieValues, setCreateNewBranchCookie, setCreateNewBranchState],
   );
 
+  const setAutoFixFeedback = useCallback(
+    (value: boolean) => {
+      setAutoFixFeedbackLocal(value);
+      if (shouldUseCookieValues) {
+        setAutoFixFeedbackCookie(value);
+      }
+    },
+    [shouldUseCookieValues, setAutoFixFeedbackCookie, setAutoFixFeedbackLocal],
+  );
+
+  const setAutoMergePR = useCallback(
+    (value: boolean) => {
+      setAutoMergePRLocal(value);
+      if (shouldUseCookieValues) {
+        setAutoMergePRCookie(value);
+      }
+    },
+    [shouldUseCookieValues, setAutoMergePRCookie, setAutoMergePRLocal],
+  );
+
   const branchNameRef = useRef(branchName);
   useEffect(() => {
     if (branchName && branchName !== branchNameRef.current) {
@@ -228,9 +320,13 @@ export function usePromptBoxToolBeltOptions({
     disableGitCheckpointing: disableGitCheckpointingLocal,
     createNewBranch,
     skipArchiving,
+    autoFixFeedback: autoFixFeedbackLocal,
+    autoMergePR: autoMergePRLocal,
     setSkipSetup,
     setSkipArchiving,
     setDisableGitCheckpointing,
     setCreateNewBranch,
+    setAutoFixFeedback,
+    setAutoMergePR,
   };
 }

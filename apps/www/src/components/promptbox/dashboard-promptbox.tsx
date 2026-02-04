@@ -31,6 +31,8 @@ export type DashboardPromptBoxHandleSubmit = (
     disableGitCheckpointing: boolean;
     skipSetup: boolean;
     createNewBranch: boolean;
+    autoFixFeedback: boolean;
+    autoMergePR: boolean;
   },
 ) => Promise<void>;
 
@@ -65,9 +67,13 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
     skipSetup,
     disableGitCheckpointing,
     createNewBranch,
+    autoFixFeedback,
+    autoMergePR,
     setSkipSetup,
     setDisableGitCheckpointing,
     setCreateNewBranch,
+    setAutoFixFeedback,
+    setAutoMergePR,
   } = usePromptBoxToolBeltOptions({
     branchName,
     shouldUseCookieValues: true,
@@ -101,9 +107,18 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
         disableGitCheckpointing,
         skipSetup,
         createNewBranch,
+        autoFixFeedback,
+        autoMergePR,
       });
     },
-    [props, disableGitCheckpointing, skipSetup, createNewBranch],
+    [
+      props,
+      disableGitCheckpointing,
+      skipSetup,
+      createNewBranch,
+      autoFixFeedback,
+      autoMergePR,
+    ],
   );
 
   const {
@@ -206,6 +221,14 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
           createNewBranchValue={createNewBranch}
           onCreateNewBranchChange={setCreateNewBranch}
           createNewBranchDisabled={!repoFullName}
+          showAutoFixFeedback={true}
+          autoFixFeedbackValue={autoFixFeedback}
+          onAutoFixFeedbackChange={setAutoFixFeedback}
+          autoFixFeedbackDisabled={!repoFullName}
+          showAutoMergePR={true}
+          autoMergePRValue={autoMergePR}
+          onAutoMergePRChange={setAutoMergePR}
+          autoMergePRDisabled={!repoFullName}
         />
       </div>
       {/* Smart Context Section */}

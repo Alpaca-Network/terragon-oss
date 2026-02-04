@@ -42,6 +42,8 @@ export const KanbanNewTaskDialog = memo(function KanbanNewTaskDialog({
       disableGitCheckpointing,
       skipSetup,
       createNewBranch,
+      autoFixFeedback,
+      autoMergePR,
     }) => {
       try {
         unwrapResult(
@@ -55,6 +57,8 @@ export const KanbanNewTaskDialog = memo(function KanbanNewTaskDialog({
             createNewBranch,
             scheduleAt,
             selectedModels,
+            autoFixFeedback,
+            autoMergePR,
           }),
         );
         queryClient.refetchQueries({

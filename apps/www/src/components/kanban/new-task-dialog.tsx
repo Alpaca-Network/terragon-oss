@@ -56,9 +56,13 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
     skipSetup,
     disableGitCheckpointing,
     createNewBranch,
+    autoFixFeedback,
+    autoMergePR,
     setSkipSetup,
     setDisableGitCheckpointing,
     setCreateNewBranch,
+    setAutoFixFeedback,
+    setAutoMergePR,
   } = usePromptBoxToolBeltOptions({
     branchName,
     shouldUseCookieValues: true,
@@ -111,6 +115,8 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
             createNewBranch,
             disableGitCheckpointing,
             skipSetup,
+            autoFixFeedback,
+            autoMergePR,
           }),
         );
 
@@ -140,6 +146,8 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
       createNewBranch,
       disableGitCheckpointing,
       skipSetup,
+      autoFixFeedback,
+      autoMergePR,
       queryClient,
       onOpenChange,
     ],
@@ -202,6 +210,14 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
               createNewBranchValue={createNewBranch}
               onCreateNewBranchChange={setCreateNewBranch}
               createNewBranchDisabled={!repoFullName}
+              showAutoFixFeedback={true}
+              autoFixFeedbackValue={autoFixFeedback}
+              onAutoFixFeedbackChange={setAutoFixFeedback}
+              autoFixFeedbackDisabled={!repoFullName}
+              showAutoMergePR={true}
+              autoMergePRValue={autoMergePR}
+              onAutoMergePRChange={setAutoMergePR}
+              autoMergePRDisabled={!repoFullName}
             />
           </div>
 
