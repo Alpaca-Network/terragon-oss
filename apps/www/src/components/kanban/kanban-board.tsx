@@ -117,7 +117,6 @@ export const KanbanBoard = memo(function KanbanBoard({
   const [isQuickAddBacklogOpen, setIsQuickAddBacklogOpen] = useAtom(
     kanbanQuickAddBacklogOpenAtom,
   );
-  const [isDoneColumnCollapsed, setIsDoneColumnCollapsed] = useState(false);
   const [isFullScreenTask, setIsFullScreenTask] = useState(false);
   const [fullScreenColumnIndex, setFullScreenColumnIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -616,11 +615,6 @@ export const KanbanBoard = memo(function KanbanBoard({
                     : undefined
                 }
                 onThreadCommentsClick={handleThreadCommentsClick}
-                showCollapseToggle={currentColumn.id === "done"}
-                isCollapsed={isDoneColumnCollapsed}
-                onToggleCollapse={() =>
-                  setIsDoneColumnCollapsed(!isDoneColumnCollapsed)
-                }
                 showNavigation={true}
                 canNavigateLeft={fullScreenColumnIndex > 0}
                 canNavigateRight={
@@ -826,11 +820,6 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                   onThreadCommentsClick={handleThreadCommentsClick}
-                  showCollapseToggle={column.id === "done"}
-                  isCollapsed={isDoneColumnCollapsed}
-                  onToggleCollapse={() =>
-                    setIsDoneColumnCollapsed(!isDoneColumnCollapsed)
-                  }
                 />
               ))}
             </div>
