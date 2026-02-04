@@ -23,7 +23,7 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
     "feed" | "changes" | "code-review"
   >("feed");
 
-  const { data, isLoading, refetch } = useInfiniteThreadList({
+  const { data, isLoading, isError, refetch } = useInfiniteThreadList({
     archived: false,
     isBacklog: false,
   });
@@ -97,6 +97,19 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
     return (
       <div className={cn("flex items-center justify-center py-8", className)}>
         <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div
+        className={cn(
+          "rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive",
+          className,
+        )}
+      >
+        Failed to load active tasks. Please try again.
       </div>
     );
   }
