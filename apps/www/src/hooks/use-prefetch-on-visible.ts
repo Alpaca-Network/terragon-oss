@@ -34,9 +34,10 @@ export function usePrefetchOnVisible(threadId: string) {
 
   const setRef = useCallback(
     (element: HTMLElement | null) => {
-      // Clean up previous observer
+      // Clean up previous observer and callback
       if (elementRef.current) {
         observerInstance?.unobserve(elementRef.current);
+        observerCallbacks.delete(elementRef.current);
       }
 
       elementRef.current = element;

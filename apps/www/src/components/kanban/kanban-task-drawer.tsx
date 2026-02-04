@@ -23,7 +23,11 @@ import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
-import { startMetric, endMetric } from "@/lib/performance-metrics";
+import {
+  startMetric,
+  endMetric,
+  cancelMetric,
+} from "@/lib/performance-metrics";
 
 const FuturisticLoader = () => (
   <div className="flex flex-col items-center justify-center h-full gap-4 gradient-shift-bg">
@@ -107,6 +111,7 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
       drawerOpenMetricRef.current = startMetric("task_drawer_open", threadId);
     } else if (!open && drawerOpenMetricRef.current) {
       // Drawer closed before content loaded - cancel the metric
+      cancelMetric(drawerOpenMetricRef.current);
       drawerOpenMetricRef.current = null;
     }
   }, [open, threadId]);

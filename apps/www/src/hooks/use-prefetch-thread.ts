@@ -46,7 +46,9 @@ export function usePrefetchThreads(threads: ThreadInfo[]) {
     }
 
     // Prefetch each thread's detail data with performance tracking
-    const batchMetricKey = startMetric("prefetch_threads_batch", undefined, {
+    // Use timestamp-based unique ID to avoid collision on overlapping runs
+    const batchId = `${Date.now()}`;
+    const batchMetricKey = startMetric("prefetch_threads_batch", batchId, {
       count: limitedThreads.length,
     });
 
