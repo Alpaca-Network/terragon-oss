@@ -46,7 +46,9 @@ export const retryGitCheckpoint = userOnlyAction(
       },
     });
     if (!didUpdateStatus) {
-      throw new Error("Failed to update thread");
+      throw new UserFacingError(
+        "Unable to retry git checkpoint - the task may already be in progress. Please refresh the page.",
+      );
     }
     waitUntil(checkpointThread({ threadId, threadChatId, userId }));
   },
