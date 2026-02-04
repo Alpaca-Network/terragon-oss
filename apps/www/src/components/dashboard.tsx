@@ -34,6 +34,7 @@ import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { usePlatform } from "@/hooks/use-platform";
 import { getCookieOrNull } from "@/lib/cookies-client";
 import { dashboardViewModeKey } from "@/lib/cookies";
+import { MobilePendingTasks } from "./mobile-pending-tasks";
 
 export function Dashboard({
   showArchived = false,
@@ -220,6 +221,9 @@ export function Dashboard({
             handleSubmit={handleSubmit}
             promptText={promptText ?? undefined}
           />
+
+          {/* Mobile: Show pending/ongoing tasks below prompt box */}
+          {platform === "mobile" && <MobilePendingTasks />}
 
           {/* Onboarding content - conditional based on user state */}
           <div className="space-y-4">

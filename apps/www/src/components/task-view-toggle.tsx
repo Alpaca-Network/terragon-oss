@@ -76,8 +76,7 @@ export function TaskViewToggle({ className, threadId }: TaskViewToggleProps) {
         onClick={() => handleToggle("new-project")}
       >
         <Plus className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">New Project</span>
-        <span className="sm:hidden">New</span>
+        <span>Project</span>
       </Button>
       <Button
         variant={viewMode === "kanban" ? "secondary" : "ghost"}
