@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useLongPress } from "@/hooks/useLongPress";
 import { usePrefetchThread } from "@/hooks/use-prefetch-thread";
+import { usePrefetchOnVisible } from "@/hooks/use-prefetch-on-visible";
 
 export const KanbanCard = memo(function KanbanCard({
   thread,
@@ -38,6 +39,8 @@ export const KanbanCard = memo(function KanbanCard({
   const [isStarting, setIsStarting] = useState(false);
   const submitDraftMutation = useSubmitDraftThreadMutation();
   const prefetchThread = usePrefetchThread();
+  // Prefetch thread data when card becomes visible (most aggressive)
+  const visibilityRef = usePrefetchOnVisible(thread.id);
   const isDraft = useMemo(() => isDraftThread(thread), [thread]);
   const isError = useMemo(() => isErrorThread(thread), [thread]);
   const title = useMemo(() => getThreadTitle(thread), [thread]);
@@ -92,6 +95,7 @@ export const KanbanCard = memo(function KanbanCard({
 
   return (
     <div
+      ref={visibilityRef}
       onClick={onClick}
       onContextMenu={longPressHandlers.onContextMenu}
       onTouchStart={(e) => {

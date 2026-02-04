@@ -47,9 +47,9 @@ describe("use-prefetch-thread", () => {
       expect(MAX_PREFETCH_COUNT).toBeLessThanOrEqual(10); // Reasonable maximum
     });
 
-    it("should have MAX_PREFETCH_COUNT set to 5", () => {
-      // Document the expected value - test will fail if constant changes
-      expect(MAX_PREFETCH_COUNT).toBe(5);
+    it("should have MAX_PREFETCH_COUNT set to 8", () => {
+      // Document the expected value - increased from 5 to 8 for better mobile coverage
+      expect(MAX_PREFETCH_COUNT).toBe(8);
     });
   });
 

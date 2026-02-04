@@ -16,13 +16,18 @@ import {
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { threadQueryOptions } from "@/queries/thread-queries";
 import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import {
+  startMetric,
+  endMetric,
+  cancelMetric,
+} from "@/lib/performance-metrics";
 
 const FuturisticLoader = () => (
   <div className="flex flex-col items-center justify-center h-full gap-4 gradient-shift-bg">
@@ -98,11 +103,42 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
     DEFAULT_SNAP_POINT,
   );
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drawerOpenMetricRef = useRef<string | null>(null);
+  const wasCachedRef = useRef<boolean>(false);
+  const queryClient = useQueryClient();
+
+  // Track drawer open time for performance metrics
+  useEffect(() => {
+    if (open && threadId) {
+      // Check if data is already in cache when drawer opens
+      const cachedData = queryClient.getQueryData(
+        threadQueryOptions(threadId).queryKey,
+      );
+      wasCachedRef.current = !!cachedData;
+      drawerOpenMetricRef.current = startMetric("task_drawer_open", threadId);
+    } else if (!open && drawerOpenMetricRef.current) {
+      // Drawer closed before content loaded - cancel the metric
+      cancelMetric(drawerOpenMetricRef.current);
+      drawerOpenMetricRef.current = null;
+    }
+  }, [open, threadId, queryClient]);
 
   const { data: thread } = useQuery({
     ...threadQueryOptions(threadId ?? ""),
     enabled: !!threadId,
   });
+
+  // End the drawer open metric when thread data is loaded
+  useEffect(() => {
+    if (thread && drawerOpenMetricRef.current) {
+      endMetric(drawerOpenMetricRef.current, {
+        cached: wasCachedRef.current,
+        hasGitDiff: !!thread.gitDiff,
+        hasPR: !!thread.githubPRNumber,
+      });
+      drawerOpenMetricRef.current = null;
+    }
+  }, [thread]);
 
   const hasPR = thread?.githubPRNumber != null;
 

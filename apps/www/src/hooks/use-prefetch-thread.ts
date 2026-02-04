@@ -4,9 +4,12 @@ import { useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThreadInfo } from "@terragon/shared";
 import { threadQueryOptions } from "@/queries/thread-queries";
+import { startMetric, endMetric } from "@/lib/performance-metrics";
 
-// Maximum number of threads to prefetch at once to avoid over-fetching
-export const MAX_PREFETCH_COUNT = 5;
+// Maximum number of threads to prefetch at once
+// Increased from 5 to 8 for better mobile coverage
+// Mobile kanban typically shows 3-5 tasks per column, so 8 covers most visible content
+export const MAX_PREFETCH_COUNT = 8;
 
 /**
  * Prefetches thread detail data for visible threads and populates the React Query cache.
@@ -42,14 +45,32 @@ export function usePrefetchThreads(threads: ThreadInfo[]) {
       prefetchedRef.current.add(thread.id);
     }
 
-    // Prefetch each thread's detail data
+    // Prefetch each thread's detail data with performance tracking
+    // Use timestamp-based unique ID to avoid collision on overlapping runs
+    const batchId = `${Date.now()}`;
+    const batchMetricKey = startMetric("prefetch_threads_batch", batchId, {
+      count: limitedThreads.length,
+    });
+
+    let completedCount = 0;
     for (const thread of limitedThreads) {
+      const metricKey = startMetric("prefetch_thread", thread.id);
       queryClient
         .prefetchQuery(threadQueryOptions(thread.id))
+        .then(() => {
+          endMetric(metricKey, { success: true });
+        })
         .catch((error) => {
           console.error(`Error prefetching thread ${thread.id}:`, error);
+          endMetric(metricKey, { success: false });
           // Remove from prefetched set so it can be retried
           prefetchedRef.current.delete(thread.id);
+        })
+        .finally(() => {
+          completedCount++;
+          if (completedCount === limitedThreads.length) {
+            endMetric(batchMetricKey, { completedCount });
+          }
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- using threadIds for stable comparison
@@ -64,10 +85,17 @@ export function usePrefetchThread() {
   const queryClient = useQueryClient();
 
   return (threadId: string) => {
-    queryClient.prefetchQuery(threadQueryOptions(threadId)).catch((error) => {
-      // Silently handle prefetch errors - prefetching is an optimization,
-      // the actual fetch will happen when the drawer opens if this fails
-      console.error(`Error prefetching thread ${threadId}:`, error);
-    });
+    const metricKey = startMetric("prefetch_thread", threadId);
+    queryClient
+      .prefetchQuery(threadQueryOptions(threadId))
+      .then(() => {
+        endMetric(metricKey, { success: true, source: "hover" });
+      })
+      .catch((error) => {
+        // Silently handle prefetch errors - prefetching is an optimization,
+        // the actual fetch will happen when the drawer opens if this fails
+        console.error(`Error prefetching thread ${threadId}:`, error);
+        endMetric(metricKey, { success: false, source: "hover" });
+      });
   };
 }
