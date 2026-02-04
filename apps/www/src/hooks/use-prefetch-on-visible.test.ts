@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock IntersectionObserver before any imports
@@ -64,7 +61,8 @@ describe("usePrefetchOnVisible", () => {
     it("should trigger callback only when isIntersecting is true", () => {
       // This tests the IntersectionObserver callback logic
       const callbackFn = vi.fn();
-      const mockTarget = document.createElement("div");
+      // Create a mock element object instead of using document.createElement
+      const mockTarget = { id: "mock-element-1" } as unknown as Element;
       const mockCallbacks = new Map<Element, () => void>();
       mockCallbacks.set(mockTarget, callbackFn);
 
@@ -92,8 +90,9 @@ describe("usePrefetchOnVisible", () => {
     it("should handle multiple elements independently", () => {
       const callback1 = vi.fn();
       const callback2 = vi.fn();
-      const target1 = document.createElement("div");
-      const target2 = document.createElement("div");
+      // Create mock element objects instead of using document.createElement
+      const target1 = { id: "mock-element-1" } as unknown as Element;
+      const target2 = { id: "mock-element-2" } as unknown as Element;
       const mockCallbacks = new Map<Element, () => void>();
       mockCallbacks.set(target1, callback1);
       mockCallbacks.set(target2, callback2);
