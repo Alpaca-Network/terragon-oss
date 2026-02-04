@@ -132,17 +132,34 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      await connectGatewayZToExistingUser(existingUserId, gwSession);
-      console.log("GatewayZ callback: Connected to existing user", {
-        userId: existingUserId,
-        gwUserId: gwSession.gwUserId,
-        tier: gwSession.tier,
-      });
+      try {
+        await connectGatewayZToExistingUser(existingUserId, gwSession);
+        console.log("GatewayZ callback: Connected to existing user", {
+          userId: existingUserId,
+          gwUserId: gwSession.gwUserId,
+          tier: gwSession.tier,
+        });
 
-      // Redirect back to settings with success message
-      return NextResponse.redirect(
-        new URL(`${returnUrl}?gatewayz_connected=true`, baseUrl),
-      );
+        // Redirect back to settings with success message
+        return NextResponse.redirect(
+          new URL(`${returnUrl}?gatewayz_connected=true`, baseUrl),
+        );
+      } catch (error) {
+        // Handle collision error - GatewayZ account already linked to another user
+        if (
+          error instanceof Error &&
+          error.message.includes("already linked to another user")
+        ) {
+          console.warn("GatewayZ callback: Account already linked", {
+            userId: existingUserId,
+            gwUserId: gwSession.gwUserId,
+          });
+          return NextResponse.redirect(
+            new URL(`${returnUrl}?error=gatewayz_already_linked`, baseUrl),
+          );
+        }
+        throw error; // Re-throw other errors
+      }
     }
 
     // Handle login mode - create or link user and create session

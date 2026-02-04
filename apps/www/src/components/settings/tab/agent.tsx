@@ -425,7 +425,7 @@ function CodeRouterSettingsSection() {
   const hasGatewayz = userCredentials?.hasGatewayz ?? false;
   const gwTier = userCredentials?.gwTier ?? "free";
 
-  // Handle successful Gatewayz connection callback
+  // Handle Gatewayz connection callback (success or error)
   useEffect(() => {
     if (searchParams.get("gatewayz_connected") === "true") {
       // Refetch credentials to update the UI
@@ -434,6 +434,18 @@ function CodeRouterSettingsSection() {
       // Clean up the URL
       const url = new URL(window.location.href);
       url.searchParams.delete("gatewayz_connected");
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    // Handle error cases
+    const error = searchParams.get("error");
+    if (error === "gatewayz_already_linked") {
+      toast.error(
+        "This Gatewayz account is already linked to another user. Please use a different Gatewayz account or contact support.",
+      );
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
       window.history.replaceState({}, "", url.toString());
     }
   }, [searchParams, refetchUserCredentials]);

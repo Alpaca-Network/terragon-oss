@@ -307,5 +307,180 @@ describe("gatewayz-auth-server", () => {
 
       expect(users[0]!.gwTier).toBe("free");
     });
+
+    it("should throw error when GatewayZ account is already linked to another user", async () => {
+      // Create first user with a GatewayZ account
+      const firstUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: firstUserId,
+        email: `${testEmailPrefix}-first@example.com`,
+        name: "First User",
+        emailVerified: true,
+        gwUserId: "99999",
+        gwTier: "pro",
+        gwTierUpdatedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(firstUserId);
+
+      // Create second user without GatewayZ
+      const secondUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: secondUserId,
+        email: `${testEmailPrefix}-second@example.com`,
+        name: "Second User",
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(secondUserId);
+
+      // Try to connect the same GatewayZ account to second user
+      const gwSession: GatewayZSession = {
+        gwUserId: 99999, // Same as first user
+        email: `${testEmailPrefix}-second@example.com`,
+        username: "seconduser",
+        tier: "pro",
+        keyHash: "collision123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      await expect(
+        connectGatewayZToExistingUser(secondUserId, gwSession),
+      ).rejects.toThrow("already linked to another user");
+    });
+
+    it("should allow reconnecting the same GatewayZ account to the same user", async () => {
+      // Create a user with a GatewayZ account
+      const existingUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: existingUserId,
+        email: `${testEmailPrefix}-same@example.com`,
+        name: "Same User",
+        emailVerified: true,
+        gwUserId: "88888",
+        gwTier: "free",
+        gwTierUpdatedAt: new Date(Date.now() - 86400000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(existingUserId);
+
+      // Reconnect with updated tier
+      const gwSession: GatewayZSession = {
+        gwUserId: 88888, // Same gwUserId
+        email: `${testEmailPrefix}-same@example.com`,
+        username: "sameuser",
+        tier: "max", // Upgraded tier
+        keyHash: "same123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      // Should not throw
+      await connectGatewayZToExistingUser(existingUserId, gwSession);
+
+      // Verify tier was updated
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+
+      expect(users[0]!.gwTier).toBe("max");
+    });
+  });
+
+  describe("findOrCreateUserFromGatewayZ - collision prevention", () => {
+    it("should return existing user when GatewayZ account is already linked", async () => {
+      // Create a user with a GatewayZ account
+      const existingUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: existingUserId,
+        email: `${testEmailPrefix}-linked@example.com`,
+        name: "Linked User",
+        emailVerified: true,
+        gwUserId: "77777",
+        gwTier: "pro",
+        gwTierUpdatedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(existingUserId);
+
+      // Try to login with the same GatewayZ account but different email
+      const gwSession: GatewayZSession = {
+        gwUserId: 77777, // Same as existing user
+        email: `${testEmailPrefix}-different@example.com`, // Different email
+        username: "differentuser",
+        tier: "max",
+        keyHash: "linked123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      const result = await findOrCreateUserFromGatewayZ(gwSession);
+
+      // Should return the existing user, not create a new one
+      expect(result.isNewUser).toBe(false);
+      expect(result.userId).toBe(existingUserId);
+
+      // Verify tier was updated
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+
+      expect(users[0]!.gwTier).toBe("max");
+      // Email should remain unchanged
+      expect(users[0]!.email).toBe(`${testEmailPrefix}-linked@example.com`);
+    });
+
+    it("should prioritize gwUserId match over email match", async () => {
+      // Create user A with gwUserId 11111
+      const userAId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: userAId,
+        email: `${testEmailPrefix}-usera@example.com`,
+        name: "User A",
+        emailVerified: true,
+        gwUserId: "111111",
+        gwTier: "free",
+        gwTierUpdatedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(userAId);
+
+      // Create user B with email that matches the incoming session
+      const userBId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: userBId,
+        email: `${testEmailPrefix}-userb@example.com`,
+        name: "User B",
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(userBId);
+
+      // Login with gwUserId that matches User A, but email that matches User B
+      const gwSession: GatewayZSession = {
+        gwUserId: 111111, // Matches User A
+        email: `${testEmailPrefix}-userb@example.com`, // Matches User B
+        username: "confusinguser",
+        tier: "pro",
+        keyHash: "priority123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      const result = await findOrCreateUserFromGatewayZ(gwSession);
+
+      // Should return User A (gwUserId match takes precedence)
+      expect(result.userId).toBe(userAId);
+      expect(result.isNewUser).toBe(false);
+    });
   });
 });
