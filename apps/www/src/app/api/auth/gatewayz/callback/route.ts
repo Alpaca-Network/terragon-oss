@@ -122,9 +122,11 @@ export async function GET(request: NextRequest) {
       const existingUserId = await getUserIdOrNull();
       if (!existingUserId) {
         // User not logged in, redirect to login
+        // Build the nested URL properly to avoid double encoding
+        const initiateUrl = `/api/auth/gatewayz/initiate?mode=connect&returnUrl=${encodeURIComponent(returnUrl)}`;
         return NextResponse.redirect(
           new URL(
-            `/login?returnUrl=${encodeURIComponent("/api/auth/gatewayz/initiate?mode=connect&returnUrl=" + encodeURIComponent(returnUrl))}`,
+            `/login?returnUrl=${encodeURIComponent(initiateUrl)}`,
             baseUrl,
           ),
         );
