@@ -20,6 +20,7 @@ import { getDefaultModelForAgent, modelToAgent } from "@terragon/agent/utils";
 import { uploadUserMessageImages } from "@/lib/r2-file-upload-server";
 import { getAccessInfoForUser } from "@/lib/subscription";
 import { SUBSCRIPTION_MESSAGES } from "@/lib/subscription-msgs";
+import { resetAutoFixIterationCount } from "./auto-fix-feedback";
 
 export async function followUpInternal({
   userId,
@@ -72,6 +73,12 @@ export async function followUpInternal({
       source,
     },
   });
+
+  // Reset auto-fix iteration count when user manually sends a follow-up
+  // This gives them a fresh budget of auto-fix iterations
+  if (source === "www") {
+    waitUntil(resetAutoFixIterationCount({ threadId, userId }));
+  }
   const { didUpdateStatus, updatedStatus } =
     await updateThreadChatWithTransition({
       userId,
