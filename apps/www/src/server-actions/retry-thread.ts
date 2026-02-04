@@ -55,7 +55,9 @@ export const retryThread = userOnlyAction(
           threadStatus: threadChat.status,
         },
       );
-      return;
+      throw new UserFacingError(
+        "Unable to retry task - it may already be in progress or was retried by another action. Please refresh the page.",
+      );
     }
     await ensureThreadChatHasUserMessage({
       threadChat,

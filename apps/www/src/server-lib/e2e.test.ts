@@ -797,6 +797,53 @@ describe("end-to-end", () => {
     expect(threadChatUpdated!.errorMessage).toBeNull();
   });
 
+  it("retry thread fails when thread is already in progress", async () => {
+    const testUserAndAccount = await createTestUser({ db });
+    const user = testUserAndAccount.user;
+    const session = testUserAndAccount.session;
+    await saveClaudeTokensForTest({ userId: user.id });
+
+    await mockWaitUntil();
+    await mockLoggedInUser(session);
+    const { threadId, threadChatId } = await newThread({
+      message: {
+        type: "user",
+        model: "sonnet",
+        parts: [{ type: "text", text: "Hello, world!" }],
+      },
+      githubRepoFullName: "terragon/test-repo",
+      branchName: "main",
+    });
+    await waitUntilResolved();
+
+    // Thread is now in 'booting' state - trying to retry should fail
+    const threadChat = await getThreadChat({
+      db,
+      userId: user.id,
+      threadId,
+      threadChatId,
+    });
+    expect(threadChat!.status).toBe("booting");
+
+    // Retry should fail with UserFacingError because thread is not in 'complete' state
+    await expect(
+      retryThreadAction({ threadId, threadChatId }),
+    ).resolves.toEqual({
+      success: false,
+      errorMessage:
+        "Unable to retry task - it may already be in progress or was retried by another action. Please refresh the page.",
+    });
+
+    // Thread status should remain unchanged
+    const threadChatAfterRetry = await getThreadChat({
+      db,
+      userId: user.id,
+      threadId,
+      threadChatId,
+    });
+    expect(threadChatAfterRetry!.status).toBe("booting");
+  });
+
   it("new thread -> checkpoint error -> retry git checkpoint", async () => {
     const testUserAndAccount = await createTestUser({ db });
     const user = testUserAndAccount.user;
