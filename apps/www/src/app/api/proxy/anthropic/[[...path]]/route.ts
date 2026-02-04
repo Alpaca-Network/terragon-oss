@@ -349,7 +349,10 @@ async function proxyRequest(
 
                   if (imageUrl.startsWith("data:")) {
                     // Handle base64 data URLs
-                    const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+                    // Format: data:image/png;base64,DATA or data:image/png;charset=utf-8;base64,DATA
+                    const match = imageUrl.match(
+                      /^data:([^;,]+)(?:;[^;,]*)*;base64,(.+)$/,
+                    );
                     if (match) {
                       message.content[i] = {
                         type: "image",
