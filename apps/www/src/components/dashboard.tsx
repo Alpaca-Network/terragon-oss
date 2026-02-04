@@ -6,7 +6,7 @@ import {
 } from "./promptbox/dashboard-promptbox";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -32,6 +32,8 @@ import { NewProjectView } from "./onboarding/new-project-view";
 import { getUserRepos } from "@/server-actions/user-repos";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
 import { usePlatform } from "@/hooks/use-platform";
+import { getCookieOrNull } from "@/lib/cookies-client";
+import { dashboardViewModeKey } from "@/lib/cookies";
 
 export function Dashboard({
   showArchived = false,
@@ -49,24 +51,21 @@ export function Dashboard({
   const searchParams = useSearchParams();
   const initialTaskId = searchParams.get("task");
 
-  // Track whether we've already applied the mobile default
-  const hasAppliedMobileDefault = useRef(false);
-
   // Set default view to 'new-project' on mobile for first-time users
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // On mobile, default to 'new-project' view only once on initial load
-  // This prevents overriding user's explicit choice to switch to Inbox
+  // On mobile, default to 'new-project' view only for users who have never set a view preference.
+  // We check if the cookie exists - if it doesn't exist (null), this is a first-time user.
+  // Once they select any view, the cookie is set and we never override their choice again.
   useEffect(() => {
-    if (
-      platform === "mobile" &&
-      viewMode === "list" &&
-      !hasAppliedMobileDefault.current
-    ) {
-      hasAppliedMobileDefault.current = true;
-      setViewMode("new-project");
+    if (platform === "mobile" && viewMode === "list") {
+      const existingCookie = getCookieOrNull(dashboardViewModeKey);
+      // Only auto-switch if the cookie doesn't exist (truly first-time user)
+      if (existingCookie === null) {
+        setViewMode("new-project");
+      }
     }
   }, [platform, viewMode, setViewMode]);
 
