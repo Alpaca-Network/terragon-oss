@@ -57,13 +57,19 @@ export function DraftTaskDialog({
   const {
     disableGitCheckpointing,
     skipSetup,
+    autoFixFeedback,
+    autoMergePR,
     setDisableGitCheckpointing,
     setSkipSetup,
+    setAutoFixFeedback,
+    setAutoMergePR,
   } = usePromptBoxToolBeltOptions({
     branchName: selectedBranch,
     shouldUseCookieValues: false,
     initialDisableGitCheckpointing: !!thread.disableGitCheckpointing,
     initialSkipSetup: !!thread.skipSetup,
+    initialAutoFixFeedback: !!thread.autoFixFeedback,
+    initialAutoMergePR: !!thread.autoMergePR,
   });
 
   // Use a ref to store the debounced callback so handleSubmit can cancel it
@@ -159,6 +165,26 @@ export function DraftTaskDialog({
     },
     [thread.id, updateDraftThreadMutation, setSkipSetup],
   );
+  const handleToggleAutoFixFeedback = useCallback(
+    async (enabled: boolean) => {
+      setAutoFixFeedback(enabled);
+      await updateDraftThreadMutation.mutateAsync({
+        threadId: thread.id,
+        updates: { autoFixFeedback: enabled },
+      });
+    },
+    [thread.id, updateDraftThreadMutation, setAutoFixFeedback],
+  );
+  const handleToggleAutoMergePR = useCallback(
+    async (enabled: boolean) => {
+      setAutoMergePR(enabled);
+      await updateDraftThreadMutation.mutateAsync({
+        threadId: thread.id,
+        updates: { autoMergePR: enabled },
+      });
+    },
+    [thread.id, updateDraftThreadMutation, setAutoMergePR],
+  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[95dvh]">
@@ -205,6 +231,14 @@ export function DraftTaskDialog({
               checkpointValue={disableGitCheckpointing}
               onCheckpointChange={handleToggleCheckpoint}
               checkpointDisabled={!selectedRepoFullName}
+              showAutoFixFeedback={true}
+              autoFixFeedbackValue={autoFixFeedback}
+              onAutoFixFeedbackChange={handleToggleAutoFixFeedback}
+              autoFixFeedbackDisabled={!selectedRepoFullName}
+              showAutoMergePR={true}
+              autoMergePRValue={autoMergePR}
+              onAutoMergePRChange={handleToggleAutoMergePR}
+              autoMergePRDisabled={!selectedRepoFullName}
             />
           </div>
         </div>

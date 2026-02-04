@@ -31,6 +31,8 @@ export type UpdateDraftThreadUpdates = Partial<{
   branchName: string;
   disableGitCheckpointing: boolean;
   skipSetup: boolean;
+  autoFixFeedback: boolean;
+  autoMergePR: boolean;
 }>;
 
 export const updateDraftThread = userOnlyAction(
@@ -70,6 +72,12 @@ export const updateDraftThread = userOnlyAction(
     }
     if (typeof updates.skipSetup === "boolean") {
       updatesToApply.skipSetup = updates.skipSetup;
+    }
+    if (typeof updates.autoFixFeedback === "boolean") {
+      updatesToApply.autoFixFeedback = updates.autoFixFeedback;
+    }
+    if (typeof updates.autoMergePR === "boolean") {
+      updatesToApply.autoMergePR = updates.autoMergePR;
     }
     const threadChat = getPrimaryThreadChat(thread);
     if (Object.keys(updatesToApply).length > 0) {
