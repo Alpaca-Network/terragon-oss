@@ -29,6 +29,7 @@ import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
+import { PlayCircleIcon } from "lucide-react";
 
 const feedbackTypeBadgeVariants: Record<
   FeedbackType,
@@ -46,6 +47,7 @@ type FeedbackWithUser = {
   type: FeedbackType;
   message: string;
   currentPage: string;
+  sessionReplayUrl: string | null;
   resolved: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -132,6 +134,28 @@ export function AdminFeedback({
         </span>
       ),
       size: 200,
+    },
+    {
+      accessorKey: "sessionReplayUrl",
+      header: "Session",
+      cell: ({ row }) => {
+        const url = row.getValue<string | null>("sessionReplayUrl");
+        if (!url) {
+          return <span className="text-sm text-muted-foreground">-</span>;
+        }
+        return (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+          >
+            <PlayCircleIcon className="h-4 w-4" />
+            View
+          </a>
+        );
+      },
+      size: 80,
     },
     {
       accessorKey: "userName",
@@ -291,6 +315,21 @@ export function AdminFeedback({
                       {selectedFeedback.currentPage}
                     </p>
                   </div>
+
+                  {selectedFeedback.sessionReplayUrl && (
+                    <div>
+                      <h4 className="font-medium mb-1">Session Replay</h4>
+                      <a
+                        href={selectedFeedback.sessionReplayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                      >
+                        <PlayCircleIcon className="h-4 w-4" />
+                        Watch session recording
+                      </a>
+                    </div>
+                  )}
 
                   <div>
                     <h4 className="font-medium mb-1">Status</h4>
