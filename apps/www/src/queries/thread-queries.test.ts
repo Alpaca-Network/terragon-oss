@@ -215,8 +215,9 @@ describe("threadQueryOptions", () => {
     const options = threadQueryOptions("test-thread-id");
 
     // Verify cache settings exist for mobile performance optimization
-    expect(options.staleTime).toBe(30000); // 30 seconds
-    expect(options.gcTime).toBe(5 * 60 * 1000); // 5 minutes
+    // Increased from 30s/5m to 2m/10m for better mobile cache hit rates
+    expect(options.staleTime).toBe(2 * 60 * 1000); // 2 minutes
+    expect(options.gcTime).toBe(10 * 60 * 1000); // 10 minutes
   });
 
   it("should include correct query key for thread detail", () => {

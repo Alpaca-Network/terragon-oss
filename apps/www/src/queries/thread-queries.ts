@@ -71,8 +71,12 @@ export function threadQueryOptions(threadId: string) {
       return getThreadAction(threadId);
     },
     // Cache thread data to improve mobile performance when opening task drawer
-    staleTime: 30000, // 30 seconds - data is fresh, no refetch needed
-    gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache for quick re-access
+    // Longer times because:
+    // 1. Mobile users frequently switch between tasks
+    // 2. Real-time updates come via WebSocket, so stale data is quickly refreshed
+    // 3. Reducing network requests improves battery life
+    staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh, no background refetch
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache for quick re-access
   });
 }
 
