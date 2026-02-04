@@ -45,6 +45,16 @@ export default function Footer() {
                   Documentation
                 </a>
               </li>
+              <li>
+                <a
+                  href="https://jogral.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Jogral
+                </a>
+              </li>
             </ul>
           </div>
 

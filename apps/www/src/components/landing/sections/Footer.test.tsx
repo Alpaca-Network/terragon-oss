@@ -73,12 +73,19 @@ describe("Footer branding configuration", () => {
   describe("resources links", () => {
     const resourcesLinks = [
       { name: "Documentation", href: "https://docs.terragonlabs.com" },
+      { name: "Jogral", href: "https://jogral.io" },
     ];
 
     it("should have Documentation link pointing to docs", () => {
       const link = resourcesLinks.find((l) => l.name === "Documentation");
       expect(link).toBeDefined();
       expect(link?.href).toContain("docs.terragonlabs.com");
+    });
+
+    it("should have Jogral link", () => {
+      const link = resourcesLinks.find((l) => l.name === "Jogral");
+      expect(link).toBeDefined();
+      expect(link?.href).toBe("https://jogral.io");
     });
   });
 
