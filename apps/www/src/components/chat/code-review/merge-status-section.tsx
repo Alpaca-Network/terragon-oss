@@ -251,20 +251,6 @@ git push`;
           </p>
         </div>
       )}
-
-      {/* Ready to merge state */}
-      {isMergeable && (
-        <div className="p-4 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
-          <h4 className="text-sm font-medium mb-2 flex items-center gap-2 text-green-700 dark:text-green-400">
-            <CheckCircle2 className="size-4" />
-            Ready to merge
-          </h4>
-          <p className="text-sm text-muted-foreground">
-            All checks have passed and there are no conflicts. You can use the
-            Merge button above to merge this PR.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

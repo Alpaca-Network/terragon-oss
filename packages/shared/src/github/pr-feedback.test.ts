@@ -386,6 +386,47 @@ describe("aggregatePRFeedback", () => {
     graphql: vi.fn(),
   };
 
+  // Helper to create PR details with sensible defaults
+  const createPRDetails = (
+    overrides: Partial<{
+      mergeable: boolean | null;
+      mergeable_state: string;
+      draft: boolean;
+      closed_at: string | null;
+      merged_at: string | null;
+    }> = {},
+  ) => ({
+    html_url: "https://github.com/owner/repo/pull/123",
+    title: "Test PR",
+    draft: false,
+    closed_at: null,
+    merged_at: null,
+    base: { ref: "main" },
+    head: { ref: "feature", sha: "abc123" },
+    mergeable: true,
+    mergeable_state: "clean",
+    ...overrides,
+  });
+
+  // Helper to setup minimal mocks for aggregatePRFeedback tests
+  const setupMinimalMocks = (prDetails: ReturnType<typeof createPRDetails>) => {
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({ data: [] });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -477,33 +518,11 @@ describe("aggregatePRFeedback", () => {
   });
 
   it("should detect merge conflicts", async () => {
-    const prDetails = {
-      html_url: "https://github.com/owner/repo/pull/123",
-      title: "Test PR",
-      draft: false,
-      closed_at: null,
-      merged_at: null,
-      base: { ref: "main" },
-      head: { ref: "feature", sha: "abc123" },
+    const prDetails = createPRDetails({
       mergeable: false,
       mergeable_state: "dirty",
-    };
-
-    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
-    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({ data: [] });
-    mockOctokit.rest.checks.listForRef.mockResolvedValue({
-      data: { check_runs: [] },
     });
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        pullRequest: {
-          reviewThreads: {
-            nodes: [],
-            pageInfo: { hasNextPage: false, endCursor: null },
-          },
-        },
-      },
-    });
+    setupMinimalMocks(prDetails);
 
     const feedback = await aggregatePRFeedback(
       mockOctokit as any,
@@ -842,6 +861,38 @@ Details here...
 
     expect(feedback.coverageCheck).not.toBeNull();
     expect(feedback.coverageCheck?.name).toBe("Codecov/patch");
+  });
+
+  it("should mark PR as not mergeable when mergeableState is unstable", async () => {
+    const prDetails = createPRDetails({ mergeable_state: "unstable" });
+    setupMinimalMocks(prDetails);
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(feedback.mergeableState).toBe("unstable");
+    expect(feedback.hasConflicts).toBe(false);
+    expect(feedback.isMergeable).toBe(false);
+  });
+
+  it("should mark PR as not mergeable when mergeableState is blocked", async () => {
+    const prDetails = createPRDetails({ mergeable_state: "blocked" });
+    setupMinimalMocks(prDetails);
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(feedback.mergeableState).toBe("blocked");
+    expect(feedback.hasConflicts).toBe(false);
+    expect(feedback.isMergeable).toBe(false);
   });
 });
 

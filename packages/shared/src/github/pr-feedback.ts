@@ -445,10 +445,13 @@ export async function aggregatePRFeedback(
   const mergeableState = getGithubPRMergeableState(prDetails);
   const hasConflicts = mergeableState === "dirty";
 
-  // Determine if PR is mergeable (GitHub's mergeable field handles check status)
+  // Determine if PR is mergeable. We explicitly exclude "unstable" state (failing checks)
+  // even though GitHub may still allow merging with non-required check failures.
+  // This ensures UI consistency - we don't show "Ready to merge" alongside "Failing checks".
   const isMergeable =
     !hasConflicts &&
     mergeableState !== "blocked" &&
+    mergeableState !== "unstable" &&
     prDetails.mergeable === true;
 
   return {
