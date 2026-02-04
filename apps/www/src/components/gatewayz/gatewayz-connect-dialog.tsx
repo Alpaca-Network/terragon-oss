@@ -11,27 +11,29 @@ import {
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
-const GATEWAYZ_URL =
-  process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai";
-
 interface GatewayzConnectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnUrl?: string;
 }
 
 export function GatewayzConnectDialog({
   open,
   onOpenChange,
+  returnUrl,
 }: GatewayzConnectDialogProps) {
   const handleConnect = () => {
-    // Redirect to Gatewayz sign-in with return URL
-    const returnUrl = encodeURIComponent(window.location.href);
-    window.open(
-      `${GATEWAYZ_URL}/signin?redirect_to=${returnUrl}`,
-      "_blank",
-      "noopener,noreferrer",
+    // Redirect to initiate Gatewayz OAuth flow in "connect" mode
+    const initiateUrl = new URL(
+      "/api/auth/gatewayz/initiate",
+      window.location.origin,
     );
-    onOpenChange(false);
+    initiateUrl.searchParams.set("mode", "connect");
+    initiateUrl.searchParams.set(
+      "returnUrl",
+      returnUrl || window.location.pathname,
+    );
+    window.location.href = initiateUrl.toString();
   };
 
   return (

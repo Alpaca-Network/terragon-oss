@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyGatewayZToken } from "@/lib/gatewayz-auth";
-import { createSessionForGatewayZUser } from "@/lib/gatewayz-auth-server";
+import {
+  createSessionForGatewayZUser,
+  connectGatewayZToExistingUser,
+} from "@/lib/gatewayz-auth-server";
+import { getUserIdOrNull } from "@/lib/auth-server";
 
 /**
  * Get the base URL for redirects.
@@ -77,8 +81,10 @@ function generateEmbedAuthPage(
 /**
  * GET /api/auth/gatewayz/callback
  *
- * Handle callback from GatewayZ login redirect.
- * Verifies the gwauth token, creates a session, and redirects to the target page.
+ * Handle callback from GatewayZ login/connect redirect.
+ * Verifies the gwauth token and either:
+ * - Creates a new session (login mode)
+ * - Links GatewayZ to existing user (connect mode)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -87,31 +93,59 @@ export async function GET(request: NextRequest) {
     const token = url.searchParams.get("gwauth");
     const returnUrl = url.searchParams.get("returnUrl") || "/dashboard";
     const embed = url.searchParams.get("embed") === "true";
+    const mode = url.searchParams.get("mode") || "login"; // "login" or "connect"
 
     if (!token) {
       console.error("GatewayZ callback: Missing token");
-      return NextResponse.redirect(
-        new URL(
-          `/login?error=missing_token&returnUrl=${encodeURIComponent(returnUrl)}`,
-          baseUrl,
-        ),
-      );
+      const errorRedirect =
+        mode === "connect"
+          ? `/settings/agent?error=missing_token`
+          : `/login?error=missing_token&returnUrl=${encodeURIComponent(returnUrl)}`;
+      return NextResponse.redirect(new URL(errorRedirect, baseUrl));
     }
 
     // Verify the GatewayZ token
     const gwSession = verifyGatewayZToken(token);
     if (!gwSession) {
       console.error("GatewayZ callback: Invalid or expired token");
+      const errorRedirect =
+        mode === "connect"
+          ? `/settings/agent?error=invalid_token`
+          : `/login?error=invalid_token&returnUrl=${encodeURIComponent(returnUrl)}`;
+      return NextResponse.redirect(new URL(errorRedirect, baseUrl));
+    }
+
+    let sessionToken: string;
+
+    // Handle connect mode - link GatewayZ to existing user
+    if (mode === "connect") {
+      const existingUserId = await getUserIdOrNull();
+      if (!existingUserId) {
+        // User not logged in, redirect to login
+        return NextResponse.redirect(
+          new URL(
+            `/login?returnUrl=${encodeURIComponent("/api/auth/gatewayz/initiate?mode=connect&returnUrl=" + encodeURIComponent(returnUrl))}`,
+            baseUrl,
+          ),
+        );
+      }
+
+      await connectGatewayZToExistingUser(existingUserId, gwSession);
+      console.log("GatewayZ callback: Connected to existing user", {
+        userId: existingUserId,
+        gwUserId: gwSession.gwUserId,
+        tier: gwSession.tier,
+      });
+
+      // Redirect back to settings with success message
       return NextResponse.redirect(
-        new URL(
-          `/login?error=invalid_token&returnUrl=${encodeURIComponent(returnUrl)}`,
-          baseUrl,
-        ),
+        new URL(`${returnUrl}?gatewayz_connected=true`, baseUrl),
       );
     }
 
-    // Create or link user and create session
-    const { sessionToken } = await createSessionForGatewayZUser(gwSession);
+    // Handle login mode - create or link user and create session
+    const result = await createSessionForGatewayZUser(gwSession);
+    sessionToken = result.sessionToken;
 
     console.log("GatewayZ callback: Session created successfully", {
       userId: gwSession.gwUserId,

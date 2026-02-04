@@ -107,3 +107,26 @@ export async function createSessionForGatewayZUser(
     userId,
   };
 }
+
+/**
+ * Connect a GatewayZ account to an existing user.
+ * Used when an already logged-in user wants to link their GatewayZ subscription.
+ */
+export async function connectGatewayZToExistingUser(
+  userId: string,
+  gwSession: GatewayZSession,
+): Promise<void> {
+  const now = new Date();
+  // Normalize tier - treat undefined/null as 'free'
+  const gwTier = (gwSession.tier || "free") as "free" | "pro" | "max";
+
+  await db
+    .update(schema.user)
+    .set({
+      gwUserId: String(gwSession.gwUserId),
+      gwTier,
+      gwTierUpdatedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(schema.user.id, userId));
+}

@@ -5,8 +5,6 @@ import { UserAtomsHydratorServer } from "@/components/system/user-atoms-server";
 import { Cabin, Geist, Geist_Mono } from "next/font/google";
 import { ServerProviders } from "@/components/system/server-providers";
 import { KonamiVideo } from "@/components/konami-video";
-import { Suspense } from "react";
-import { GatewayZAutoAuth } from "@/components/system/gatewayz-auto-auth";
 
 export const metadata: Metadata = {
   title: "Gatewayz Code",
@@ -105,10 +103,6 @@ export default function RootLayout({
             />
             {/* Persistent across routes */}
             <KonamiVideo startSeconds={155} />
-            {/* GatewayZ SSO - listens for auth from parent iframe */}
-            <Suspense fallback={null}>
-              <GatewayZAutoAuth />
-            </Suspense>
           </UserAtomsHydratorServer>
         </ServerProviders>
       </body>

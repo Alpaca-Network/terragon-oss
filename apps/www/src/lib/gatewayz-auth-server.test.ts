@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import {
   findOrCreateUserFromGatewayZ,
   createSessionForGatewayZUser,
+  connectGatewayZToExistingUser,
 } from "./gatewayz-auth-server";
 
 describe("gatewayz-auth-server", () => {
@@ -185,6 +186,126 @@ describe("gatewayz-auth-server", () => {
       await db
         .delete(schema.session)
         .where(eq(schema.session.token, result2.sessionToken));
+    });
+  });
+
+  describe("connectGatewayZToExistingUser", () => {
+    it("should update GatewayZ fields on existing user", async () => {
+      // Create a user without GatewayZ fields
+      const existingUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: existingUserId,
+        email: `${testEmailPrefix}-connect@example.com`,
+        name: "Connect User",
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(existingUserId);
+
+      // Verify user has no GatewayZ fields initially
+      const usersBefore = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+      expect(usersBefore[0]!.gwUserId).toBeNull();
+      expect(usersBefore[0]!.gwTier).toBeNull();
+
+      // Connect GatewayZ
+      const gwSession: GatewayZSession = {
+        gwUserId: 44444,
+        email: `${testEmailPrefix}-connect@example.com`,
+        username: "connectuser",
+        tier: "pro",
+        keyHash: "connect123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      await connectGatewayZToExistingUser(existingUserId, gwSession);
+
+      // Verify GatewayZ fields were updated
+      const usersAfter = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+
+      const user = usersAfter[0]!;
+      expect(user.gwUserId).toBe(String(gwSession.gwUserId));
+      expect(user.gwTier).toBe("pro");
+      expect(user.gwTierUpdatedAt).toBeDefined();
+    });
+
+    it("should update tier when connecting different GatewayZ account", async () => {
+      // Create a user with existing GatewayZ fields (free tier)
+      const existingUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: existingUserId,
+        email: `${testEmailPrefix}-upgrade@example.com`,
+        name: "Upgrade User",
+        emailVerified: true,
+        gwUserId: "11111",
+        gwTier: "free",
+        gwTierUpdatedAt: new Date(Date.now() - 86400000), // 1 day ago
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(existingUserId);
+
+      // Connect with a pro tier
+      const gwSession: GatewayZSession = {
+        gwUserId: 55555,
+        email: `${testEmailPrefix}-upgrade@example.com`,
+        username: "upgradeuser",
+        tier: "max",
+        keyHash: "upgrade123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      await connectGatewayZToExistingUser(existingUserId, gwSession);
+
+      // Verify tier was upgraded
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+
+      const user = users[0]!;
+      expect(user.gwUserId).toBe(String(gwSession.gwUserId));
+      expect(user.gwTier).toBe("max");
+    });
+
+    it("should default to free tier when tier is empty", async () => {
+      const existingUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: existingUserId,
+        email: `${testEmailPrefix}-freetier@example.com`,
+        name: "Free Tier User",
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(existingUserId);
+
+      const gwSession: GatewayZSession = {
+        gwUserId: 66666,
+        email: `${testEmailPrefix}-freetier@example.com`,
+        username: "freetieruser",
+        tier: "", // Empty tier
+        keyHash: "freetier123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      await connectGatewayZToExistingUser(existingUserId, gwSession);
+
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+
+      expect(users[0]!.gwTier).toBe("free");
     });
   });
 });
