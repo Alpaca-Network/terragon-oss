@@ -7,7 +7,10 @@ import {
   exchangeAuthorizationCode,
   refreshAccessToken,
 } from "@/lib/claude-oauth";
-import { saveClaudeTokens } from "@/agent/msg/claudeCredentials";
+import {
+  saveClaudeTokens,
+  validateClaudeAccessToken,
+} from "@/agent/msg/claudeCredentials";
 import { userOnlyAction } from "@/lib/auth-server";
 import { getPostHogServer } from "@/lib/posthog-server";
 import { UserFacingError } from "@/lib/server-actions";
@@ -153,9 +156,14 @@ export const saveClaudeCredentialsJson = userOnlyAction(
         );
       }
     } else {
-      // No refresh token provided - validate the access token by attempting to use it
-      // The saveClaudeTokens function will call checkAndUpdateClaudeStatus which validates the token
-      console.info("No refresh token provided, will validate access token");
+      // No refresh token provided - explicitly validate the access token
+      // by calling the profile API before saving
+      const isValid = await validateClaudeAccessToken(accessToken);
+      if (!isValid) {
+        throw new UserFacingError(
+          "Invalid Claude credentials. The access token could not be validated. Please ensure your credentials are current and try again.",
+        );
+      }
     }
 
     await saveClaudeTokens({
