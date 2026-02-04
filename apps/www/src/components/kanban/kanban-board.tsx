@@ -20,6 +20,7 @@ import {
   ChevronRight,
   CheckCircle2,
   LayoutGrid,
+  RefreshCw,
 } from "lucide-react";
 import { KanbanNewTaskDialog } from "./kanban-new-task-dialog";
 import {
@@ -557,22 +558,43 @@ export const KanbanBoard = memo(function KanbanBoard({
     );
   }
 
+  // Auto-retry on connection error
+  useEffect(() => {
+    if (isError) {
+      const timer = setTimeout(() => {
+        refetch();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isError, refetch]);
+
   if (isError) {
     return (
       <>
         <div className="flex flex-col h-full items-center justify-center gap-4">
           <p className="text-sm text-muted-foreground">
-            Failed to load tasks. Please try again.
+            Failed to load tasks. Retrying automatically...
           </p>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setNewTaskDialogOpen(true)}
-            className="gap-1.5"
-          >
-            <SquarePen className="h-3.5 w-3.5" />
-            New Task
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setNewTaskDialogOpen(true)}
+              className="gap-1.5"
+            >
+              <SquarePen className="h-3.5 w-3.5" />
+              New Task
+            </Button>
+          </div>
         </div>
         <KanbanNewTaskDialog
           open={newTaskDialogOpen}
