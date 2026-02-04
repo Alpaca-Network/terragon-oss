@@ -484,6 +484,31 @@ describe("Gatewayz proxy route", () => {
     }
   });
 
+  it("supports Gatewayz Optimizer models", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({}), {
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const models = [
+      "gatewayz:code:balanced",
+      "gatewayz:code:price",
+      "gatewayz:code:performance",
+    ];
+
+    for (const model of models) {
+      const request = createRequest({
+        body: { model, messages: [] },
+      });
+      const response = await POST(request, { params: {} });
+      expect(response.status).toBe(200);
+    }
+  });
+
   it("rejects unsupported models", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
