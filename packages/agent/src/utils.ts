@@ -1189,6 +1189,13 @@ export function parseModelOrNull({
       return "opencode-oai/gpt-5-codex";
     case "opencode/sonnet":
       return "opencode-ant/sonnet";
+    // Legacy gatewayz code router model names (for backward compatibility)
+    case "gatewayz/code-router":
+      return "gatewayz:code:balanced";
+    case "gatewayz/code-router/price":
+      return "gatewayz:code:price";
+    case "gatewayz/code-router/quality":
+      return "gatewayz:code:performance";
     default:
       const _exhaustiveCheck: never = modelAsExternal;
       console.warn("Unknown model name", _exhaustiveCheck);

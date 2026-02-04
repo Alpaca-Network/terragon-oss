@@ -175,6 +175,18 @@ describe("model-to-agent", () => {
       expect(parseModelOrNull({ modelName: "" })).toBe(null);
       expect(parseModelOrNull({ modelName: "gpt-4" })).toBe(null);
     });
+
+    it("should map legacy gatewayz code router model names to new format", () => {
+      expect(parseModelOrNull({ modelName: "gatewayz/code-router" })).toBe(
+        "gatewayz:code:balanced",
+      );
+      expect(
+        parseModelOrNull({ modelName: "gatewayz/code-router/price" }),
+      ).toBe("gatewayz:code:price");
+      expect(
+        parseModelOrNull({ modelName: "gatewayz/code-router/quality" }),
+      ).toBe("gatewayz:code:performance");
+    });
   });
 
   describe("gatewayz model utilities", () => {

@@ -108,6 +108,10 @@ export const AIModelExternalSchema = z.enum([
   "opencode/gpt-5",
   "opencode/gpt-5-codex",
   "opencode/sonnet",
+  // Legacy gatewayz code router model names (for backward compatibility)
+  "gatewayz/code-router",
+  "gatewayz/code-router/price",
+  "gatewayz/code-router/quality",
 ]);
 
 export type AIModel = z.infer<typeof AIModelSchema>;
