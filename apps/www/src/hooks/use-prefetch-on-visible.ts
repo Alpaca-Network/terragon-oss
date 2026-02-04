@@ -32,6 +32,11 @@ export function usePrefetchOnVisible(threadId: string) {
     });
   }, [queryClient, threadId]);
 
+  // Reset prefetch flag when threadId changes (e.g., component reused in lists)
+  useEffect(() => {
+    hasPrefetchedRef.current = false;
+  }, [threadId]);
+
   const setRef = useCallback(
     (element: HTMLElement | null) => {
       // Clean up previous observer and callback
