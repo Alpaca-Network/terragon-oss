@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsSection, SettingsWithCTA } from "../settings-row";
 import { AIAgent, AIModel, CodeRouterMode } from "@terragon/agent/types";
-import { Plus } from "lucide-react";
+import { Plus, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AgentIcon } from "@/components/chat/agent-icon";
 import { cn } from "@/lib/utils";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function AgentSettings() {
   const user = useAtomValue(userAtom);
@@ -434,13 +439,28 @@ function CodeRouterSettingsSection() {
   return (
     <div id="code-router-settings">
       <SettingsSection
-        label="Code Router"
+        label={
+          <span className="flex items-center gap-1.5">
+            Gatewayz Optimizer
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                Improves code gen tasks while cutting the cost of inference by
+                35% to 71%.
+              </TooltipContent>
+            </Tooltip>
+          </span>
+        }
         description="Enable intelligent model routing to automatically select the best model based on your optimization preference"
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <Label className="text-sm font-medium">Enable Code Router</Label>
+              <Label className="text-sm font-medium">
+                Enable Gatewayz Optimizer
+              </Label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {hasGatewayz
                   ? "Automatically select the best model for each task"
@@ -473,7 +493,7 @@ function CodeRouterSettingsSection() {
                       htmlFor="mode-balanced"
                       className="text-sm font-medium cursor-pointer"
                     >
-                      Balanced
+                      Balanced (Default)
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       Optimal balance between cost and quality (recommended)

@@ -11,9 +11,9 @@ export type CodeRouterMode = z.infer<typeof CodeRouterModeSchema>;
 
 export const AIModelSchema = z.enum([
   // gatewayz code router - intelligent model selection
-  "gatewayz/code-router", // Default balanced mode
-  "gatewayz/code-router/price", // Optimize for cost
-  "gatewayz/code-router/quality", // Optimize for quality
+  "gatewayz:code:balanced", // Default balanced mode
+  "gatewayz:code:price", // Optimize for cost
+  "gatewayz:code:performance", // Optimize for performance
 
   // gatewayz router - Claude Code models
   "gatewayz/claude-code/opus",

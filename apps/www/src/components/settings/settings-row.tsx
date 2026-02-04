@@ -73,7 +73,7 @@ export function SettingsSection({
   children,
   cta,
 }: {
-  label: string;
+  label: string | React.ReactNode;
   description?: string | React.ReactNode;
   children: React.ReactNode;
   cta?: React.ReactNode;
