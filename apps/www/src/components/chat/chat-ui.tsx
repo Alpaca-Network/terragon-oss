@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useLayoutEffect,
 } from "react";
 import {
   DBMessage,
@@ -65,13 +66,19 @@ import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { unwrapError } from "@/lib/server-actions";
 import { getPrimaryThreadChat } from "@terragon/shared/utils/thread-utils";
 import { usePlatform } from "@/hooks/use-platform";
+import { secondaryPanelViewAtom } from "@/atoms/user-cookies";
+import type { SecondaryPanelView } from "@/lib/cookies";
+import { useSetAtom } from "jotai";
 
 function ChatUI({
   threadId,
   isReadOnly,
+  initialPanel,
 }: {
   threadId: string;
   isReadOnly: boolean;
+  /** Initial secondary panel view to open (from URL query param) */
+  initialPanel?: string;
 }) {
   const queryClient = useQueryClient();
   const { messagesEndRef, isAtBottom, forceScrollToBottom } =
@@ -83,6 +90,33 @@ function ChatUI({
   const [showTerminal, setShowTerminal] = useState(false);
   const { shouldAutoOpenSecondaryPanel, setIsSecondaryPanelOpen } =
     useSecondaryPanel();
+  const setSecondaryPanelView = useSetAtom(secondaryPanelViewAtom);
+
+  // Handle initial panel from URL query parameter (e.g., ?panel=comments)
+  // This is used when clicking notifications to navigate directly to comments
+  // Track the last threadId we handled to reset on navigation between tasks
+  const lastHandledThreadIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    // Reset when navigating to a different thread
+    if (lastHandledThreadIdRef.current !== threadId) {
+      lastHandledThreadIdRef.current = threadId;
+      // Only handle initialPanel on fresh navigation to this thread
+      if (!initialPanel) {
+        return;
+      }
+      const validPanels: SecondaryPanelView[] = [
+        "files-changed",
+        "comments",
+        "checks",
+        "coverage",
+        "merge",
+      ];
+      if (validPanels.includes(initialPanel as SecondaryPanelView)) {
+        setSecondaryPanelView(initialPanel as SecondaryPanelView);
+        setIsSecondaryPanelOpen(true);
+      }
+    }
+  }, [threadId, initialPanel, setSecondaryPanelView, setIsSecondaryPanelOpen]);
 
   const promptBoxRef = useRef<{
     focus: () => void;

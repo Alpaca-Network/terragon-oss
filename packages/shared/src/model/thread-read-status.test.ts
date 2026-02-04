@@ -141,4 +141,43 @@ describe("thread-read-status", () => {
       await isThreadChatRead({ db, userId: user.id, threadId, threadChatId }),
     ).toBe(true);
   });
+
+  it("should accept notificationReason parameter when marking as unread", async () => {
+    const { threadId, threadChatId } = await createTestThread({
+      db,
+      userId: user.id,
+    });
+
+    // Mark as unread with task-complete reason
+    await markThreadChatAsUnread({
+      db,
+      userId: user.id,
+      threadId,
+      threadChatIdOrNull: threadChatId,
+      notificationReason: "task-complete",
+    });
+    expect(
+      await isThreadChatRead({ db, userId: user.id, threadId, threadChatId }),
+    ).toBe(false);
+
+    // Mark as read
+    await markThreadChatAsRead({
+      db,
+      userId: user.id,
+      threadId,
+      threadChatId,
+    });
+
+    // Mark as unread with ready-for-review reason
+    await markThreadChatAsUnread({
+      db,
+      userId: user.id,
+      threadId,
+      threadChatIdOrNull: threadChatId,
+      notificationReason: "ready-for-review",
+    });
+    expect(
+      await isThreadChatRead({ db, userId: user.id, threadId, threadChatId }),
+    ).toBe(false);
+  });
 });

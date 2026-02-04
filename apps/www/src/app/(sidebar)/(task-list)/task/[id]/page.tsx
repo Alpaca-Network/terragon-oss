@@ -37,10 +37,13 @@ export default async function TaskPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ readonly?: boolean }>;
+  searchParams: Promise<{ readonly?: boolean; panel?: string }>;
 }) {
   const userId = await getUserIdOrRedirect();
-  const [{ id }, { readonly }] = await Promise.all([params, searchParams]);
+  const [{ id }, { readonly, panel }] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const queryClient = new QueryClient();
   await queryClient.prefetchQuery(threadQueryOptions(id));
   const thread = queryClient.getQueryData<ThreadInfoFull>(
@@ -55,7 +58,7 @@ export default async function TaskPage({
   const isReadOnly = thread.userId !== userId || !!readonly;
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <ChatUI threadId={id} isReadOnly={isReadOnly} />
+      <ChatUI threadId={id} isReadOnly={isReadOnly} initialPanel={panel} />
     </HydrationBoundary>
   );
 }

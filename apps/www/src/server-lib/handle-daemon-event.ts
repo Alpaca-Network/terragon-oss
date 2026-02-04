@@ -37,6 +37,7 @@ import { getEligibleQueuedThreadChats } from "./process-queued-thread";
 import { trackUsageEvents } from "./usage-events";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
 import { compactThreadChat } from "./compact";
+import type { NotificationReason } from "@terragon/types/broadcast";
 
 export async function handleDaemonEvent({
   messages,
@@ -577,11 +578,23 @@ export async function handleDaemonEvent({
     shouldSkipCheckpoint = isStop || !!thread.disableGitCheckpointing;
   }
 
+  // Determine notification reason based on task completion state
+  // If task completed successfully and has a PR, it's ready for review
+  // Otherwise, it's just a task completion notification
+  let notificationReason: NotificationReason | undefined;
+  if (isDone && !isError) {
+    notificationReason =
+      thread.githubPRNumber !== null ? "ready-for-review" : "task-complete";
+  } else if (isError) {
+    notificationReason = "task-complete";
+  }
+
   const { didUpdateStatus } = await updateThreadChatWithTransition({
     userId,
     threadId,
     threadChatId: threadChat.id,
     markAsUnread: isDone || isError,
+    notificationReason,
     updates: { bootingSubstatus: null },
     chatUpdates: threadChatUpdates,
     eventType: isStop

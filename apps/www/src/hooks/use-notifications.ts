@@ -3,6 +3,7 @@ import { useRealtimeUser } from "./useRealtime";
 import { useRouter } from "next/navigation";
 import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import type { NotificationReason } from "@terragon/types/broadcast";
 
 // Store notification permission state
 export const notificationPermissionAtom =
@@ -71,12 +72,19 @@ export function useNotifications() {
 
   // Show notification
   const showNotification = useCallback(
-    (title: string, options?: NotificationOptions & { threadId?: string }) => {
+    (
+      title: string,
+      options?: NotificationOptions & {
+        threadId?: string;
+        notificationReason?: NotificationReason;
+      },
+    ) => {
       if (!isSupported || !enabled || permission !== "granted") return;
 
       try {
-        // Remove threadId from options before passing to Notification
-        const { threadId, ...notificationOptions } = options || {};
+        // Remove custom options before passing to Notification
+        const { threadId, notificationReason, ...notificationOptions } =
+          options || {};
 
         const notification = new Notification(title, {
           icon: "/favicon.png",
@@ -87,7 +95,12 @@ export function useNotifications() {
         // Handle click - navigate to thread if threadId provided
         if (threadId) {
           notification.onclick = () => {
-            router.push(`/task/${threadId}`);
+            // For ready-for-review notifications, navigate to comments tab
+            if (notificationReason === "ready-for-review") {
+              router.push(`/task/${threadId}?panel=comments`);
+            } else {
+              router.push(`/task/${threadId}`);
+            }
             notification.close();
             window.focus();
           };
@@ -126,10 +139,33 @@ export function useNotifications() {
     onMessage: (message) => {
       if (!isSupported || !enabled || permission !== "granted") return;
 
+      // Helper to get notification title and body based on reason
+      const getNotificationContent = (
+        threadName: string | undefined,
+        notificationReason: NotificationReason | undefined,
+      ) => {
+        switch (notificationReason) {
+          case "ready-for-review":
+            return {
+              title: "Task Ready for Review",
+              body: threadName
+                ? `${threadName} - Click to view PR feedback`
+                : "A task has PR feedback to review",
+            };
+          case "task-complete":
+          default:
+            return {
+              title: "A Task is Finished Working",
+              body: threadName || "A task has finished working",
+            };
+        }
+      };
+
       // Handle single thread update
       if (message.data.threadId && message.data.isThreadUnread === true) {
         const threadId = message.data.threadId;
         const threadName = message.data.threadName;
+        const notificationReason = message.data.notificationReason;
 
         // Show notification if tab is not active, even if we're on the thread
         const currentPath = window.location.pathname;
@@ -139,11 +175,17 @@ export function useNotifications() {
         // Only skip notification if we're on the thread AND the tab is active
         if (isOnThread && isTabActive) return;
 
-        showNotification("A Task is Finished Working", {
-          body: threadName || "A thread has been marked as unread",
-          tag: `thread-${threadId}`,
+        const { title, body } = getNotificationContent(
+          threadName,
+          notificationReason,
+        );
+
+        showNotification(title, {
+          body,
+          tag: `thread-${threadId}-${notificationReason || "task-complete"}`,
           requireInteraction: false,
           threadId,
+          notificationReason,
         });
       }
 
@@ -160,12 +202,19 @@ export function useNotifications() {
             if (isOnThread && isTabActive) return;
 
             const threadName = data.threadName;
+            const notificationReason = data.notificationReason;
 
-            showNotification("A Task is Finished Working", {
-              body: threadName || "A thread has been marked as unread",
-              tag: `thread-${threadId}`,
+            const { title, body } = getNotificationContent(
+              threadName,
+              notificationReason,
+            );
+
+            showNotification(title, {
+              body,
+              tag: `thread-${threadId}-${notificationReason || "task-complete"}`,
               requireInteraction: false,
               threadId,
+              notificationReason,
             });
           }
         }
