@@ -351,19 +351,22 @@ function groupCommentsIntoThreads(
       isResolved = graphqlStatus.isResolved || graphqlStatus.isOutdated;
     }
 
-    // If not resolved via GraphQL, check for bot-specific "addressed" markers
+    // Check for bot-specific "addressed" markers in comment bodies.
     // Bots like CodeRabbit edit their original comment to add "✅ Addressed in commit X"
-    if (!isResolved) {
-      const botAddressedPattern = /✅\s*Addressed\s*(in\s+commit)?/i;
-      for (const comment of threadComments) {
-        if (botAddressedPattern.test(comment.body)) {
-          isResolved = true;
-          break;
-        }
+    // when issues are fixed. This marker is authoritative for bot comments and should
+    // override GraphQL status, as GitHub's API doesn't always track bot-edited comments.
+    // We intentionally check this even if GraphQL returned isResolved:false, because
+    // the bot's explicit marker is more reliable for bot-generated review comments.
+    const botAddressedPattern = /✅\s*Addressed\s*(in\s+commit)?/i;
+    for (const comment of threadComments) {
+      if (botAddressedPattern.test(comment.body)) {
+        isResolved = true;
+        break;
       }
     }
 
-    // Final fallback: check if the last comment mentions resolution keywords
+    // Final fallback (only when not resolved by GraphQL or bot markers):
+    // Check if the last comment mentions resolution keywords from a human reply
     if (!isResolved) {
       const lastComment = threadComments[threadComments.length - 1];
       const resolvedKeywords =
