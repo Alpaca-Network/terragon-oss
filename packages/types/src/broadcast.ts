@@ -16,6 +16,13 @@ export type BroadcastChannelSandbox = {
 
 export type BroadcastChannel = BroadcastChannelUser | BroadcastChannelSandbox;
 
+// Notification reasons for browser notifications
+export const NotificationReasonSchema = z.enum([
+  "task-complete", // Task finished working
+  "ready-for-review", // Task has PR feedback to review
+]);
+export type NotificationReason = z.infer<typeof NotificationReasonSchema>;
+
 const BroadcastMessageThreadDataSchema = z.object({
   isThreadUnread: z.boolean().optional(),
   isThreadCreated: z.boolean().optional(),
@@ -27,6 +34,8 @@ const BroadcastMessageThreadDataSchema = z.object({
   threadStatusUpdated: z.string().optional(),
   hasErrorMessage: z.boolean().optional(),
   messagesUpdated: z.boolean().optional(),
+  // Notification metadata for browser notifications
+  notificationReason: NotificationReasonSchema.optional(),
 });
 
 export type BroadcastMessageThreadData = z.infer<

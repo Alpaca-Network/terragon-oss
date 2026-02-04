@@ -3,6 +3,7 @@ import * as schema from "../db/schema";
 import { eq } from "drizzle-orm";
 import { publishBroadcastUserMessage } from "../broadcast-server";
 import { LEGACY_THREAD_CHAT_ID } from "../utils/thread-utils";
+import type { NotificationReason } from "@terragon/types/broadcast";
 
 async function updateThreadReadStatus({
   db,
@@ -132,12 +133,15 @@ export async function markThreadChatAsUnread({
   threadId,
   threadChatIdOrNull,
   shouldPublishRealtimeEvent,
+  notificationReason,
 }: {
   db: DB;
   userId: string;
   threadId: string;
   threadChatIdOrNull: string | null;
   shouldPublishRealtimeEvent?: boolean;
+  /** Reason for the notification - affects notification title and click behavior */
+  notificationReason?: NotificationReason;
 }): Promise<void> {
   await updateThreadReadStatus({
     db,
@@ -162,6 +166,7 @@ export async function markThreadChatAsUnread({
         threadChatId: threadChatIdOrNull ?? undefined,
         isThreadUnread: true,
         threadName: thread?.name ?? undefined,
+        notificationReason,
       },
     });
   }

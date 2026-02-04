@@ -9,6 +9,7 @@ import { ThreadError } from "./error";
 import { handleTransition, ThreadEvent } from "./machine";
 import { ThreadChatInsert, ThreadInsert, ThreadStatus } from "@terragon/shared";
 import { markThreadChatAsUnread } from "@terragon/shared/model/thread-read-status";
+import type { NotificationReason } from "@terragon/types/broadcast";
 
 export async function updateThreadChatWithTransition({
   userId,
@@ -16,6 +17,7 @@ export async function updateThreadChatWithTransition({
   threadChatId,
   eventType,
   markAsUnread,
+  notificationReason,
   rateLimitResetTime,
   updates,
   chatUpdates,
@@ -25,6 +27,8 @@ export async function updateThreadChatWithTransition({
   threadChatId: string;
   eventType: ThreadEvent;
   markAsUnread?: boolean;
+  /** Reason for the notification - affects notification title and click behavior */
+  notificationReason?: NotificationReason;
   rateLimitResetTime?: number;
   updates?: Partial<ThreadInsert>;
   chatUpdates?: Omit<
@@ -99,6 +103,7 @@ export async function updateThreadChatWithTransition({
         threadId,
         threadChatIdOrNull: threadChatId,
         shouldPublishRealtimeEvent: true,
+        notificationReason,
       });
     }
   }
