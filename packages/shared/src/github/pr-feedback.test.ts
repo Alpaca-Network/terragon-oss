@@ -843,6 +843,88 @@ Details here...
     expect(feedback.coverageCheck).not.toBeNull();
     expect(feedback.coverageCheck?.name).toBe("Codecov/patch");
   });
+
+  it("should mark PR as not mergeable when mergeableState is unstable", async () => {
+    const prDetails = {
+      html_url: "https://github.com/owner/repo/pull/123",
+      title: "Test PR",
+      draft: false,
+      closed_at: null,
+      merged_at: null,
+      base: { ref: "main" },
+      head: { ref: "feature", sha: "abc123" },
+      mergeable: true,
+      mergeable_state: "unstable",
+    };
+
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({ data: [] });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(feedback.mergeableState).toBe("unstable");
+    expect(feedback.hasConflicts).toBe(false);
+    expect(feedback.isMergeable).toBe(false);
+  });
+
+  it("should mark PR as not mergeable when mergeableState is blocked", async () => {
+    const prDetails = {
+      html_url: "https://github.com/owner/repo/pull/123",
+      title: "Test PR",
+      draft: false,
+      closed_at: null,
+      merged_at: null,
+      base: { ref: "main" },
+      head: { ref: "feature", sha: "abc123" },
+      mergeable: true,
+      mergeable_state: "blocked",
+    };
+
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({ data: [] });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(feedback.mergeableState).toBe("blocked");
+    expect(feedback.hasConflicts).toBe(false);
+    expect(feedback.isMergeable).toBe(false);
+  });
 });
 
 describe("fetch functions", () => {

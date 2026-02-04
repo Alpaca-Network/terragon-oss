@@ -449,6 +449,7 @@ export async function aggregatePRFeedback(
   const isMergeable =
     !hasConflicts &&
     mergeableState !== "blocked" &&
+    mergeableState !== "unstable" &&
     prDetails.mergeable === true;
 
   return {
