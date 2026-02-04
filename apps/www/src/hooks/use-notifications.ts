@@ -199,7 +199,7 @@ export function useNotifications() {
             const isTabActive = !document.hidden;
 
             // Only skip notification if we're on the thread AND the tab is active
-            if (isOnThread && isTabActive) return;
+            if (isOnThread && isTabActive) continue;
 
             const threadName = data.threadName;
             const notificationReason = data.notificationReason;
