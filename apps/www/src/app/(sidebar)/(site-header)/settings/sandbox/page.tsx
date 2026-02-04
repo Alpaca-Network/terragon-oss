@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Sandbox Settings | Terragon",
+  title: "Sandbox Settings | Gatewayz Code",
 };
 
 export default async function SandboxSettingsPage() {

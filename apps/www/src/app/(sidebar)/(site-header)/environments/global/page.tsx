@@ -11,7 +11,7 @@ import { env } from "@terragon/env/apps-www";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `Global Environment | Terragon`,
+    title: `Global Environment | Gatewayz Code`,
   };
 }
 

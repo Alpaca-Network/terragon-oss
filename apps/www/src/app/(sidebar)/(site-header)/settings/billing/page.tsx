@@ -12,7 +12,7 @@ import { getUserInfoServerSide } from "@terragon/shared/model/user";
 import { db } from "@/lib/db";
 
 export const metadata: Metadata = {
-  title: "Billing | Terragon",
+  title: "Billing | Gatewayz Code",
 };
 
 export default async function BillingSettingsPage() {

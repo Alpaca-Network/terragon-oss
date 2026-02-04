@@ -6,7 +6,7 @@ import React from "react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Environments | Terragon",
+  title: "Environments | Gatewayz Code",
 };
 
 export default async function EnvironmentsPage() {

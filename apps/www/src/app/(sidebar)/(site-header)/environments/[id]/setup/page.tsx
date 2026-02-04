@@ -12,7 +12,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const userId = await getUserIdOrNull();
   if (!userId) {
-    return { title: "Setup Script | Terragon" };
+    return { title: "Setup Script | Gatewayz Code" };
   }
   const { id } = await params;
   const environment = await getEnvironment({
@@ -21,10 +21,10 @@ export async function generateMetadata({
     userId,
   });
   if (!environment) {
-    return { title: "Setup Script | Terragon" };
+    return { title: "Setup Script | Gatewayz Code" };
   }
   return {
-    title: `${environment.repoFullName} Setup Script | Terragon`,
+    title: `${environment.repoFullName} Setup Script | Gatewayz Code`,
   };
 }
 

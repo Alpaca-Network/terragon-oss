@@ -9,11 +9,11 @@ import { db } from "@/lib/db";
 import { OG_IMAGE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "You've been invited to Terragon",
+  title: "You've been invited to Gatewayz Code",
   description:
     "Join Terragon with your exclusive access code and start using background agents for Claude Code.",
   openGraph: {
-    title: "You've been invited to Terragon",
+    title: "You've been invited to Gatewayz Code",
     description:
       "Join Terragon with your exclusive access code and start using background agents for Claude Code.",
     url: "https://www.terragonlabs.com/invited",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "You've been invited to Terragon",
+    title: "You've been invited to Gatewayz Code",
     description:
       "Join Terragon with your exclusive access code and start using background agents for Claude Code.",
     site: "@terragonlabs",

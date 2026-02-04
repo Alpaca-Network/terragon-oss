@@ -9,26 +9,26 @@ import { Suspense } from "react";
 import { GatewayZAutoAuth } from "@/components/system/gatewayz-auto-auth";
 
 export const metadata: Metadata = {
-  title: "Terragon",
+  title: "Gatewayz Code",
   description: "AI-powered coding assistant platform",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Terragon",
+    title: "Gatewayz Code",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "Terragon",
-    title: "Terragon",
+    siteName: "Gatewayz Code",
+    title: "Gatewayz Code",
     description: "AI-powered coding assistant platform",
   },
   twitter: {
     card: "summary",
-    title: "Terragon",
+    title: "Gatewayz Code",
     description: "AI-powered coding assistant platform",
   },
 };
