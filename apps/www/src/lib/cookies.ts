@@ -11,7 +11,7 @@ export const secondaryPanelViewKey = "secondary-panel-view";
 export const dashboardViewModeKey = "dashboard-view-mode";
 
 export type ThreadListGroupBy = "lastUpdated" | "repository" | "createdAt";
-export type DashboardViewMode = "list" | "kanban";
+export type DashboardViewMode = "list" | "kanban" | "new-project";
 
 export const defaultDashboardViewMode: DashboardViewMode = "list";
 

@@ -5,9 +5,10 @@ import { useAtom } from "jotai";
 import { useRouter, usePathname } from "next/navigation";
 import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { Button } from "@/components/ui/button";
-import { Kanban, LayoutList } from "lucide-react";
+import { Kanban, LayoutList, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { markKanbanViewUsed } from "@/server-actions/user-flags";
+import { DashboardViewMode } from "@/lib/cookies";
 
 interface TaskViewToggleProps {
   className?: string;
@@ -22,7 +23,7 @@ export function TaskViewToggle({ className, threadId }: TaskViewToggleProps) {
   const [, startTransition] = useTransition();
 
   const handleToggle = useCallback(
-    (mode: "list" | "kanban") => {
+    (mode: DashboardViewMode) => {
       setViewMode(mode);
 
       // Track Kanban view usage
@@ -42,8 +43,11 @@ export function TaskViewToggle({ className, threadId }: TaskViewToggleProps) {
       if (threadId) {
         if (mode === "kanban") {
           router.push(`/dashboard?task=${threadId}`);
-        } else {
+        } else if (mode === "list") {
           router.push(`/task/${threadId}`);
+        } else {
+          // For new-project mode, just go to dashboard
+          router.push("/dashboard");
         }
       } else if (pathname !== "/dashboard") {
         router.push("/dashboard");
@@ -62,6 +66,19 @@ export function TaskViewToggle({ className, threadId }: TaskViewToggleProps) {
       <span className="text-xs text-muted-foreground px-2 hidden sm:inline">
         Task View:
       </span>
+      <Button
+        variant={viewMode === "new-project" ? "secondary" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-7 px-3 gap-1.5 text-xs",
+          viewMode === "new-project" && "bg-background shadow-sm",
+        )}
+        onClick={() => handleToggle("new-project")}
+      >
+        <Plus className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">New Project</span>
+        <span className="sm:hidden">New</span>
+      </Button>
       <Button
         variant={viewMode === "kanban" ? "secondary" : "ghost"}
         size="sm"
