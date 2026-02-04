@@ -836,6 +836,7 @@ export const feedback = pgTable(
     type: text("type").$type<"bug" | "feature" | "feedback">().notNull(),
     message: text("message").notNull(),
     currentPage: text("current_page").notNull(),
+    sessionReplayUrl: text("session_replay_url"),
     resolved: boolean("resolved").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")

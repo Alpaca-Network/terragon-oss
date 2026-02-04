@@ -15,10 +15,12 @@ export const submitFeedback = userOnlyAction(
       type,
       message,
       currentPage,
+      sessionReplayUrl,
     }: {
       type: FeedbackType;
       message: string;
       currentPage: string;
+      sessionReplayUrl?: string | null;
     },
   ) {
     const user = await getUserOrNull();
@@ -32,6 +34,7 @@ export const submitFeedback = userOnlyAction(
         type,
         message,
         currentPage,
+        sessionReplayUrl,
       },
     });
     const newFeedback = await createFeedback({
@@ -40,6 +43,7 @@ export const submitFeedback = userOnlyAction(
       type,
       message,
       currentPage,
+      sessionReplayUrl,
     });
     // Send notification to Slack
     await sendFeedbackToSlack({
@@ -50,6 +54,7 @@ export const submitFeedback = userOnlyAction(
       message,
       currentPage,
       feedbackId: newFeedback.id,
+      sessionReplayUrl,
     });
     return { success: true };
   },
