@@ -1,6 +1,31 @@
 import { env } from "@terragon/env/apps-www";
 import type { FeedbackType } from "@terragon/shared";
 
+// Slack Block Kit types for type safety
+type SlackTextObject = {
+  type: "plain_text" | "mrkdwn";
+  text: string;
+  emoji?: boolean;
+};
+
+type SlackHeaderBlock = {
+  type: "header";
+  text: SlackTextObject;
+};
+
+type SlackSectionBlock = {
+  type: "section";
+  text?: SlackTextObject;
+  fields?: SlackTextObject[];
+};
+
+type SlackContextBlock = {
+  type: "context";
+  elements: SlackTextObject[];
+};
+
+type SlackBlock = SlackHeaderBlock | SlackSectionBlock | SlackContextBlock;
+
 interface SlackFeedbackMessage {
   userId: string;
   userEmail?: string;
@@ -42,7 +67,7 @@ export async function sendFeedbackToSlack({
   };
 
   // Build blocks array with conditional session replay section
-  const blocks: object[] = [
+  const blocks: SlackBlock[] = [
     {
       type: "header",
       text: {
