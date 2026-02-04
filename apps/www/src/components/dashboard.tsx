@@ -18,7 +18,7 @@ import { convertToPlainText } from "@/lib/db-message-helpers";
 import { HandleUpdate } from "./promptbox/use-promptbox";
 import { cn } from "@/lib/utils";
 import { RecommendedTasks } from "./recommended-tasks";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
@@ -28,8 +28,10 @@ import { TaskViewToggle } from "./task-view-toggle";
 import { RecentReposQuickAccess } from "./onboarding/recent-repos-quick-access";
 import { TemplateRepoSelector } from "./onboarding/template-repo-selector";
 import { KanbanPromotionBanner } from "./onboarding/kanban-promotion-banner";
+import { NewProjectView } from "./onboarding/new-project-view";
 import { getUserRepos } from "@/server-actions/user-repos";
 import { useServerActionQuery } from "@/queries/server-action-helpers";
+import { usePlatform } from "@/hooks/use-platform";
 
 export function Dashboard({
   showArchived = false,
@@ -42,13 +44,22 @@ export function Dashboard({
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
-  const viewMode = useAtomValue(dashboardViewModeAtom);
+  const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
+  const platform = usePlatform();
   const searchParams = useSearchParams();
   const initialTaskId = searchParams.get("task");
 
+  // Set default view to 'new-project' on mobile for first-time users
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // On mobile, default to 'new-project' view if user hasn't explicitly chosen a view
+  useEffect(() => {
+    if (platform === "mobile" && viewMode === "list") {
+      setViewMode("new-project");
+    }
+  }, [platform, viewMode, setViewMode]);
 
   const handleSubmit = useCallback<DashboardPromptBoxHandleSubmit>(
     async ({
@@ -138,6 +149,10 @@ export function Dashboard({
 
   // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
+  // Show New Project view when viewMode is 'new-project'
+  const showNewProjectView = viewMode === "new-project" && mounted;
+  // Show Inbox (list) view for the remaining case
+  const showInboxView = viewMode === "list" && mounted;
 
   // Determine query filters for Kanban view
   const queryFilters = showArchived
@@ -146,24 +161,47 @@ export function Dashboard({
       ? { isBacklog: true }
       : { archived: false, isBacklog: false };
 
+  // Handler to switch back from new-project view after creating a repo
+  const handleBackFromNewProject = useCallback(() => {
+    setViewMode("list");
+  }, [setViewMode]);
+
   return (
     <div
       className={cn(
         "flex flex-col h-full w-full",
-        showKanbanView ? "max-w-full" : "max-w-2xl mx-auto gap-8 pt-2.5",
+        showKanbanView || showNewProjectView
+          ? "max-w-full"
+          : "max-w-2xl mx-auto gap-8 pt-2.5",
       )}
     >
       <FeatureUpsellToast />
 
-      {/* Task View Toggle - shown at top right in inbox view on both mobile and desktop */}
+      {/* Task View Toggle - shown at top in inbox view and new-project view */}
       {mounted && !showKanbanView && (
-        <div className="flex justify-end items-center gap-2 pb-0">
+        <div
+          className={cn(
+            "flex justify-end items-center gap-2 pb-0",
+            showNewProjectView && "px-4 pt-2",
+          )}
+        >
           <TaskViewToggle />
         </div>
       )}
 
-      {/* View toggle and prompt box - only show in inbox view or on mobile */}
-      {!showKanbanView && (
+      {/* New Project view - full-page template selection */}
+      {showNewProjectView && (
+        <div className="flex-1 overflow-auto">
+          <NewProjectView
+            onBack={handleBackFromNewProject}
+            onRepoCreated={handleBackFromNewProject}
+            className="h-full"
+          />
+        </div>
+      )}
+
+      {/* Inbox view - prompt box and onboarding content */}
+      {showInboxView && (
         <>
           <DashboardPromptBox
             placeholder={placeholder}
@@ -208,7 +246,7 @@ export function Dashboard({
       )}
 
       {/* Kanban view - single component handles responsive layout internally */}
-      {mounted && showKanbanView && (
+      {showKanbanView && (
         <div className="flex flex-col flex-1 min-h-0">
           <KanbanBoard
             queryFilters={queryFilters}
