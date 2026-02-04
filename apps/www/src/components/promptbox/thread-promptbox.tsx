@@ -64,7 +64,7 @@ export const ThreadPromptBox = React.forwardRef<
       }
     }
     if (props.status !== null && isAgentWorking(props.status)) {
-      return "Queue a message to send when agent is done";
+      return "Queue a message...";
     }
     return "Type your message here...";
   }, [props.placeholder, props.status, props.sandboxId]);
