@@ -332,6 +332,11 @@ export const thread = pgTable(
       .notNull()
       .default(false),
     skipSetup: boolean("skip_setup").notNull().default(false),
+    autoFixFeedback: boolean("auto_fix_feedback").notNull().default(false),
+    autoMergePR: boolean("auto_merge_pr").notNull().default(false),
+    autoFixIterationCount: integer("auto_fix_iteration_count")
+      .notNull()
+      .default(0),
     sourceType: text("source_type").$type<ThreadSource>(),
     sourceMetadata: jsonb("source_metadata").$type<ThreadSourceMetadata>(),
     // Thread version:

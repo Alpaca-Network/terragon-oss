@@ -19,6 +19,8 @@ export type NewThreadArgs = {
   saveAsDraft?: boolean;
   disableGitCheckpointing?: boolean;
   skipSetup?: boolean;
+  autoFixFeedback?: boolean;
+  autoMergePR?: boolean;
   scheduleAt?: number | null;
   selectedModels?: SelectedAIModels;
   sourceType?: ThreadSource;
@@ -37,6 +39,8 @@ export const newThread = userOnlyAction(
       saveAsDraft,
       disableGitCheckpointing,
       skipSetup,
+      autoFixFeedback,
+      autoMergePR,
       createNewBranch = true,
       scheduleAt,
       sourceType = "www",
@@ -65,6 +69,8 @@ export const newThread = userOnlyAction(
       sourceType,
       disableGitCheckpointing,
       skipSetup,
+      autoFixFeedback,
+      autoMergePR,
     });
     if (selectedModels && !saveAsDraft) {
       await newThreadsMultiModel({

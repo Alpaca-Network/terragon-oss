@@ -81,6 +81,8 @@ export function Dashboard({
       disableGitCheckpointing,
       skipSetup,
       createNewBranch,
+      autoFixFeedback,
+      autoMergePR,
     }) => {
       try {
         unwrapResult(
@@ -94,6 +96,8 @@ export function Dashboard({
             createNewBranch,
             scheduleAt,
             selectedModels,
+            autoFixFeedback,
+            autoMergePR,
           }),
         );
         if (!saveAsDraft) {

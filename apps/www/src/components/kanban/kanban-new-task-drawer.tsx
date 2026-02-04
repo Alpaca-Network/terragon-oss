@@ -58,6 +58,8 @@ export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
       disableGitCheckpointing,
       skipSetup,
       createNewBranch,
+      autoFixFeedback,
+      autoMergePR,
     }) => {
       try {
         unwrapResult(
@@ -71,6 +73,8 @@ export const KanbanNewTaskDrawer = memo(function KanbanNewTaskDrawer({
             createNewBranch,
             scheduleAt,
             selectedModels,
+            autoFixFeedback,
+            autoMergePR,
           }),
         );
         queryClient.refetchQueries({

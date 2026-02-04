@@ -3,6 +3,8 @@ export const threadListCollapsedSectionsKey = "thread-list-collapsed-sections";
 export const disableGitCheckpointingKey = "disable-git-checkpointing";
 export const skipSetupKey = "skip-setup";
 export const createNewBranchKey = "create-new-branch";
+export const autoFixFeedbackKey = "auto-fix-feedback";
+export const autoMergePRKey = "auto-merge-pr";
 export const threadListGroupByKey = "thread-list-group-by";
 export const repositoryCollapsedSectionsKey = "repository-collapsed-sections";
 export const threadListCollapsedKey = "thread-list-collapsed";
@@ -39,6 +41,8 @@ export type UserCookies = {
   [disableGitCheckpointingKey]?: boolean;
   [skipSetupKey]?: boolean;
   [createNewBranchKey]?: boolean;
+  [autoFixFeedbackKey]?: boolean;
+  [autoMergePRKey]?: boolean;
   [threadListCollapsedKey]?: boolean;
   [secondaryPaneClosedKey]?: boolean;
   [secondaryPanelViewKey]?: SecondaryPanelView;
@@ -54,6 +58,8 @@ export const getDefaultUserCookies = (): UserCookies => {
     [disableGitCheckpointingKey]: false,
     [skipSetupKey]: false,
     [createNewBranchKey]: true,
+    [autoFixFeedbackKey]: false,
+    [autoMergePRKey]: false,
     [threadListGroupByKey]: defaultThreadListGroupBy,
     [threadListCollapsedKey]: false,
     [secondaryPaneClosedKey]: false,

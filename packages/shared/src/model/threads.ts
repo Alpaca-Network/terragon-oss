@@ -133,6 +133,9 @@ async function getThreadsInner({
     draftMessage: schema.thread.draftMessage,
     disableGitCheckpointing: schema.thread.disableGitCheckpointing,
     skipSetup: schema.thread.skipSetup,
+    autoFixFeedback: schema.thread.autoFixFeedback,
+    autoMergePR: schema.thread.autoMergePR,
+    autoFixIterationCount: schema.thread.autoFixIterationCount,
     sourceType: schema.thread.sourceType,
     sourceMetadata: schema.thread.sourceMetadata,
     version: schema.thread.version,
@@ -725,6 +728,9 @@ export async function getThread({
     draftMessage: thread.draftMessage,
     skipSetup: thread.skipSetup,
     disableGitCheckpointing: thread.disableGitCheckpointing,
+    autoFixFeedback: thread.autoFixFeedback,
+    autoMergePR: thread.autoMergePR,
+    autoFixIterationCount: thread.autoFixIterationCount,
     sourceType: thread.sourceType,
     sourceMetadata: thread.sourceMetadata,
     version: thread.version,
@@ -1272,6 +1278,43 @@ export async function hasOtherUnarchivedThreadsWithSamePR({
     .limit(1);
 
   return otherThreads.length > 0;
+}
+
+/**
+ * Get active (unarchived) threads associated with a specific PR.
+ * This is used by webhooks to find threads to trigger auto-fix.
+ */
+export async function getActiveThreadsForPR({
+  db,
+  repoFullName,
+  prNumber,
+}: {
+  db: DB;
+  repoFullName: string;
+  prNumber: number;
+}): Promise<
+  Array<{
+    id: string;
+    userId: string;
+    autoFixFeedback: boolean;
+    autoMergePR: boolean;
+  }>
+> {
+  return await db
+    .select({
+      id: schema.thread.id,
+      userId: schema.thread.userId,
+      autoFixFeedback: schema.thread.autoFixFeedback,
+      autoMergePR: schema.thread.autoMergePR,
+    })
+    .from(schema.thread)
+    .where(
+      and(
+        eq(schema.thread.githubRepoFullName, repoFullName),
+        eq(schema.thread.githubPRNumber, prNumber),
+        eq(schema.thread.archived, false),
+      ),
+    );
 }
 
 export async function getQueuedThreadCounts({

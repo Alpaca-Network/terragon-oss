@@ -16,6 +16,8 @@ import {
   disableGitCheckpointingKey,
   skipSetupKey,
   createNewBranchKey,
+  autoFixFeedbackKey,
+  autoMergePRKey,
   threadListGroupByKey,
   threadListCollapsedKey,
   secondaryPaneClosedKey,
@@ -56,6 +58,18 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
         case createNewBranchKey: {
           if (typeof userCookies[key] === "boolean") {
             set(createNewBranchCookieAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
+        case autoFixFeedbackKey: {
+          if (typeof userCookies[key] === "boolean") {
+            set(autoFixFeedbackCookieAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
+        case autoMergePRKey: {
+          if (typeof userCookies[key] === "boolean") {
+            set(autoMergePRCookieAtom, userCookies[key] as boolean);
           }
           break;
         }
@@ -235,6 +249,22 @@ export const skipSetupCookieAtom = atomWithStorage<boolean>(
 export const createNewBranchCookieAtom = atomWithStorage<boolean>(
   createNewBranchKey,
   true,
+  booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Persist the last-selected value for auto-fix feedback when creating a thread
+export const autoFixFeedbackCookieAtom = atomWithStorage<boolean>(
+  autoFixFeedbackKey,
+  false,
+  booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Persist the last-selected value for auto-merge PR when creating a thread
+export const autoMergePRCookieAtom = atomWithStorage<boolean>(
+  autoMergePRKey,
+  false,
   booleanCookieStorage,
   { getOnInit: true },
 );
