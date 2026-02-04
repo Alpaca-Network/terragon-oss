@@ -6,7 +6,7 @@ import {
 } from "./promptbox/dashboard-promptbox";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -49,14 +49,23 @@ export function Dashboard({
   const searchParams = useSearchParams();
   const initialTaskId = searchParams.get("task");
 
+  // Track whether we've already applied the mobile default
+  const hasAppliedMobileDefault = useRef(false);
+
   // Set default view to 'new-project' on mobile for first-time users
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // On mobile, default to 'new-project' view if user hasn't explicitly chosen a view
+  // On mobile, default to 'new-project' view only once on initial load
+  // This prevents overriding user's explicit choice to switch to Inbox
   useEffect(() => {
-    if (platform === "mobile" && viewMode === "list") {
+    if (
+      platform === "mobile" &&
+      viewMode === "list" &&
+      !hasAppliedMobileDefault.current
+    ) {
+      hasAppliedMobileDefault.current = true;
       setViewMode("new-project");
     }
   }, [platform, viewMode, setViewMode]);

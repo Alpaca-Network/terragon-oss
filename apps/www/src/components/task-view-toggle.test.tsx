@@ -226,37 +226,29 @@ describe("TaskViewToggle logic", () => {
   });
 
   describe("mobile behavior", () => {
+    // Helper function to simulate the mobile default logic
+    const shouldSwitchToNewProject = (
+      platform: "mobile" | "desktop" | "unknown",
+      viewMode: "list" | "kanban" | "new-project",
+    ) => {
+      return platform === "mobile" && viewMode === "list";
+    };
+
     it("should default to new-project view on mobile for better onboarding", () => {
       // On mobile, when viewMode is list (default), it should switch to new-project
-      const platform = "mobile";
-      const viewMode = "list";
-      const shouldSwitchToNewProject =
-        platform === "mobile" && viewMode === "list";
-      expect(shouldSwitchToNewProject).toBe(true);
+      expect(shouldSwitchToNewProject("mobile", "list")).toBe(true);
     });
 
     it("should not switch view on desktop", () => {
-      const platform = "desktop";
-      const viewMode = "list";
-      const shouldSwitchToNewProject =
-        platform === "mobile" && viewMode === "list";
-      expect(shouldSwitchToNewProject).toBe(false);
+      expect(shouldSwitchToNewProject("desktop", "list")).toBe(false);
     });
 
     it("should not switch if user already chose kanban", () => {
-      const platform = "mobile";
-      const viewMode = "kanban";
-      const shouldSwitchToNewProject =
-        platform === "mobile" && viewMode === "list";
-      expect(shouldSwitchToNewProject).toBe(false);
+      expect(shouldSwitchToNewProject("mobile", "kanban")).toBe(false);
     });
 
     it("should not switch if user already chose new-project", () => {
-      const platform = "mobile";
-      const viewMode = "new-project";
-      const shouldSwitchToNewProject =
-        platform === "mobile" && viewMode === "list";
-      expect(shouldSwitchToNewProject).toBe(false);
+      expect(shouldSwitchToNewProject("mobile", "new-project")).toBe(false);
     });
   });
 });
