@@ -332,14 +332,25 @@ function parseModelFromBodyBuffer(
 /**
  * Check if a model is a Code Router model
  * Code Router models follow the pattern: gatewayz:code:[mode]
+ * Also supports legacy format: gatewayz/code-router[/mode]
  */
 function isCodeRouterModel(model: string | null): boolean {
-  return !!model && model.startsWith("gatewayz:code:");
+  if (!model) return false;
+  // New format: gatewayz:code:[mode]
+  if (model.startsWith("gatewayz:code:")) return true;
+  // Legacy format: gatewayz/code-router or gatewayz/code-router/[mode]
+  if (
+    model === "gatewayz/code-router" ||
+    model.startsWith("gatewayz/code-router/")
+  )
+    return true;
+  return false;
 }
 
 /**
  * Extract the Code Router mode from a model string
  * Returns 'balanced', 'price', or 'quality'
+ * Supports both new format (gatewayz:code:[mode]) and legacy format (gatewayz/code-router[/mode])
  */
 function getCodeRouterMode(
   model: string | null,
@@ -347,10 +358,18 @@ function getCodeRouterMode(
   if (!model || !isCodeRouterModel(model)) {
     return "balanced";
   }
+  // New format
   if (model === "gatewayz:code:price") {
     return "price";
   }
   if (model === "gatewayz:code:performance") {
+    return "quality";
+  }
+  // Legacy format
+  if (model === "gatewayz/code-router/price") {
+    return "price";
+  }
+  if (model === "gatewayz/code-router/quality") {
     return "quality";
   }
   return "balanced";

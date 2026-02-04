@@ -101,6 +101,10 @@ const MODEL_PROVIDER_CONFIG: Record<ModelProvider, ModelValidationConfig> = {
       startsWithMatcher("minimax"),
       // Code Router models (gatewayz:code:balanced, gatewayz:code:price, gatewayz:code:performance)
       startsWithMatcher("gatewayz:code:"),
+      // Legacy Code Router model names (for backward compatibility)
+      exactMatcher("gatewayz/code-router"),
+      exactMatcher("gatewayz/code-router/price"),
+      exactMatcher("gatewayz/code-router/quality"),
     ],
     missingModelMessage: "Model must be specified in request body",
     unsupportedModelMessage: (model) =>

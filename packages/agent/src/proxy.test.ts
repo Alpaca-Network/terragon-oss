@@ -31,6 +31,32 @@ describe("validateProviderModel", () => {
       });
     });
 
+    describe("Legacy Code Router models (backward compatibility)", () => {
+      it("should allow gatewayz/code-router model", () => {
+        const result = validateProviderModel({
+          provider,
+          model: "gatewayz/code-router",
+        });
+        expect(result).toEqual({ valid: true });
+      });
+
+      it("should allow gatewayz/code-router/price model", () => {
+        const result = validateProviderModel({
+          provider,
+          model: "gatewayz/code-router/price",
+        });
+        expect(result).toEqual({ valid: true });
+      });
+
+      it("should allow gatewayz/code-router/quality model", () => {
+        const result = validateProviderModel({
+          provider,
+          model: "gatewayz/code-router/quality",
+        });
+        expect(result).toEqual({ valid: true });
+      });
+    });
+
     describe("Claude models", () => {
       it("should allow gatewayz/claude-code/opus model", () => {
         const result = validateProviderModel({
