@@ -27,7 +27,6 @@ import {
 } from "@/queries/thread-queries";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { usePrefetchThreads } from "@/hooks/use-prefetch-thread";
-import { useEmbedMode } from "@/hooks/use-embed-mode";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
 import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
@@ -78,7 +77,6 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
   queryFilters: ThreadListFilters;
   initialSelectedTaskId?: string | null;
 }) {
-  const isEmbedMode = useEmbedMode();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
     initialSelectedTaskId ?? null,
   );
@@ -90,17 +88,9 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }
   }, [initialSelectedTaskId]);
 
+  // Default to Review tab on mobile
   const [activeColumn, setActiveColumn] =
-    useState<KanbanColumnType>("in_progress");
-  const [hasSetInitialColumn, setHasSetInitialColumn] = useState(false);
-
-  // In GatewayZ embed mode, default to Review tab on initial load
-  useEffect(() => {
-    if (isEmbedMode && !hasSetInitialColumn) {
-      setActiveColumn("in_review");
-      setHasSetInitialColumn(true);
-    }
-  }, [isEmbedMode, hasSetInitialColumn]);
+    useState<KanbanColumnType>("in_review");
   const [newTaskDrawerOpen, setNewTaskDrawerOpen] = useState(false);
   const [drawerInitialTab, setDrawerInitialTab] = useState<
     "feed" | "changes" | "code-review"

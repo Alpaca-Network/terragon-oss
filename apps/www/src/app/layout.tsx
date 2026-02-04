@@ -7,7 +7,6 @@ import { ServerProviders } from "@/components/system/server-providers";
 import { KonamiVideo } from "@/components/konami-video";
 import { Suspense } from "react";
 import { GatewayZAutoAuth } from "@/components/system/gatewayz-auto-auth";
-import { EmbedModeFavicon } from "@/components/system/embed-mode-favicon";
 
 export const metadata: Metadata = {
   title: "Terragon",
@@ -65,11 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {process.env.NODE_ENV === "development" ? (
-          <link rel="icon" href="/favicon-dev.png" />
-        ) : (
-          <link rel="icon" href="/favicon.png" />
-        )}
+        <link rel="icon" href="/gatewayz-logo-icon.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link
@@ -112,8 +107,6 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <GatewayZAutoAuth />
             </Suspense>
-            {/* Update favicon to Gatewayz logo in embed mode */}
-            <EmbedModeFavicon />
           </UserAtomsHydratorServer>
         </ServerProviders>
       </body>
