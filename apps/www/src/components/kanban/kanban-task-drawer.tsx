@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { threadQueryOptions } from "@/queries/thread-queries";
 import { cn } from "@/lib/utils";
 import { DataStreamLoader } from "@/components/ui/futuristic-effects";
@@ -104,19 +104,26 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   );
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawerOpenMetricRef = useRef<string | null>(null);
+  const wasCachedRef = useRef<boolean>(false);
+  const queryClient = useQueryClient();
 
   // Track drawer open time for performance metrics
   useEffect(() => {
     if (open && threadId) {
+      // Check if data is already in cache when drawer opens
+      const cachedData = queryClient.getQueryData(
+        threadQueryOptions(threadId).queryKey,
+      );
+      wasCachedRef.current = !!cachedData;
       drawerOpenMetricRef.current = startMetric("task_drawer_open", threadId);
     } else if (!open && drawerOpenMetricRef.current) {
       // Drawer closed before content loaded - cancel the metric
       cancelMetric(drawerOpenMetricRef.current);
       drawerOpenMetricRef.current = null;
     }
-  }, [open, threadId]);
+  }, [open, threadId, queryClient]);
 
-  const { data: thread, isFetching } = useQuery({
+  const { data: thread } = useQuery({
     ...threadQueryOptions(threadId ?? ""),
     enabled: !!threadId,
   });
@@ -125,13 +132,13 @@ export const KanbanTaskDrawer = memo(function KanbanTaskDrawer({
   useEffect(() => {
     if (thread && drawerOpenMetricRef.current) {
       endMetric(drawerOpenMetricRef.current, {
-        cached: !isFetching,
+        cached: wasCachedRef.current,
         hasGitDiff: !!thread.gitDiff,
         hasPR: !!thread.githubPRNumber,
       });
       drawerOpenMetricRef.current = null;
     }
-  }, [thread, isFetching]);
+  }, [thread]);
 
   const hasPR = thread?.githubPRNumber != null;
 
