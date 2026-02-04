@@ -8,27 +8,48 @@ import {
   testimonialColumn2,
 } from "@/components/landing/testimonials-data";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GridBackground from "@/components/landing/grid-background";
 import Image from "next/image";
 import InfiniteScrollColumn from "@/components/landing/shared/InfiniteScrollColumn";
 import TestimonialCard from "@/components/landing/shared/TestimonialCard";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 // Combine columns for a richer single column scroll
 const allTestimonials = [...testimonialColumn1, ...testimonialColumn2];
 const mobileTestimonial = testimonialColumn2[0];
 
 export default function Login({ returnUrl }: { returnUrl: string }) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isGithubLoading, setIsGithubLoading] = useState(false);
+  const [isGatewayzLoading, setIsGatewayzLoading] = useState(false);
+  const [showOtherOptions, setShowOtherOptions] = useState(false);
 
   const handleGithubSignIn = async () => {
     await signInWithGithub({
-      setLoading: setIsLoading,
+      setLoading: setIsGithubLoading,
       returnUrl,
       location: "login_page",
     });
   };
+
+  const handleGatewayzSignIn = () => {
+    setIsGatewayzLoading(true);
+    // Redirect to initiate Gatewayz OAuth flow
+    const initiateUrl = new URL(
+      "/api/auth/gatewayz/initiate",
+      window.location.origin,
+    );
+    initiateUrl.searchParams.set("returnUrl", returnUrl);
+    window.location.href = initiateUrl.toString();
+  };
+
+  const isLoading = isGithubLoading || isGatewayzLoading;
 
   return (
     <div className="min-h-[100dvh] w-full grid grid-cols-1 lg:grid-cols-2">
@@ -56,35 +77,88 @@ export default function Login({ returnUrl }: { returnUrl: string }) {
           </div>
 
           <div className="space-y-4">
+            {/* Primary option: Gatewayz */}
             <Button
               variant="default"
               size="lg"
               className="w-full relative"
-              onClick={handleGithubSignIn}
+              onClick={handleGatewayzSignIn}
               disabled={isLoading}
             >
-              {isLoading ? (
+              {isGatewayzLoading ? (
                 "Signing in..."
               ) : (
                 <>
                   <Image
-                    src="https://cdn.terragonlabs.com/github-mark-Z5SF.svg"
-                    alt="GitHub"
+                    src="/gatewayz-logo-white.png"
+                    alt="Gatewayz"
                     width={20}
                     height={20}
                     className="hidden dark:block absolute left-4"
                   />
                   <Image
-                    src="https://cdn.terragonlabs.com/github-mark-white-Ue4J.svg"
-                    alt="GitHub"
+                    src="/gatewayz-logo-black.png"
+                    alt="Gatewayz"
                     width={20}
                     height={20}
                     className="block dark:hidden absolute left-4"
                   />
-                  Continue with GitHub
+                  Continue with Gatewayz
                 </>
               )}
             </Button>
+
+            {/* Collapsible section for other sign-in options */}
+            <Collapsible
+              open={showOtherOptions}
+              onOpenChange={setShowOtherOptions}
+            >
+              <CollapsibleTrigger asChild>
+                <button
+                  className="flex items-center justify-center gap-1 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                  type="button"
+                >
+                  <span>Other sign in options</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      showOtherOptions && "rotate-180",
+                    )}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full relative"
+                  onClick={handleGithubSignIn}
+                  disabled={isLoading}
+                >
+                  {isGithubLoading ? (
+                    "Signing in..."
+                  ) : (
+                    <>
+                      <Image
+                        src="https://cdn.terragonlabs.com/github-mark-Z5SF.svg"
+                        alt="GitHub"
+                        width={20}
+                        height={20}
+                        className="hidden dark:block absolute left-4"
+                      />
+                      <Image
+                        src="https://cdn.terragonlabs.com/github-mark-white-Ue4J.svg"
+                        alt="GitHub"
+                        width={20}
+                        height={20}
+                        className="block dark:hidden absolute left-4"
+                      />
+                      Continue with GitHub
+                    </>
+                  )}
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           <p className="px-8 text-center text-sm text-muted-foreground">
