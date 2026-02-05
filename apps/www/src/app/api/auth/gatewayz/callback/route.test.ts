@@ -7,9 +7,8 @@ import { describe, it, expect } from "vitest";
  * particularly the postMessage origin restrictions.
  */
 
-// Import the allowed origins constant by reading the source
-// Since we can't directly import from a route file, we test the expected behavior
-const EXPECTED_ALLOWED_ORIGINS = [
+// Default allowed origins that match the route implementation
+const DEFAULT_ALLOWED_ORIGINS = [
   "https://gatewayz.ai",
   "https://www.gatewayz.ai",
   "https://beta.gatewayz.ai",
@@ -17,10 +16,10 @@ const EXPECTED_ALLOWED_ORIGINS = [
 ];
 
 describe("GatewayZ callback route security", () => {
-  describe("ALLOWED_EMBED_ORIGINS", () => {
+  describe("DEFAULT_ALLOWED_EMBED_ORIGINS", () => {
     it("should only include trusted GatewayZ domains", () => {
       // All allowed origins should be GatewayZ domains
-      for (const origin of EXPECTED_ALLOWED_ORIGINS) {
+      for (const origin of DEFAULT_ALLOWED_ORIGINS) {
         expect(origin).toMatch(
           /^https:\/\/(www\.|beta\.|inbox\.)?gatewayz\.ai$/,
         );
@@ -29,7 +28,7 @@ describe("GatewayZ callback route security", () => {
 
     it("should not include wildcard origins", () => {
       // Ensure no wildcards are present
-      for (const origin of EXPECTED_ALLOWED_ORIGINS) {
+      for (const origin of DEFAULT_ALLOWED_ORIGINS) {
         expect(origin).not.toBe("*");
         expect(origin).not.toContain("*");
       }
@@ -37,21 +36,21 @@ describe("GatewayZ callback route security", () => {
 
     it("should only use HTTPS protocol", () => {
       // All origins must use HTTPS for security
-      for (const origin of EXPECTED_ALLOWED_ORIGINS) {
+      for (const origin of DEFAULT_ALLOWED_ORIGINS) {
         expect(origin.startsWith("https://")).toBe(true);
       }
     });
 
     it("should include the main production domain", () => {
-      expect(EXPECTED_ALLOWED_ORIGINS).toContain("https://gatewayz.ai");
+      expect(DEFAULT_ALLOWED_ORIGINS).toContain("https://gatewayz.ai");
     });
 
     it("should include the inbox subdomain", () => {
-      expect(EXPECTED_ALLOWED_ORIGINS).toContain("https://inbox.gatewayz.ai");
+      expect(DEFAULT_ALLOWED_ORIGINS).toContain("https://inbox.gatewayz.ai");
     });
 
     it("should include the beta subdomain for testing", () => {
-      expect(EXPECTED_ALLOWED_ORIGINS).toContain("https://beta.gatewayz.ai");
+      expect(DEFAULT_ALLOWED_ORIGINS).toContain("https://beta.gatewayz.ai");
     });
   });
 
@@ -83,8 +82,11 @@ describe("postMessage security requirements", () => {
      * state to malicious sites that embed Terragon in an iframe.
      *
      * Implementation: The generateEmbedAuthPage function iterates over
-     * ALLOWED_EMBED_ORIGINS and sends postMessage to each trusted origin.
+     * allowed origins and sends postMessage to each trusted origin.
      * Only the actual parent origin will receive the message.
+     *
+     * Configuration: Origins can be customized via GATEWAYZ_ALLOWED_ORIGINS
+     * environment variable (comma-separated list).
      */
     expect(true).toBe(true);
   });
@@ -94,15 +96,17 @@ describe("postMessage security requirements", () => {
      * Security requirement: Only GatewayZ domains should be able to embed
      * Terragon and receive authentication completion messages.
      *
-     * Trusted domains:
+     * Default trusted domains:
      * - gatewayz.ai (main production)
      * - www.gatewayz.ai (www subdomain)
      * - beta.gatewayz.ai (testing/staging)
      * - inbox.gatewayz.ai (inbox feature)
      *
+     * These can be overridden via GATEWAYZ_ALLOWED_ORIGINS env var.
+     *
      * Any other domain embedding Terragon will NOT receive postMessage
      * notifications about auth completion.
      */
-    expect(EXPECTED_ALLOWED_ORIGINS.length).toBe(4);
+    expect(DEFAULT_ALLOWED_ORIGINS.length).toBe(4);
   });
 });

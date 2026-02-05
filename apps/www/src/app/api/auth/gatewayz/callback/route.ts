@@ -22,15 +22,28 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
- * Allowed origins for postMessage in embed mode.
+ * Default allowed origins for postMessage in embed mode.
  * These are the trusted GatewayZ domains that can receive auth completion messages.
  */
-const ALLOWED_EMBED_ORIGINS = [
+const DEFAULT_ALLOWED_EMBED_ORIGINS = [
   "https://gatewayz.ai",
   "https://www.gatewayz.ai",
   "https://beta.gatewayz.ai",
   "https://inbox.gatewayz.ai",
 ];
+
+/**
+ * Get the allowed origins for postMessage in embed mode.
+ * Uses GATEWAYZ_ALLOWED_ORIGINS env var if set (comma-separated),
+ * otherwise falls back to defaults.
+ */
+function getAllowedEmbedOrigins(): string[] {
+  const envOrigins = process.env.GATEWAYZ_ALLOWED_ORIGINS;
+  if (envOrigins) {
+    return envOrigins.split(",").map((origin) => origin.trim());
+  }
+  return DEFAULT_ALLOWED_EMBED_ORIGINS;
+}
 
 /**
  * Generate an HTML page for embed mode authentication.
@@ -57,7 +70,7 @@ function generateEmbedAuthPage(
   const safeGwAuthToken = gwAuthToken.replace(/'/g, "\\'");
 
   // Serialize allowed origins for embedding in the HTML response
-  const allowedOriginsJson = JSON.stringify(ALLOWED_EMBED_ORIGINS);
+  const allowedOriginsJson = JSON.stringify(getAllowedEmbedOrigins());
 
   return `<!DOCTYPE html>
 <html>
