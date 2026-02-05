@@ -19,7 +19,7 @@ export const getThreadsAction = userOnlyAction(
     const threads = await getThreads({
       db,
       userId,
-      limit: filters.limit ?? 100,
+      limit: filters.limit ?? 25,
       offset: filters.offset ?? 0,
       archived: filters.archived,
       isBacklog: filters.isBacklog,

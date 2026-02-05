@@ -80,7 +80,7 @@ export function threadQueryOptions(threadId: string) {
   });
 }
 
-const THREADS_PER_PAGE = 100;
+const THREADS_PER_PAGE = 25;
 
 export function threadListQueryOptions(filters: ThreadListFilters = {}) {
   const {
@@ -114,6 +114,10 @@ export function threadListQueryOptions(filters: ThreadListFilters = {}) {
     getNextPageParam: (lastPage, pages) => {
       return lastPage.length === limit ? pages.length : undefined;
     },
+    // Cache thread list to improve performance and reduce redundant fetches
+    // WebSocket updates (via useRealtimeThreadMatch) will trigger refetch when threads change
+    staleTime: 30 * 1000, // 30 seconds - data considered fresh, prevents refetch on navigation
+    gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache for quick re-access
   };
   return options;
 }
