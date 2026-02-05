@@ -87,9 +87,10 @@ function generateEmbedAuthPage(
   sessionToken: string,
   gwAuthToken: string,
 ): string {
-  // Encode tokens for safe embedding in JavaScript string literals
+  // Encode all dynamic values for safe embedding in JavaScript string literals
   const safeSessionToken = escapeForJsString(sessionToken);
   const safeGwAuthToken = escapeForJsString(gwAuthToken);
+  const safeRedirectUrl = escapeForJsString(redirectUrl);
 
   // Serialize allowed origins for embedding in the HTML response
   const allowedOriginsJson = JSON.stringify(getAllowedEmbedOrigins());
@@ -132,7 +133,7 @@ function generateEmbedAuthPage(
       }
 
       // Navigate to dashboard
-      window.location.href = '${redirectUrl}';
+      window.location.href = '${safeRedirectUrl}';
     })();
   </script>
 </body>
