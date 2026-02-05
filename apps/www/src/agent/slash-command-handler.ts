@@ -229,7 +229,11 @@ async function handleSkillInvocation({
   }
 
   // Get message text and check for skill invocation pattern
-  const messageText = convertToPlainText({ message }).trim();
+  // Skip attachments to prevent them from polluting skill detection
+  const messageText = convertToPlainText({
+    message,
+    skipAttachments: true,
+  }).trim();
   const skillInvocation = detectSkillInvocation(messageText);
   if (!skillInvocation) {
     return { handled: false };

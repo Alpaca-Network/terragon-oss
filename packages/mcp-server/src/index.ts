@@ -108,6 +108,14 @@ function loadAvailableSkills(): string {
 }
 
 /**
+ * Validate skill name to prevent path traversal attacks.
+ * Only allows alphanumeric characters, underscores, and hyphens.
+ */
+function isValidSkillName(skillName: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(skillName);
+}
+
+/**
  * Load skill content by name.
  */
 function loadSkillContent(skillName: string): {
@@ -115,6 +123,14 @@ function loadSkillContent(skillName: string): {
   name: string;
   description: string;
 } | null {
+  // Validate skill name to prevent path traversal attacks
+  if (!isValidSkillName(skillName)) {
+    console.error(
+      `Invalid skill name "${skillName}": contains invalid characters`,
+    );
+    return null;
+  }
+
   const skillPath = path.join(
     process.cwd(),
     ".claude",
