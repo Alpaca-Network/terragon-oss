@@ -38,3 +38,25 @@ Changes to environment variables are only available for tasks created after the 
 - Check you have a Terragon account with the same GitHub email
 - Ensure you're mentioning `@terragon-labs` exactly
 - Make sure you're tagging `@terragon-labs` in a repository you've granted access to in <a href="https://www.terragonlabs.com/settings/github"><Settings className="inline-block w-4 h-4 mx-1" /> Settings</a>
+
+## Git Submodules
+
+### Does Terragon support repositories with git submodules?
+
+Yes! Terragon automatically detects and handles repositories with git submodules:
+
+- **Auto-detection**: Submodules are detected by checking for `.gitmodules` file
+- **Initialization**: Submodules are automatically initialized during repository clone
+- **Updates**: Submodules are updated after pull/rebase operations
+- **Commits**: Changes within submodules are automatically committed and pushed
+- **Performance**: Shallow clones (`--depth=1`) and parallel operations for fast setup
+
+No configuration is needed - if your repository has a `.gitmodules` file, submodules will be handled automatically.
+
+### Submodule authentication issues
+
+If your submodules require authentication:
+
+- Ensure your GitHub access token has access to all submodule repositories
+- For private submodules, verify the Terragon GitHub App is installed on those repositories
+- Check that submodule URLs use HTTPS (not SSH) in `.gitmodules`

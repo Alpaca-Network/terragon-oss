@@ -50,7 +50,7 @@ describe("sandbox-setup", () => {
 
       // Should have git clone with branch specification and blobless flags
       expect(runCommandSpy).toHaveBeenCalledWith(
-        "git clone --filter=blob:none --no-recurse-submodules --branch 'develop' https://github.com/owner/repo.git repo",
+        "git clone --filter=blob:none --branch 'develop' https://github.com/owner/repo.git repo",
         { cwd: "." },
       );
 
@@ -112,7 +112,7 @@ describe("sandbox-setup", () => {
 
       // Should clone with branch specification and blobless flags (no separate checkout needed)
       expect(runCommandSpy).toHaveBeenCalledWith(
-        "git clone --filter=blob:none --no-recurse-submodules --branch 'main' https://github.com/owner/repo.git repo",
+        "git clone --filter=blob:none --branch 'main' https://github.com/owner/repo.git repo",
         { cwd: "." },
       );
 
@@ -137,7 +137,7 @@ describe("sandbox-setup", () => {
       await gitCloneRepo(session, options);
       // Should clone the repo with branch specification and blobless flags
       expect(runCommandSpy).toHaveBeenCalledWith(
-        "git clone --filter=blob:none --no-recurse-submodules --branch 'feature/test' https://github.com/owner/repo.git repo",
+        "git clone --filter=blob:none --branch 'feature/test' https://github.com/owner/repo.git repo",
         { cwd: "." },
       );
     });
@@ -152,7 +152,7 @@ describe("sandbox-setup", () => {
 
       // Should clone the repo without branch specification but with blobless flags
       expect(runCommandSpy).toHaveBeenCalledWith(
-        "git clone --filter=blob:none --no-recurse-submodules https://github.com/owner/repo.git repo",
+        "git clone --filter=blob:none https://github.com/owner/repo.git repo",
         { cwd: "." },
       );
     });

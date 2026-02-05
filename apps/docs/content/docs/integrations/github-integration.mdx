@@ -134,6 +134,18 @@ When working on a task, Terragon:
   </Step>
 </Steps>
 
+#### Git Submodules Support
+
+Terragon automatically handles repositories with git submodules:
+
+- **Auto-detection**: Detects `.gitmodules` file and initializes submodules automatically
+- **Shallow clones**: Uses `--depth=1` for fast submodule initialization
+- **Automatic updates**: Syncs submodules after pull/rebase operations
+- **Nested support**: Handles submodules within submodules recursively
+- **Commit handling**: Commits changes within submodules before updating parent repo
+
+No configuration needed - submodule support works automatically for any repository with a `.gitmodules` file.
+
 #### GitHub CLI Access
 
 Every sandbox includes GitHub CLI, allowing Terragon to:
