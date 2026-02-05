@@ -289,7 +289,15 @@ async function handleSkillInvocation({
       userMessage: userMessageAfterSkill,
     });
 
-    // Create transformed message with skill content prepended (preserves model)
+    // Preserve non-text parts (attachments like images, PDFs, text files) from original message
+    const attachmentParts = message.parts.filter(
+      (part) =>
+        part.type === "image" ||
+        part.type === "pdf" ||
+        part.type === "text-file",
+    );
+
+    // Create transformed message with skill content prepended (preserves model and attachments)
     const transformedMessage: DBUserMessageWithModel = {
       ...message,
       parts: [
@@ -297,6 +305,7 @@ async function handleSkillInvocation({
           type: "text" as const,
           text: processedContent,
         },
+        ...attachmentParts,
       ],
     };
 
