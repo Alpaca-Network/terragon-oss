@@ -82,8 +82,12 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
         }
       }
 
-      // Handle new thread creation
+      // Handle new thread creation - only if not in backlog
       if (data.isThreadCreated) {
+        // Don't show in mobile pending tasks if created as backlog item
+        if (typeof data.isThreadBacklog === "boolean" && data.isThreadBacklog) {
+          return false;
+        }
         return true;
       }
 
@@ -147,29 +151,34 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
     );
   }
 
-  if (pendingTasks.length === 0) {
+  // If no pending tasks and no more pages to load, don't render anything
+  if (pendingTasks.length === 0 && !hasNextPage) {
     return null;
   }
 
   return (
     <div className={cn("space-y-3", className)}>
-      <h3 className="text-sm font-medium text-muted-foreground">
-        Active Tasks ({pendingTasks.length})
-      </h3>
-      <div className="space-y-2">
-        {pendingTasks.map((thread) => (
-          <KanbanCard
-            key={thread.id}
-            thread={thread}
-            isSelected={selectedThreadId === thread.id}
-            onClick={() => handleThreadSelect(thread)}
-            onCommentsClick={() => handleThreadCommentsClick(thread)}
-          />
-        ))}
-      </div>
+      {pendingTasks.length > 0 && (
+        <>
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Active Tasks ({pendingTasks.length})
+          </h3>
+          <div className="space-y-2">
+            {pendingTasks.map((thread) => (
+              <KanbanCard
+                key={thread.id}
+                thread={thread}
+                isSelected={selectedThreadId === thread.id}
+                onClick={() => handleThreadSelect(thread)}
+                onCommentsClick={() => handleThreadCommentsClick(thread)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
-      {/* Load more button */}
-      {hasNextPage && threads.length > 0 && (
+      {/* Load more button - show if there are more pages, even if current page has no pending tasks */}
+      {hasNextPage && (
         <div className="flex justify-center">
           <Button
             variant="outline"
@@ -184,7 +193,7 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
                 Loading...
               </>
             ) : (
-              "Load more"
+              "Load more tasks"
             )}
           </Button>
         </div>

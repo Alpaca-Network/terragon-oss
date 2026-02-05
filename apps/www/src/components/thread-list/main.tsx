@@ -632,9 +632,20 @@ function useThreadList({
 
       // Handle new thread creation
       if (data.isThreadCreated) {
-        // Only match if it's for the current view
+        // New threads shouldn't appear in archived view
         if (showArchived) {
-          return false; // New threads shouldn't appear in archived view
+          return false;
+        }
+        // Check if backlog status matches the current view filter
+        if (typeof data.isThreadBacklog === "boolean") {
+          // For backlog view, only match if thread is in backlog
+          if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
+            return false;
+          }
+          // For active view (not backlog), only match if thread is not in backlog
+          if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+            return false;
+          }
         }
         return true;
       }
