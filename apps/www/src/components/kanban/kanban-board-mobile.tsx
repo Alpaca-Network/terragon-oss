@@ -412,41 +412,59 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     );
   }
 
+  // Auto-retry on connection error
+  useEffect(() => {
+    if (isError) {
+      const timer = setTimeout(() => {
+        refetch();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isError, refetch]);
+
   if (isError) {
     return (
-      <div className="flex flex-col h-full items-center justify-center gap-4 p-6">
-        <div className="rounded-full bg-destructive/10 p-4">
-          <RefreshCw className="h-6 w-6 text-destructive" />
+      <>
+        <div className="flex flex-col h-full items-center justify-center gap-4 p-6">
+          <div className="rounded-full bg-destructive/10 p-4">
+            <RefreshCw className="h-6 w-6 text-destructive" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              Connection interrupted
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Failed to load tasks. Retrying automatically...
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="gap-1.5 tap-highlight soft-glow"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setNewTaskDrawerOpen(true)}
+              className="gap-1.5 tap-highlight soft-glow"
+            >
+              <SquarePen className="h-3.5 w-3.5" />
+              New Task
+            </Button>
+          </div>
         </div>
-        <div className="text-center space-y-1">
-          <p className="text-sm font-medium text-foreground">
-            Connection interrupted
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Failed to load tasks. Please try again.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            className="gap-1.5 tap-highlight soft-glow"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Retry
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setNewTaskDrawerOpen(true)}
-            className="gap-1.5 tap-highlight soft-glow"
-          >
-            <SquarePen className="h-3.5 w-3.5" />
-            New Task
-          </Button>
-        </div>
-      </div>
+        {/* New task drawer - must be rendered for button to work */}
+        <KanbanNewTaskDrawer
+          open={newTaskDrawerOpen}
+          onClose={handleCloseNewTaskDrawer}
+          queryFilters={queryFilters}
+        />
+      </>
     );
   }
 
