@@ -161,10 +161,11 @@ export const createRepositoryFromTemplate = userOnlyAction(
         creationMethod = "template";
       } else {
         // Source repo is not a template, fall back to forking
+        // Note: GitHub's createFork API does not support the 'name' parameter
+        // Forks always keep the same name as the source repository
         const { data: forkedRepo } = await octokit.rest.repos.createFork({
           owner: templateOwner,
           repo: templateRepo,
-          name: repoName,
           default_branch_only: true,
         });
 
