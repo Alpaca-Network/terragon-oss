@@ -613,11 +613,18 @@ function useThreadList({
         if (showArchived && data.isThreadArchived) {
           return true;
         }
-        // For active view, only match if thread is not archived
+        // For non-archived views (active or backlog), only match if thread is not archived
         if (!showArchived && !data.isThreadArchived) {
-          // Also check backlog status for active view
-          if (queryFilters.isBacklog === false && data.isThreadBacklog) {
-            return false;
+          // Check backlog status if specified in filter
+          if (typeof data.isThreadBacklog === "boolean") {
+            // For backlog view, only match if thread is in backlog
+            if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
+              return false;
+            }
+            // For active view (not backlog), only match if thread is not in backlog
+            if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+              return false;
+            }
           }
           return true;
         }
