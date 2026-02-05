@@ -115,6 +115,7 @@ export function UserAtomsHydrator({
       });
     },
   });
+
   useEffect(() => {
     if (user) {
       posthog.identify(user.id, {

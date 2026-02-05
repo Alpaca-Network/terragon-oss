@@ -613,7 +613,16 @@ function useThreadList({
         if (showArchived && data.isThreadArchived) {
           return true;
         }
-        // For non-archived views (active or backlog), only match if thread is not archived
+        // For archived view, reject non-archived threads
+        if (showArchived && !data.isThreadArchived) {
+          return false;
+        }
+        // For non-archived views, reject archived threads but trigger refetch to remove stale data
+        if (!showArchived && data.isThreadArchived) {
+          // Thread was archived - refetch to remove it from the non-archived view
+          return true;
+        }
+        // For non-archived views (active or backlog), thread is not archived
         if (!showArchived && !data.isThreadArchived) {
           // Check backlog status if we're filtering by it
           if (typeof data.isThreadBacklog === "boolean") {
