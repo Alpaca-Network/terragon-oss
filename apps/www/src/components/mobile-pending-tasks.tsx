@@ -72,7 +72,10 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
       if (typeof data.isThreadArchived === "boolean") {
         if (!data.isThreadArchived) {
           // Also check backlog status
-          if (data.isThreadBacklog) {
+          if (
+            typeof data.isThreadBacklog === "boolean" &&
+            data.isThreadBacklog
+          ) {
             return false;
           }
           return true;
