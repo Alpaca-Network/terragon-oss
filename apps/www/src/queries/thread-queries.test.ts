@@ -36,6 +36,7 @@ function createMockThreadInfo(overrides: Partial<ThreadInfo> = {}): ThreadInfo {
     autoFixFeedback: false,
     autoMergePR: false,
     autoFixIterationCount: 0,
+    autoFixQueuedAt: null,
     sourceType: null,
     sourceMetadata: null,
     version: 0,

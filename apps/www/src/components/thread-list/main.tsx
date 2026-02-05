@@ -588,27 +588,97 @@ function useThreadList({
   const automationId = queryFilters.automationId;
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      // Check if this update is for a thread already in our visible list
+      const isThreadVisible = threadIds.has(threadId);
+
+      if (isThreadVisible) {
         // If messages were updated but the status didn't change, we don't need to refetch.
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
         return true;
       }
+
+      // For threads not in visible list, check if they should appear based on filters
+      // This handles the case where thread exists on page 2+ or was just created/updated
+
+      // Filter by automation if specified
       if (automationId && data.threadAutomationId !== automationId) {
         return false;
       }
+
+      // Check if archived status matches current view
       if (typeof data.isThreadArchived === "boolean") {
-        if (showArchived === data.isThreadArchived) {
+        // For archived view, only match if thread is archived
+        if (showArchived && data.isThreadArchived) {
+          return true;
+        }
+        // For archived view, reject non-archived threads
+        if (showArchived && !data.isThreadArchived) {
+          return false;
+        }
+        // For non-archived views, reject archived threads but trigger refetch to remove stale data
+        if (!showArchived && data.isThreadArchived) {
+          // Thread was archived - refetch to remove it from the non-archived view
+          return true;
+        }
+        // For non-archived views (active or backlog), thread is not archived
+        if (!showArchived && !data.isThreadArchived) {
+          // Check backlog status if we're filtering by it
+          if (typeof data.isThreadBacklog === "boolean") {
+            // For backlog view, only match if thread is in backlog
+            if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
+              return false;
+            }
+            // For active view (not backlog), only match if thread is not in backlog
+            if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+              return false;
+            }
+            // Backlog status matches or no filter applied - refetch to update
+            return true;
+          }
+          // Backlog status unknown but we have a filter - refetch to verify
+          // This is safe because the server will return correctly filtered data
+          if (queryFilters.isBacklog !== undefined) {
+            return true;
+          }
+          // No backlog filter and status unknown - refetch to update
           return true;
         }
       }
+
+      // Handle new thread creation
       if (data.isThreadCreated) {
+        // New threads shouldn't appear in archived view
+        if (showArchived) {
+          return false;
+        }
+        // Check if backlog status matches the current view filter
+        if (typeof data.isThreadBacklog === "boolean") {
+          // For backlog view, only match if thread is in backlog
+          if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
+            return false;
+          }
+          // For active view (not backlog), only match if thread is not in backlog
+          if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+            return false;
+          }
+          // Backlog status matches or no filter applied - refetch to show new thread
+          return true;
+        }
+        // Backlog status unknown - refetch to verify the new thread matches filters
+        // This is safe because the server will return correctly filtered data
         return true;
       }
+
+      // Handle thread status updates (could move thread between pages)
+      if (data.threadStatusUpdated) {
+        return true;
+      }
+
       return false;
     },
-    [threadIds, showArchived, automationId],
+    [threadIds, showArchived, automationId, queryFilters.isBacklog],
   );
   useRealtimeThreadMatch({
     matchThread,
