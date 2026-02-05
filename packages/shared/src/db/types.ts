@@ -551,3 +551,54 @@ export type PRReference = {
   repoFullName: string;
   prNumber: number;
 };
+
+// =============================================================================
+// Split PR Feedback Types (for progressive loading)
+// =============================================================================
+
+/**
+ * Lightweight PR header data - fetched first for fast initial render
+ */
+export type PRHeader = {
+  prNumber: number;
+  repoFullName: string;
+  prUrl: string;
+  prTitle: string;
+  prState: GithubPRStatus;
+  baseBranch: string;
+  headBranch: string;
+  headSha: string;
+  mergeableState: GithubPRMergeableState;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+  isAutoMergeEnabled: boolean;
+};
+
+/**
+ * PR comments data - includes resolution status
+ */
+export type PRCommentsData = {
+  comments: {
+    unresolved: PRReviewThread[];
+    resolved: PRReviewThread[];
+  };
+  summary: {
+    unresolvedCount: number;
+    resolvedCount: number;
+  };
+};
+
+/**
+ * PR checks data - includes coverage check
+ */
+export type PRChecksData = {
+  checks: PRCheckRun[];
+  coverageCheck: PRCheckRun | null;
+  summary: {
+    failingCount: number;
+    pendingCount: number;
+    passingCount: number;
+    hasCoverageCheck: boolean;
+    coverageCheckPassed: boolean | null;
+  };
+};
