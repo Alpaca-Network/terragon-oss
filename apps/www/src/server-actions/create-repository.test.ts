@@ -122,7 +122,7 @@ describe("createRepositoryFromTemplate", () => {
       // Polling call - fork is ready
       .mockResolvedValueOnce({
         data: {
-          full_name: "testuser/my-nextjs-app",
+          full_name: "testuser/next.js",
           default_branch: "main",
           private: false,
           size: 1000,
@@ -131,17 +131,17 @@ describe("createRepositoryFromTemplate", () => {
       // Final fetch for updated repo info
       .mockResolvedValueOnce({
         data: {
-          full_name: "testuser/my-nextjs-app",
+          full_name: "testuser/next.js",
           default_branch: "main",
           private: false,
         },
       });
 
-    // Fork succeeds
+    // Fork succeeds - note that forks keep the same name as the source repo
     mockOctokit.rest.repos.createFork.mockResolvedValue({
       data: {
-        full_name: "testuser/my-nextjs-app",
-        name: "my-nextjs-app",
+        full_name: "testuser/next.js",
+        name: "next.js",
         default_branch: "main",
         private: false,
       },
@@ -150,7 +150,7 @@ describe("createRepositoryFromTemplate", () => {
     const result = await createRepositoryFromTemplate({
       templateOwner: "vercel",
       templateRepo: "next.js",
-      repoName: "my-nextjs-app",
+      repoName: "my-nextjs-app", // This parameter is ignored for forks
       isPrivate: false,
       suggestedFirstTask: "Set up authentication",
     });
@@ -158,11 +158,10 @@ describe("createRepositoryFromTemplate", () => {
 
     expect(result.success).toBe(true);
     const data = unwrapResult(result);
-    expect(data.repoFullName).toBe("testuser/my-nextjs-app");
+    expect(data.repoFullName).toBe("testuser/next.js");
     expect(mockOctokit.rest.repos.createFork).toHaveBeenCalledWith({
       owner: "vercel",
       repo: "next.js",
-      name: "my-nextjs-app",
       default_branch_only: true,
     });
     expect(mockOctokit.rest.repos.createUsingTemplate).not.toHaveBeenCalled();
