@@ -36,7 +36,11 @@ const DEFAULT_ALLOWED_EMBED_ORIGINS = [
  * Get the allowed origins for postMessage in embed mode.
  * Uses GATEWAYZ_ALLOWED_ORIGINS env var if set (comma-separated),
  * otherwise falls back to defaults.
- * Filters out empty strings and invalid URLs to handle misconfiguration.
+ *
+ * Security: Filters out empty strings (from extra commas like "a,,b" or empty env var)
+ * and invalid URLs to prevent postMessage from failing silently or being sent to
+ * unintended targets. Falls back to defaults if env var produces no valid origins,
+ * ensuring auth flow never breaks due to misconfiguration.
  */
 function getAllowedEmbedOrigins(): string[] {
   const envOrigins = process.env.GATEWAYZ_ALLOWED_ORIGINS;
@@ -45,7 +49,7 @@ function getAllowedEmbedOrigins(): string[] {
       .split(",")
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0 && isValidHttpsOrigin(origin));
-    // Fall back to defaults if env var produces no valid origins
+    // Fall back to defaults if env var produces no valid origins (empty string, only commas, etc.)
     return origins.length > 0 ? origins : DEFAULT_ALLOWED_EMBED_ORIGINS;
   }
   return DEFAULT_ALLOWED_EMBED_ORIGINS;
@@ -107,7 +111,12 @@ function generateEmbedAuthPage(
   const safeRedirectUrl = escapeForJsString(redirectUrl);
 
   // Serialize allowed origins for embedding in the HTML response
-  const allowedOriginsJson = JSON.stringify(getAllowedEmbedOrigins());
+  // Use escapeForJsString to prevent XSS via </script> injection in env var values
+  const allowedOrigins = getAllowedEmbedOrigins();
+  const allowedOriginsJson =
+    "[" +
+    allowedOrigins.map((o) => `"${escapeForJsString(o)}"`).join(",") +
+    "]";
 
   return `<!DOCTYPE html>
 <html>

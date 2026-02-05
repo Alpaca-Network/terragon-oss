@@ -60,6 +60,20 @@ describe("GatewayZ callback route security", () => {
       }
       expect(routeSource).toContain("GATEWAYZ_ALLOWED_ORIGINS");
     });
+
+    it("should filter empty origins from env var to prevent silent postMessage failures", () => {
+      if (!routeSource) {
+        return;
+      }
+      // Verify the code filters out empty strings (from extra commas like "a,,b" or empty env var)
+      expect(routeSource).toContain("filter((origin) => origin.length > 0");
+      // Verify the code validates origins are valid HTTPS URLs
+      expect(routeSource).toContain("isValidHttpsOrigin(origin)");
+      // Verify it falls back to defaults when env var produces no valid origins
+      expect(routeSource).toContain(
+        "origins.length > 0 ? origins : DEFAULT_ALLOWED_EMBED_ORIGINS",
+      );
+    });
   });
 
   describe("default allowed origins", () => {
@@ -160,6 +174,21 @@ describe("XSS protection verification", () => {
     expect(routeSource).toContain("safeSessionToken = escapeForJsString");
     expect(routeSource).toContain("safeGwAuthToken = escapeForJsString");
     expect(routeSource).toContain("safeRedirectUrl = escapeForJsString");
+  });
+
+  it("should escape allowedOrigins JSON to prevent XSS via env var", () => {
+    if (!routeSource) {
+      return;
+    }
+    // Verify allowedOriginsJson is built using escapeForJsString, not raw JSON.stringify
+    // This prevents XSS if an attacker can inject </script> via GATEWAYZ_ALLOWED_ORIGINS env var
+    expect(routeSource).toContain(
+      'allowedOrigins.map(o => `"${escapeForJsString(o)}"`',
+    );
+    // Should NOT use raw JSON.stringify for the origins
+    expect(routeSource).not.toMatch(
+      /JSON\.stringify\(getAllowedEmbedOrigins\(\)\)/,
+    );
   });
 
   it("should have isValidHttpsOrigin function for origin validation", () => {
