@@ -152,8 +152,13 @@ export async function getDaemonLogs({
 }) {
   // Use tail command to efficiently get only the last N lines from the sandbox
   // This avoids transferring potentially large log files over the network
+  // Sanitize maxLines to prevent command injection
+  const sanitizedMaxLines = Math.max(
+    1,
+    Math.floor(Number(maxLines) || DEFAULT_LOG_LINES),
+  );
   const rawLogs = await session.runCommand(
-    `tail -n ${maxLines} ${DAEMON_LOG_FILE_PATH} 2>/dev/null || echo ""`,
+    `tail -n ${sanitizedMaxLines} ${DAEMON_LOG_FILE_PATH} 2>/dev/null || echo ""`,
     { cwd: "/", timeoutMs: 5000 },
   );
   return rawLogs

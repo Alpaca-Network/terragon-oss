@@ -340,6 +340,31 @@ describe("getDaemonLogs", () => {
     expect(executedCommands[0]!.command).toContain("tail -n 500");
   });
 
+  it("should sanitize maxLines to prevent command injection", async () => {
+    // Test with potentially malicious input - should be sanitized to a safe number
+    await getDaemonLogs({
+      session: mockSession,
+      maxLines: "100; rm -rf /" as unknown as number,
+    });
+
+    // Should use default value when given invalid input (NaN from parsing string with semicolon)
+    expect(executedCommands[0]!.command).toContain("tail -n 1000");
+    expect(executedCommands[0]!.command).not.toContain("rm");
+    expect(executedCommands[0]!.command).not.toContain(";");
+  });
+
+  it("should handle negative maxLines by using minimum of 1", async () => {
+    await getDaemonLogs({ session: mockSession, maxLines: -5 });
+
+    expect(executedCommands[0]!.command).toContain("tail -n 1");
+  });
+
+  it("should handle decimal maxLines by flooring", async () => {
+    await getDaemonLogs({ session: mockSession, maxLines: 50.9 });
+
+    expect(executedCommands[0]!.command).toContain("tail -n 50");
+  });
+
   it("should set appropriate timeout for the command", async () => {
     await getDaemonLogs({ session: mockSession });
 
