@@ -36,7 +36,7 @@ const DEFAULT_ALLOWED_EMBED_ORIGINS = [
  * Get the allowed origins for postMessage in embed mode.
  * Uses GATEWAYZ_ALLOWED_ORIGINS env var if set (comma-separated),
  * otherwise falls back to defaults.
- * Filters out empty strings to handle trailing commas or empty env var.
+ * Filters out empty strings and invalid URLs to handle misconfiguration.
  */
 function getAllowedEmbedOrigins(): string[] {
   const envOrigins = process.env.GATEWAYZ_ALLOWED_ORIGINS;
@@ -44,8 +44,8 @@ function getAllowedEmbedOrigins(): string[] {
     const origins = envOrigins
       .split(",")
       .map((origin) => origin.trim())
-      .filter((origin) => origin.length > 0);
-    // Fall back to defaults if env var is empty or only whitespace/commas
+      .filter((origin) => origin.length > 0 && isValidHttpsOrigin(origin));
+    // Fall back to defaults if env var produces no valid origins
     return origins.length > 0 ? origins : DEFAULT_ALLOWED_EMBED_ORIGINS;
   }
   return DEFAULT_ALLOWED_EMBED_ORIGINS;
@@ -53,7 +53,7 @@ function getAllowedEmbedOrigins(): string[] {
 
 /**
  * Escape a string for safe embedding in a JavaScript string literal.
- * Handles backslashes, quotes, newlines, and other special characters.
+ * Handles backslashes, quotes, newlines, Unicode line terminators, and HTML special characters.
  */
 function escapeForJsString(str: string): string {
   return str
@@ -63,8 +63,22 @@ function escapeForJsString(str: string): string {
     .replace(/\n/g, "\\n") // Escape newlines
     .replace(/\r/g, "\\r") // Escape carriage returns
     .replace(/\t/g, "\\t") // Escape tabs
+    .replace(/\u2028/g, "\\u2028") // Escape Unicode line separator
+    .replace(/\u2029/g, "\\u2029") // Escape Unicode paragraph separator
     .replace(/</g, "\\x3c") // Escape < to prevent </script> injection
     .replace(/>/g, "\\x3e"); // Escape > for consistency
+}
+
+/**
+ * Validate that a string is a valid HTTPS origin URL.
+ */
+function isValidHttpsOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:" && url.origin === origin;
+  } catch {
+    return false;
+  }
 }
 
 /**

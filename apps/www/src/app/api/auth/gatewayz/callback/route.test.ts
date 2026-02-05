@@ -137,3 +137,36 @@ describe("postMessage security requirements", () => {
     expect(EXPECTED_DEFAULT_ORIGINS.length).toBe(4);
   });
 });
+
+describe("XSS protection verification", () => {
+  it("should have escapeForJsString function that handles dangerous characters", () => {
+    if (!routeSource) {
+      return;
+    }
+    // Verify the escape function exists and handles all necessary characters
+    expect(routeSource).toContain("escapeForJsString");
+    expect(routeSource).toContain("\\\\\\\\"); // Escapes backslashes
+    expect(routeSource).toContain("\\\\'"); // Escapes single quotes
+    expect(routeSource).toContain("\\x3c"); // Escapes < for script injection
+    expect(routeSource).toContain("\\u2028"); // Escapes Unicode line separator
+    expect(routeSource).toContain("\\u2029"); // Escapes Unicode paragraph separator
+  });
+
+  it("should escape all dynamic values in embed auth page", () => {
+    if (!routeSource) {
+      return;
+    }
+    // Verify all dynamic values use the escape function
+    expect(routeSource).toContain("safeSessionToken = escapeForJsString");
+    expect(routeSource).toContain("safeGwAuthToken = escapeForJsString");
+    expect(routeSource).toContain("safeRedirectUrl = escapeForJsString");
+  });
+
+  it("should have isValidHttpsOrigin function for origin validation", () => {
+    if (!routeSource) {
+      return;
+    }
+    expect(routeSource).toContain("isValidHttpsOrigin");
+    expect(routeSource).toContain('url.protocol === "https:"');
+  });
+});
