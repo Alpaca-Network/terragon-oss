@@ -428,28 +428,8 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
             Connection interrupted
           </p>
           <p className="text-xs text-muted-foreground">
-            Failed to load tasks. Please try again.
+            Please refresh the page to try again.
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            className="gap-1.5 tap-highlight soft-glow"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Retry
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setNewTaskDrawerOpen(true)}
-            className="gap-1.5 tap-highlight soft-glow"
-          >
-            <SquarePen className="h-3.5 w-3.5" />
-            New Task
-          </Button>
         </div>
       </div>
     );
