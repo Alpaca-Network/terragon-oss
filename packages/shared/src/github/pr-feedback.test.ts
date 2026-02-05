@@ -96,7 +96,7 @@ describe("createFeedbackSummary", () => {
     baseBranch: "main",
     headBranch: "feature",
     headSha: "abc123",
-    comments: { unresolved: [], resolved: [] },
+    comments: { unresolved: [], resolved: [], inProgress: [] },
     checks: [],
     coverageCheck: null,
     mergeableState: "clean",
@@ -109,9 +109,11 @@ describe("createFeedbackSummary", () => {
   const createThread = (
     commentCount: number,
     isResolved = false,
+    isInProgress = false,
   ): PRReviewThread => ({
     id: String(Math.floor(Math.random() * 1000)),
     isResolved,
+    isInProgress,
     comments: Array.from({ length: commentCount }, (_, i) => ({
       id: i,
       body: `Comment ${i}`,
@@ -144,6 +146,7 @@ describe("createFeedbackSummary", () => {
       comments: {
         unresolved: [createThread(2), createThread(3)],
         resolved: [],
+        inProgress: [],
       },
     });
     const summary = createFeedbackSummary(feedback);
@@ -155,6 +158,7 @@ describe("createFeedbackSummary", () => {
       comments: {
         unresolved: [],
         resolved: [createThread(1, true), createThread(2, true)],
+        inProgress: [],
       },
     });
     const summary = createFeedbackSummary(feedback);
@@ -1001,5 +1005,259 @@ describe("fetch functions", () => {
       ref: "abc123",
       per_page: 100,
     });
+  });
+});
+
+describe("feedbackQueuedAt time check (in-progress comments)", () => {
+  const mockOctokit = {
+    rest: {
+      pulls: {
+        get: vi.fn(),
+        listReviewComments: vi.fn(),
+        listReviews: vi.fn(),
+      },
+      checks: {
+        listForRef: vi.fn(),
+      },
+    },
+    graphql: vi.fn(),
+  };
+
+  const createPRDetails = () => ({
+    html_url: "https://github.com/owner/repo/pull/123",
+    title: "Test PR",
+    draft: false,
+    closed_at: null,
+    merged_at: null,
+    base: { ref: "main" },
+    head: { ref: "feature", sha: "abc123" },
+    mergeable: true,
+    mergeable_state: "clean",
+    auto_merge: null,
+  });
+
+  const setupMinimalMocks = () => {
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: createPRDetails() });
+    mockOctokit.rest.checks.listForRef.mockResolvedValue({
+      data: { check_runs: [] },
+    });
+    // GraphQL returns no resolution status
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should mark unresolved comments as in-progress when feedbackQueuedAt is after comment creation", async () => {
+    const commentCreatedAt = "2024-01-01T10:00:00Z"; // Comment created at 10:00
+    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z"); // Feedback queued at 12:00 (after comment)
+
+    setupMinimalMocks();
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Please fix this",
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer", avatar_url: "https://example.com" },
+          created_at: commentCreatedAt,
+          updated_at: commentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-1",
+        },
+      ],
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      { feedbackQueuedAt },
+    );
+
+    // Comment should be unresolved but marked as in-progress
+    expect(feedback.comments.unresolved).toHaveLength(1);
+    expect(feedback.comments.unresolved[0]!.isResolved).toBe(false);
+    expect(feedback.comments.unresolved[0]!.isInProgress).toBe(true);
+    expect(feedback.comments.inProgress).toHaveLength(1);
+  });
+
+  it("should NOT mark comments as in-progress when feedbackQueuedAt is before comment creation", async () => {
+    const commentCreatedAt = "2024-01-01T14:00:00Z"; // Comment created at 14:00
+    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z"); // Feedback queued at 12:00 (before comment)
+
+    setupMinimalMocks();
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Please fix this",
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer", avatar_url: "https://example.com" },
+          created_at: commentCreatedAt,
+          updated_at: commentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-1",
+        },
+      ],
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      { feedbackQueuedAt },
+    );
+
+    // Comment should be unresolved and NOT in-progress (created after feedback was queued)
+    expect(feedback.comments.unresolved).toHaveLength(1);
+    expect(feedback.comments.unresolved[0]!.isResolved).toBe(false);
+    expect(feedback.comments.unresolved[0]!.isInProgress).toBe(false);
+    expect(feedback.comments.inProgress).toHaveLength(0);
+  });
+
+  it("should NOT mark resolved comments as in-progress", async () => {
+    const commentCreatedAt = "2024-01-01T10:00:00Z";
+    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z");
+
+    setupMinimalMocks();
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Done", // Has resolution keyword
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "author", avatar_url: "https://example.com" },
+          created_at: commentCreatedAt,
+          updated_at: commentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-1",
+        },
+      ],
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      { feedbackQueuedAt },
+    );
+
+    // Comment is resolved (has "Done" keyword), so it should NOT be in inProgress
+    expect(feedback.comments.resolved).toHaveLength(1);
+    expect(feedback.comments.unresolved).toHaveLength(0);
+    expect(feedback.comments.inProgress).toHaveLength(0);
+  });
+
+  it("should handle null feedbackQueuedAt (no comments in-progress)", async () => {
+    const commentCreatedAt = "2024-01-01T10:00:00Z";
+
+    setupMinimalMocks();
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Please fix this",
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer", avatar_url: "https://example.com" },
+          created_at: commentCreatedAt,
+          updated_at: commentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-1",
+        },
+      ],
+    });
+
+    // No feedbackQueuedAt provided
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    // Comment should be unresolved but NOT in-progress (no feedbackQueuedAt)
+    expect(feedback.comments.unresolved).toHaveLength(1);
+    expect(feedback.comments.unresolved[0]!.isInProgress).toBe(false);
+    expect(feedback.comments.inProgress).toHaveLength(0);
+  });
+
+  it("should mark multiple older comments as in-progress and leave newer ones not in-progress", async () => {
+    const oldCommentCreatedAt = "2024-01-01T10:00:00Z"; // Before feedback queued
+    const newCommentCreatedAt = "2024-01-01T14:00:00Z"; // After feedback queued
+    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z");
+
+    setupMinimalMocks();
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Please fix this (old comment)",
+          path: "file1.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer1", avatar_url: "https://example.com" },
+          created_at: oldCommentCreatedAt,
+          updated_at: oldCommentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-1",
+        },
+        {
+          id: 2,
+          body: "Also fix this (new comment)",
+          path: "file2.ts",
+          line: 20,
+          original_line: 20,
+          side: "RIGHT",
+          user: { login: "reviewer2", avatar_url: "https://example.com" },
+          created_at: newCommentCreatedAt,
+          updated_at: newCommentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-2",
+        },
+      ],
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      { feedbackQueuedAt },
+    );
+
+    // Both comments are unresolved
+    expect(feedback.comments.unresolved).toHaveLength(2);
+    // Only the old comment (created before feedbackQueuedAt) should be in-progress
+    expect(feedback.comments.inProgress).toHaveLength(1);
+    expect(feedback.comments.inProgress[0]!.comments[0]!.body).toContain(
+      "old comment",
+    );
   });
 });

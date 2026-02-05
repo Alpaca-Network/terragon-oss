@@ -33,6 +33,9 @@ export const getPRFeedback = cache(
       let repoFullName: string;
       let prNumber: number;
 
+      // Track feedbackQueuedAt from thread if available
+      let feedbackQueuedAt: Date | null = null;
+
       if ("threadId" in params) {
         // Get PR info from thread
         const thread = await getThreadMinimal({
@@ -51,6 +54,7 @@ export const getPRFeedback = cache(
 
         repoFullName = thread.githubRepoFullName;
         prNumber = thread.githubPRNumber;
+        feedbackQueuedAt = thread.feedbackQueuedAt ?? null;
       } else {
         repoFullName = params.repoFullName;
         prNumber = params.prNumber;
@@ -65,6 +69,7 @@ export const getPRFeedback = cache(
           owner,
           repo,
           prNumber,
+          { feedbackQueuedAt },
         );
         const summary = createFeedbackSummary(feedback);
 

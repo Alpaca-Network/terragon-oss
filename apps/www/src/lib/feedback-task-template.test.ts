@@ -21,7 +21,7 @@ describe("generateFeedbackTaskDescription", () => {
     baseBranch: "main",
     headBranch: "feature",
     headSha: "abc123",
-    comments: { unresolved: [], resolved: [] },
+    comments: { unresolved: [], resolved: [], inProgress: [] },
     checks: [],
     coverageCheck: null,
     mergeableState: "clean",
@@ -41,6 +41,7 @@ describe("generateFeedbackTaskDescription", () => {
   ): PRReviewThread => ({
     id: String(Math.floor(Math.random() * 1000)),
     isResolved: false,
+    isInProgress: false,
     comments: comments.map((c, i) => ({
       id: i,
       body: c.body,
@@ -91,6 +92,7 @@ describe("generateFeedbackTaskDescription", () => {
           ]),
         ],
         resolved: [],
+        inProgress: [],
       },
     });
     const result = generateFeedbackTaskDescription(feedback, {
@@ -110,6 +112,7 @@ describe("generateFeedbackTaskDescription", () => {
           createThread([{ body: longBody, path: "file.ts", line: 1 }]),
         ],
         resolved: [],
+        inProgress: [],
       },
     });
     const result = generateFeedbackTaskDescription(feedback, {
@@ -130,6 +133,7 @@ describe("generateFeedbackTaskDescription", () => {
           ]),
         ],
         resolved: [],
+        inProgress: [],
       },
     });
     const result = generateFeedbackTaskDescription(feedback, {
@@ -148,6 +152,7 @@ describe("generateFeedbackTaskDescription", () => {
           ]),
         ],
         resolved: [],
+        inProgress: [],
       },
     });
     const result = generateFeedbackTaskDescription(feedback, {
@@ -227,6 +232,7 @@ describe("generateFeedbackTaskDescription", () => {
           createThread([{ body: "Fix this", path: "file.ts", line: 1 }]),
         ],
         resolved: [],
+        inProgress: [],
       },
       checks: [createCheck("Build", "failure")],
       coverageCheck: createCheck("Codecov", "failure"),
@@ -293,7 +299,7 @@ describe("createFeedbackSummaryText", () => {
     baseBranch: "main",
     headBranch: "feature",
     headSha: "abc123",
-    comments: { unresolved: [], resolved: [] },
+    comments: { unresolved: [], resolved: [], inProgress: [] },
     checks: [],
     coverageCheck: null,
     mergeableState: "clean",
@@ -306,6 +312,7 @@ describe("createFeedbackSummaryText", () => {
   const createThread = (commentCount: number): PRReviewThread => ({
     id: String(Math.floor(Math.random() * 1000)),
     isResolved: false,
+    isInProgress: false,
     comments: Array.from({ length: commentCount }, (_, i) => ({
       id: i,
       body: `Comment ${i}`,
@@ -337,7 +344,7 @@ describe("createFeedbackSummaryText", () => {
 
   it("should count unresolved comments with correct pluralization", () => {
     const feedbackSingle = createBaseFeedback({
-      comments: { unresolved: [createThread(1)], resolved: [] },
+      comments: { unresolved: [createThread(1)], resolved: [], inProgress: [] },
     });
     expect(createFeedbackSummaryText(feedbackSingle)).toBe("1 comment");
 
@@ -345,6 +352,7 @@ describe("createFeedbackSummaryText", () => {
       comments: {
         unresolved: [createThread(2), createThread(3)],
         resolved: [],
+        inProgress: [],
       },
     });
     expect(createFeedbackSummaryText(feedbackMultiple)).toBe("5 comments");
@@ -375,7 +383,7 @@ describe("createFeedbackSummaryText", () => {
 
   it("should combine multiple issues with commas", () => {
     const feedback = createBaseFeedback({
-      comments: { unresolved: [createThread(2)], resolved: [] },
+      comments: { unresolved: [createThread(2)], resolved: [], inProgress: [] },
       checks: [createCheck("failure")],
       hasConflicts: true,
     });

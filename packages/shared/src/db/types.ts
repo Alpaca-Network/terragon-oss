@@ -497,6 +497,9 @@ export type PRComment = {
 export type PRReviewThread = {
   id: string;
   isResolved: boolean;
+  // True if feedback was queued after this thread's first comment was created,
+  // meaning the agent is currently working on addressing this comment.
+  isInProgress: boolean;
   comments: PRComment[];
 };
 
@@ -526,6 +529,9 @@ export type PRFeedback = {
   comments: {
     unresolved: PRReviewThread[];
     resolved: PRReviewThread[];
+    // Threads where feedback was queued after the comment was created
+    // (subset of unresolved threads that are currently being addressed)
+    inProgress: PRReviewThread[];
   };
   checks: PRCheckRun[];
   coverageCheck: PRCheckRun | null;
@@ -581,10 +587,15 @@ export type PRCommentsData = {
   comments: {
     unresolved: PRReviewThread[];
     resolved: PRReviewThread[];
+    // Threads where feedback was queued after the comment was created
+    // (subset of unresolved threads that are currently being addressed)
+    inProgress: PRReviewThread[];
   };
   summary: {
     unresolvedCount: number;
     resolvedCount: number;
+    // Count of threads currently being addressed (subset of unresolved)
+    inProgressCount: number;
   };
 };
 

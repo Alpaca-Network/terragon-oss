@@ -20,6 +20,7 @@ export type ThreadPRInfo = {
   id: string;
   githubPRNumber: number | null;
   githubRepoFullName: string;
+  feedbackQueuedAt?: Date | null;
 };
 
 /**
@@ -61,6 +62,7 @@ export const getPRFeedbackBatch = cache(
               owner,
               repo,
               thread.githubPRNumber,
+              { feedbackQueuedAt: thread.feedbackQueuedAt ?? null },
             );
             const summary = createFeedbackSummary(feedback);
             return { threadId: thread.id, feedback, summary, error: null };
