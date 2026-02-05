@@ -157,9 +157,9 @@ export async function getSubmoduleStatus({
         trimmedLine.startsWith("-") ||
         trimmedLine.startsWith("U")
       ) {
-        // Extract submodule path (third field)
+        // Extract submodule path (second field after status indicator)
         const parts = trimmedLine.split(/\s+/);
-        if (parts.length >= 2) {
+        if (parts.length >= 2 && parts[1]) {
           changedSubmodules.push(parts[1]);
         }
       }
@@ -232,7 +232,9 @@ export async function commitSubmoduleChanges({
           });
 
           // Commit changes in submodule
-          await session.runCommand(`git commit -m "${commitMessage}"`, {
+          // Escape single quotes in commit message for shell safety
+          const escapedMessage = commitMessage.replace(/'/g, "'\\''");
+          await session.runCommand(`git commit -m '${escapedMessage}'`, {
             cwd: repoRoot ? `${repoRoot}/${submodulePath}` : submodulePath,
           });
 

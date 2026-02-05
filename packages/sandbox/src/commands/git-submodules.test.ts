@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ISandboxSession } from "../types";
 import {
   hasSubmodules,
@@ -15,7 +15,9 @@ function createMockSession(
 ): ISandboxSession {
   return {
     sandboxId: "test-sandbox",
+    sandboxProvider: "docker" as const,
     repoDir: "/repo",
+    homeDir: "/home/user",
     runCommand: async (cmd: string) => {
       // Match command patterns
       for (const [pattern, result] of Object.entries(commandResults)) {
@@ -28,8 +30,12 @@ function createMockSession(
       }
       return "";
     },
+    runBackgroundCommand: async () => {},
     writeTextFile: async () => {},
+    writeFile: async () => {},
     readTextFile: async () => "",
+    hibernate: async () => {},
+    shutdown: async () => {},
   } as ISandboxSession;
 }
 
@@ -221,7 +227,9 @@ describe("git-submodules", () => {
 
       const session: ISandboxSession = {
         sandboxId: "test-sandbox",
+        sandboxProvider: "docker" as const,
         repoDir: "/repo",
+        homeDir: "/home/user",
         runCommand: async (cmd: string, options?: { cwd?: string }) => {
           if (cmd.includes("test -f .gitmodules")) {
             return "yes";
@@ -247,8 +255,12 @@ describe("git-submodules", () => {
           }
           return "";
         },
+        runBackgroundCommand: async () => {},
         writeTextFile: async () => {},
+        writeFile: async () => {},
         readTextFile: async () => "",
+        hibernate: async () => {},
+        shutdown: async () => {},
       } as ISandboxSession;
 
       const result = await commitSubmoduleChanges({
@@ -295,7 +307,9 @@ describe("git-submodules", () => {
 
       const session: ISandboxSession = {
         sandboxId: "test-sandbox",
+        sandboxProvider: "docker" as const,
         repoDir: "/repo",
+        homeDir: "/home/user",
         runCommand: async (cmd: string, options?: { cwd?: string }) => {
           if (cmd.includes("git push")) {
             if (options?.cwd?.includes("lib/foo")) {
@@ -307,8 +321,12 @@ describe("git-submodules", () => {
           }
           return "";
         },
+        runBackgroundCommand: async () => {},
         writeTextFile: async () => {},
+        writeFile: async () => {},
         readTextFile: async () => "",
+        hibernate: async () => {},
+        shutdown: async () => {},
       } as ISandboxSession;
 
       const result = await pushSubmodules({
@@ -334,7 +352,9 @@ describe("git-submodules", () => {
     it("should handle push failures gracefully", async () => {
       const session: ISandboxSession = {
         sandboxId: "test-sandbox",
+        sandboxProvider: "docker" as const,
         repoDir: "/repo",
+        homeDir: "/home/user",
         runCommand: async (cmd: string, options?: { cwd?: string }) => {
           if (cmd.includes("git push")) {
             if (options?.cwd?.includes("lib/foo")) {
@@ -343,8 +363,12 @@ describe("git-submodules", () => {
           }
           return "";
         },
+        runBackgroundCommand: async () => {},
         writeTextFile: async () => {},
+        writeFile: async () => {},
         readTextFile: async () => "",
+        hibernate: async () => {},
+        shutdown: async () => {},
       } as ISandboxSession;
 
       const result = await pushSubmodules({
