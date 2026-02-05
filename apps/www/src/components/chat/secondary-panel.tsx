@@ -17,22 +17,26 @@ import {
   CheckCircle2,
   BarChart3,
   GitMerge,
-  Loader2,
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
-import { useServerActionQuery } from "@/queries/server-action-helpers";
-import {
-  getPRFeedback,
-  GetPRFeedbackResult,
-} from "@/server-actions/get-pr-feedback";
 import { PRCommentsSection } from "./code-review/pr-comments-section";
 import { ChecksSection } from "./code-review/checks-section";
 import { CoverageSection } from "./code-review/coverage-section";
 import { MergeStatusSection } from "./code-review/merge-status-section";
 import { MergeButton } from "./code-review/merge-button";
 import { AddressFeedbackDialog } from "./code-review/address-feedback-dialog";
-import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import {
+  usePRFeedback,
+  combinePRFeedbackFromQueries,
+} from "@/hooks/use-pr-feedback";
+import {
+  PRHeaderSkeleton,
+  CommentsSkeleton,
+  ChecksSkeleton,
+  CoverageSkeleton,
+  MergeStatusSkeleton,
+} from "./code-review/skeletons";
 import {
   getMergeablePollingInterval,
   nextMergeablePollingState,
@@ -140,45 +144,62 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const hasPR =
     thread?.githubPRNumber !== null && thread?.githubPRNumber !== undefined;
 
-  // Fetch PR feedback data when thread has a PR
-  const { data, isLoading, error, dataUpdatedAt } =
-    useServerActionQuery<GetPRFeedbackResult>({
-      queryKey: ["pr-feedback", thread?.id, refreshKey],
-      queryFn: () => getPRFeedback({ threadId: thread!.id }),
+  // Use the new progressive loading hook with default interval
+  // Dynamic polling for mergeable state is managed via effect below
+  const { header, comments, checks, summary, isLoading } = usePRFeedback(
+    thread?.id ?? "",
+    {
       enabled: hasPR && !!thread,
-      staleTime: 30000, // 30 seconds
-      refetchInterval: (query): number => {
-        const mergeableState = query.state.data?.feedback?.mergeableState;
-        return getMergeablePollingInterval({
-          mergeableState,
-          now: Date.now(),
-          state: mergeablePollingRef.current,
-          defaultIntervalMs: 60000,
-        });
-      },
-    });
+      refreshKey,
+      staleTime: 30000,
+      refetchInterval: 60000, // Default interval, dynamic polling handled via refreshKey
+    },
+  );
 
-  const feedback = data?.feedback;
-  const summary = feedback ? createFeedbackSummary(feedback) : null;
+  const headerData = header.data;
 
-  // Update polling state when data changes - only increment count on actual refetch
+  // Combine data for AddressFeedbackDialog
+  const feedback = combinePRFeedbackFromQueries(
+    headerData,
+    comments.data,
+    checks.data,
+  );
+
+  // Dynamic polling for mergeable state - trigger faster refetches when state is unknown
   React.useEffect(() => {
-    if (dataUpdatedAt === lastDataUpdatedAtRef.current) {
+    if (header.dataUpdatedAt === lastDataUpdatedAtRef.current) {
       return;
     }
-    lastDataUpdatedAtRef.current = dataUpdatedAt;
+    lastDataUpdatedAtRef.current = header.dataUpdatedAt;
     mergeablePollingRef.current = nextMergeablePollingState({
-      mergeableState: feedback?.mergeableState,
+      mergeableState: headerData?.mergeableState,
       now: Date.now(),
       state: mergeablePollingRef.current,
     });
-  }, [feedback?.mergeableState, dataUpdatedAt]);
+
+    // If we need faster polling for unknown mergeable state, set up a timer
+    if (headerData?.mergeableState === "unknown") {
+      const interval = getMergeablePollingInterval({
+        mergeableState: headerData.mergeableState,
+        now: Date.now(),
+        state: mergeablePollingRef.current,
+        defaultIntervalMs: 60000,
+      });
+
+      if (interval < 60000) {
+        const timer = setTimeout(() => {
+          setRefreshKey((k) => k + 1);
+        }, interval);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [headerData?.mergeableState, header.dataUpdatedAt]);
 
   if (!thread) {
     return null;
   }
 
-  // Calculate badge counts
+  // Calculate badge counts from summary
   const commentCount = summary?.unresolvedCommentCount ?? 0;
   const failingCheckCount = summary?.failingCheckCount ?? 0;
   const hasCoverage = summary?.hasCoverageCheck ?? false;
@@ -247,123 +268,158 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
   const effectiveView =
     activeView !== "files-changed" && !hasPR ? "files-changed" : activeView;
 
+  const handleRefresh = () => setRefreshKey((k) => k + 1);
+
   const renderTabContent = () => {
     if (effectiveView === "files-changed") {
       return <GitDiffView thread={thread} />;
     }
 
-    // PR-related tabs require loading state handling
-    if (isLoading) {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 gradient-shift-bg">
-          <div className="relative">
-            <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
-            <Loader2 className="size-8 animate-spin text-primary relative z-10" />
+    // PR-related tabs - show skeletons while loading
+    if (effectiveView === "comments") {
+      if (comments.isLoading) {
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            <CommentsSkeleton />
           </div>
-          <p className="text-sm text-muted-foreground">
-            Loading PR feedback...
-          </p>
-        </div>
-      );
-    }
-
-    if (error || !feedback) {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 gap-3">
-          <div className="rounded-full bg-destructive/10 p-4">
-            <AlertCircle className="size-6 text-destructive" />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-sm font-medium text-foreground">
-              Failed to load PR feedback
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {error instanceof Error ? error.message : "Unknown error"}
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    switch (effectiveView) {
-      case "comments":
+        );
+      }
+      if (comments.error) {
+        return <TabErrorState message="Failed to load comments" />;
+      }
+      if (comments.data) {
         return (
           <div className="flex-1 overflow-y-auto p-4">
             <PRCommentsSection
-              unresolved={feedback.comments.unresolved}
-              resolved={feedback.comments.resolved}
+              unresolved={comments.data.comments.unresolved}
+              resolved={comments.data.comments.resolved}
             />
           </div>
         );
-      case "checks":
-        return (
-          <div className="flex-1 overflow-y-auto p-4">
-            <ChecksSection checks={feedback.checks} />
-          </div>
-        );
-      case "coverage":
-        return (
-          <div className="flex-1 overflow-y-auto p-4">
-            <CoverageSection coverageCheck={feedback.coverageCheck} />
-          </div>
-        );
-      case "merge":
-        return (
-          <div className="flex-1 overflow-y-auto p-4">
-            <MergeStatusSection
-              mergeableState={feedback.mergeableState}
-              hasConflicts={feedback.hasConflicts}
-              isMergeable={feedback.isMergeable}
-              baseBranch={feedback.baseBranch}
-              headBranch={feedback.headBranch}
-              prUrl={feedback.prUrl}
-              prNumber={feedback.prNumber}
-              repoFullName={feedback.repoFullName}
-              thread={thread}
-            />
-          </div>
-        );
-      default:
-        return <GitDiffView thread={thread} />;
+      }
+      return null;
     }
+
+    if (effectiveView === "checks") {
+      if (checks.isLoading) {
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            <ChecksSkeleton />
+          </div>
+        );
+      }
+      if (checks.error) {
+        return <TabErrorState message="Failed to load checks" />;
+      }
+      if (checks.data) {
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            <ChecksSection checks={checks.data.checks} />
+          </div>
+        );
+      }
+      return null;
+    }
+
+    if (effectiveView === "coverage") {
+      if (checks.isLoading) {
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            <CoverageSkeleton />
+          </div>
+        );
+      }
+      if (checks.error) {
+        return <TabErrorState message="Failed to load coverage" />;
+      }
+      if (checks.data) {
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            <CoverageSection coverageCheck={checks.data.coverageCheck} />
+          </div>
+        );
+      }
+      return null;
+    }
+
+    if (effectiveView === "merge") {
+      if (header.isLoading) {
+        return (
+          <div className="flex-1 overflow-y-auto p-4">
+            <MergeStatusSkeleton />
+          </div>
+        );
+      }
+      if (header.error || !headerData) {
+        return <TabErrorState message="Failed to load merge status" />;
+      }
+      return (
+        <div className="flex-1 overflow-y-auto p-4">
+          <MergeStatusSection
+            mergeableState={headerData.mergeableState}
+            hasConflicts={headerData.hasConflicts}
+            isMergeable={headerData.isMergeable}
+            baseBranch={headerData.baseBranch}
+            headBranch={headerData.headBranch}
+            prUrl={headerData.prUrl}
+            prNumber={headerData.prNumber}
+            repoFullName={headerData.repoFullName}
+            thread={thread}
+          />
+        </div>
+      );
+    }
+
+    return <GitDiffView thread={thread} />;
   };
 
   return (
     <div className="flex flex-col h-full">
       {/* Header with PR info */}
-      {hasPR && feedback && (
-        <div className="border-b px-4 py-3 space-y-2">
-          <div className="flex items-center justify-between gap-2 overflow-hidden">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <GitMerge className="size-4 flex-shrink-0" />
-              <a
-                href={feedback.prUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium hover:underline flex items-center gap-1 shrink-0"
-              >
-                #{feedback.prNumber}
-                <ExternalLink className="size-3" />
-              </a>
+      {hasPR && (
+        <>
+          {isLoading ? (
+            <PRHeaderSkeleton />
+          ) : headerData ? (
+            <div className="border-b px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <GitMerge className="size-4 flex-shrink-0" />
+                  <a
+                    href={headerData.prUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium hover:underline flex items-center gap-1 shrink-0"
+                  >
+                    #{headerData.prNumber}
+                    <ExternalLink className="size-3" />
+                  </a>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {feedback && (
+                    <AddressFeedbackDialog
+                      feedback={feedback}
+                      thread={thread}
+                    />
+                  )}
+                  <MergeButton
+                    repoFullName={headerData.repoFullName}
+                    prNumber={headerData.prNumber}
+                    prTitle={headerData.prTitle}
+                    isMergeable={headerData.isMergeable}
+                    isAutoMergeEnabled={headerData.isAutoMergeEnabled}
+                    threadId={thread.id}
+                    onMerged={handleRefresh}
+                    onAutoMergeChanged={handleRefresh}
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {headerData.prTitle}
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <AddressFeedbackDialog feedback={feedback} thread={thread} />
-              <MergeButton
-                repoFullName={feedback.repoFullName}
-                prNumber={feedback.prNumber}
-                prTitle={feedback.prTitle}
-                isMergeable={feedback.isMergeable}
-                isAutoMergeEnabled={feedback.isAutoMergeEnabled}
-                threadId={thread.id}
-                onMerged={() => setRefreshKey((k) => k + 1)}
-                onAutoMergeChanged={() => setRefreshKey((k) => k + 1)}
-              />
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground truncate">
-            {feedback.prTitle}
-          </div>
-        </div>
+          ) : null}
+        </>
       )}
 
       {/* Tab navigation */}
@@ -384,6 +440,19 @@ function SecondaryPanelContent({ thread }: { thread?: ThreadInfoFull }) {
       {/* Tab content */}
       <div className="flex-1 flex flex-col overflow-hidden animate-page-enter futuristic-scrollbar">
         {renderTabContent()}
+      </div>
+    </div>
+  );
+}
+
+function TabErrorState({ message }: { message: string }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 gap-3">
+      <div className="rounded-full bg-destructive/10 p-4">
+        <AlertCircle className="size-6 text-destructive" />
+      </div>
+      <div className="text-center space-y-1">
+        <p className="text-sm font-medium text-foreground">{message}</p>
       </div>
     </div>
   );

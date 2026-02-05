@@ -6,6 +6,9 @@ import type {
   PRCheckRun,
   PRFeedback,
   PRFeedbackSummary,
+  PRHeader,
+  PRCommentsData,
+  PRChecksData,
   GithubCheckRunStatus,
   GithubCheckRunConclusion,
 } from "../db/types";
@@ -547,3 +550,134 @@ export const COVERAGE_INTEGRATION_OPTIONS = [
     description: "Code quality and security with coverage",
   },
 ] as const;
+
+// =============================================================================
+// Split Aggregation Functions (for progressive loading)
+// =============================================================================
+
+/**
+ * Fetches lightweight PR header data for fast initial render.
+ * This is the first query to run - provides enough data to render the header
+ * and determine if other queries should be enabled.
+ */
+export async function aggregatePRHeader(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<PRHeader> {
+  // Skip mergeable state polling for speed - UI handles refetching when state is unknown
+  const prDetails = await fetchPRDetails(octokit, owner, repo, prNumber, {
+    skipMergeablePolling: true,
+  });
+
+  const mergeableState = getGithubPRMergeableState(prDetails);
+  const hasConflicts = mergeableState === "dirty";
+
+  const isMergeable =
+    !hasConflicts &&
+    mergeableState !== "blocked" &&
+    mergeableState !== "unstable" &&
+    prDetails.mergeable === true;
+
+  return {
+    prNumber,
+    repoFullName: `${owner}/${repo}`,
+    prUrl: prDetails.html_url,
+    prTitle: prDetails.title,
+    prState: getGithubPRStatus(prDetails),
+    baseBranch: prDetails.base.ref,
+    headBranch: prDetails.head.ref,
+    headSha: prDetails.head.sha,
+    mergeableState,
+    hasConflicts,
+    isMergeable,
+    isAutoMergeEnabled: prDetails.auto_merge !== null,
+  };
+}
+
+/**
+ * Fetches PR comments with resolution status.
+ * Can run in parallel with checks fetch after header is loaded.
+ */
+export async function aggregatePRComments(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<PRCommentsData> {
+  // Fetch comments and resolution status in parallel
+  const [rawComments, resolutionStatus] = await Promise.all([
+    fetchPRComments(octokit, owner, repo, prNumber),
+    fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
+  ]);
+
+  const comments = groupCommentsIntoThreads(rawComments, resolutionStatus);
+
+  const unresolvedCount = comments.unresolved.reduce(
+    (acc, thread) => acc + thread.comments.length,
+    0,
+  );
+  const resolvedCount = comments.resolved.reduce(
+    (acc, thread) => acc + thread.comments.length,
+    0,
+  );
+
+  return {
+    comments,
+    summary: {
+      unresolvedCount,
+      resolvedCount,
+    },
+  };
+}
+
+/**
+ * Fetches PR check runs and coverage check.
+ * Requires headSha from header data.
+ */
+export async function aggregatePRChecks(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  headSha: string,
+): Promise<PRChecksData> {
+  const rawChecks = await fetchPRChecks(octokit, owner, repo, headSha);
+  const checks = rawChecks.check_runs.map(toCheckRun);
+  const coverageCheck = extractCoverageCheck(checks);
+
+  const failingCount = checks.filter(
+    (c) =>
+      c.conclusion === "failure" ||
+      c.conclusion === "timed_out" ||
+      c.conclusion === "cancelled",
+  ).length;
+
+  const pendingCount = checks.filter(
+    (c) => c.status === "queued" || c.status === "in_progress",
+  ).length;
+
+  const passingCount = checks.filter(
+    (c) =>
+      c.conclusion === "success" ||
+      c.conclusion === "neutral" ||
+      c.conclusion === "skipped",
+  ).length;
+
+  const hasCoverageCheck = coverageCheck !== null;
+  const coverageCheckPassed = coverageCheck
+    ? coverageCheck.conclusion === "success"
+    : null;
+
+  return {
+    checks,
+    coverageCheck,
+    summary: {
+      failingCount,
+      pendingCount,
+      passingCount,
+      hasCoverageCheck,
+      coverageCheckPassed,
+    },
+  };
+}
