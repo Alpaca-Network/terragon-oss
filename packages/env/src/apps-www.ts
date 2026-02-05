@@ -86,7 +86,7 @@ export const env = envsafe({
 
   // Posthog
   NEXT_PUBLIC_POSTHOG_KEY: str({
-    default: "phc_ITvLHD24gmXmQ4IbWa9DqWJyQZNJweLW8vOTpT9WkjS",
+    default: "phc_mE4aYwEQqIELY21HLvWesMpmcN3tzUrPTHhBEsV6wAF",
     allowEmpty: true,
   }),
   NEXT_PUBLIC_POSTHOG_HOST: str({
