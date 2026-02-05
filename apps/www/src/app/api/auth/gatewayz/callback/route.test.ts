@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 /**
  * Tests for GatewayZ callback route security
@@ -7,8 +9,18 @@ import { describe, it, expect } from "vitest";
  * particularly the postMessage origin restrictions.
  */
 
-// Default allowed origins that match the route implementation
-const DEFAULT_ALLOWED_ORIGINS = [
+// Read the actual route source to verify security patterns
+const routeSourcePath = join(__dirname, "route.ts");
+let routeSource: string;
+try {
+  routeSource = readFileSync(routeSourcePath, "utf-8");
+} catch {
+  // Fallback for test environments where file might not be accessible
+  routeSource = "";
+}
+
+// Default allowed origins that should match the route implementation
+const EXPECTED_DEFAULT_ORIGINS = [
   "https://gatewayz.ai",
   "https://www.gatewayz.ai",
   "https://beta.gatewayz.ai",
@@ -16,10 +28,43 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ];
 
 describe("GatewayZ callback route security", () => {
-  describe("DEFAULT_ALLOWED_EMBED_ORIGINS", () => {
+  describe("source code verification", () => {
+    it("should not contain wildcard postMessage target in source", () => {
+      if (!routeSource) {
+        // Skip if source not available (e.g., in built environments)
+        return;
+      }
+      // Verify the source code does NOT contain postMessage with wildcard
+      expect(routeSource).not.toMatch(/postMessage\([^)]+,\s*['"`]\*['"`]\)/);
+    });
+
+    it("should use getAllowedEmbedOrigins function for postMessage", () => {
+      if (!routeSource) {
+        return;
+      }
+      // Verify the function exists and is used
+      expect(routeSource).toContain("getAllowedEmbedOrigins");
+      expect(routeSource).toContain("allowedOrigins.forEach");
+    });
+
+    it("should define DEFAULT_ALLOWED_EMBED_ORIGINS constant", () => {
+      if (!routeSource) {
+        return;
+      }
+      expect(routeSource).toContain("DEFAULT_ALLOWED_EMBED_ORIGINS");
+    });
+
+    it("should support GATEWAYZ_ALLOWED_ORIGINS env var override", () => {
+      if (!routeSource) {
+        return;
+      }
+      expect(routeSource).toContain("GATEWAYZ_ALLOWED_ORIGINS");
+    });
+  });
+
+  describe("default allowed origins", () => {
     it("should only include trusted GatewayZ domains", () => {
-      // All allowed origins should be GatewayZ domains
-      for (const origin of DEFAULT_ALLOWED_ORIGINS) {
+      for (const origin of EXPECTED_DEFAULT_ORIGINS) {
         expect(origin).toMatch(
           /^https:\/\/(www\.|beta\.|inbox\.)?gatewayz\.ai$/,
         );
@@ -27,46 +72,28 @@ describe("GatewayZ callback route security", () => {
     });
 
     it("should not include wildcard origins", () => {
-      // Ensure no wildcards are present
-      for (const origin of DEFAULT_ALLOWED_ORIGINS) {
+      for (const origin of EXPECTED_DEFAULT_ORIGINS) {
         expect(origin).not.toBe("*");
         expect(origin).not.toContain("*");
       }
     });
 
     it("should only use HTTPS protocol", () => {
-      // All origins must use HTTPS for security
-      for (const origin of DEFAULT_ALLOWED_ORIGINS) {
+      for (const origin of EXPECTED_DEFAULT_ORIGINS) {
         expect(origin.startsWith("https://")).toBe(true);
       }
     });
 
     it("should include the main production domain", () => {
-      expect(DEFAULT_ALLOWED_ORIGINS).toContain("https://gatewayz.ai");
+      expect(EXPECTED_DEFAULT_ORIGINS).toContain("https://gatewayz.ai");
     });
 
     it("should include the inbox subdomain", () => {
-      expect(DEFAULT_ALLOWED_ORIGINS).toContain("https://inbox.gatewayz.ai");
+      expect(EXPECTED_DEFAULT_ORIGINS).toContain("https://inbox.gatewayz.ai");
     });
 
     it("should include the beta subdomain for testing", () => {
-      expect(DEFAULT_ALLOWED_ORIGINS).toContain("https://beta.gatewayz.ai");
-    });
-  });
-
-  describe("embed mode HTML generation", () => {
-    it("should not contain wildcard postMessage target", () => {
-      // This is a meta-test to ensure we don't regress to using '*'
-      // The actual HTML is generated in the route, but we document the expected behavior
-      const unsafePatterns = [
-        "postMessage(message, '*')",
-        "postMessage({", // followed by }, '*')
-        ", '*')",
-      ];
-
-      // These patterns should NOT appear in secure code
-      // This test documents the security requirement
-      expect(unsafePatterns).toBeDefined();
+      expect(EXPECTED_DEFAULT_ORIGINS).toContain("https://beta.gatewayz.ai");
     });
   });
 });
@@ -107,6 +134,6 @@ describe("postMessage security requirements", () => {
      * Any other domain embedding Terragon will NOT receive postMessage
      * notifications about auth completion.
      */
-    expect(DEFAULT_ALLOWED_ORIGINS.length).toBe(4);
+    expect(EXPECTED_DEFAULT_ORIGINS.length).toBe(4);
   });
 });
