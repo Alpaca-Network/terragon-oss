@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Rocket, MessageSquarePlus, Edit3 } from "lucide-react";
+import {
+  Rocket,
+  MessageSquarePlus,
+  Edit3,
+  GitMerge,
+  Wrench,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +22,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { newThread } from "@/server-actions/new-thread";
@@ -61,9 +72,25 @@ export function AddressFeedbackDialog({
   const [includeMergeInstructions, setIncludeMergeInstructions] =
     useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [autoMergePR, setAutoMergePR] = useState(thread.autoMergePR);
+  const [autoFixFeedback, setAutoFixFeedback] = useState(
+    thread.autoFixFeedback,
+  );
   const { isActive } = useAccessInfo();
   const defaultModel = useAtomValue(selectedModelAtom);
   const [taskModel, setTaskModel] = useState<AIModel>(defaultModel);
+
+  // Calculate whether automerge can be enabled
+  // Criteria: all checks have succeeded and there are no unresolved comments
+  const allChecksPassed = feedback.checks.every(
+    (c) =>
+      c.conclusion === "success" ||
+      c.conclusion === "neutral" ||
+      c.conclusion === "skipped",
+  );
+  const hasNoUnresolvedComments = feedback.comments.unresolved.length === 0;
+  const canEnableAutoMerge =
+    allChecksPassed && hasNoUnresolvedComments && !feedback.hasConflicts;
 
   // Generate the task description
   const generatedDescription = useMemo(
@@ -128,6 +155,8 @@ export function AddressFeedbackDialog({
         branchName: feedback.headBranch,
         sourceType: "www-address-pr-feedback",
         parentThreadId: thread.id,
+        autoMergePR,
+        autoFixFeedback,
         message: {
           type: "user",
           model: messageModel,
@@ -146,6 +175,8 @@ export function AddressFeedbackDialog({
       await addToQueueMutation.mutateAsync({
         threadId: thread.id,
         threadChatId: threadChat.id,
+        autoMergePR,
+        autoFixFeedback,
         messages: [
           {
             type: "user",
@@ -278,6 +309,61 @@ export function AddressFeedbackDialog({
               Include merge instructions (merge PR if all feedback is addressed)
             </Label>
           </div>
+
+          {/* Autofix checkbox */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="auto-fix-feedback"
+              checked={autoFixFeedback}
+              onCheckedChange={(checked) =>
+                setAutoFixFeedback(checked === true)
+              }
+            />
+            <div className="flex items-center gap-1.5">
+              <Wrench className="size-3.5 text-muted-foreground" />
+              <Label
+                htmlFor="auto-fix-feedback"
+                className="text-sm font-normal cursor-pointer"
+              >
+                Autofix: Automatically address new feedback on this PR
+              </Label>
+            </div>
+          </div>
+
+          {/* Automerge checkbox */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="auto-merge-pr"
+                  checked={autoMergePR}
+                  disabled={!canEnableAutoMerge}
+                  onCheckedChange={(checked) =>
+                    setAutoMergePR(checked === true)
+                  }
+                />
+                <div className="flex items-center gap-1.5">
+                  <GitMerge
+                    className={`size-3.5 ${!canEnableAutoMerge ? "text-muted-foreground/50" : "text-muted-foreground"}`}
+                  />
+                  <Label
+                    htmlFor="auto-merge-pr"
+                    className={`text-sm font-normal cursor-pointer ${!canEnableAutoMerge ? "text-muted-foreground/50" : ""}`}
+                  >
+                    Automerge: Enable GitHub auto-merge when checks pass
+                  </Label>
+                </div>
+              </div>
+            </TooltipTrigger>
+            {!canEnableAutoMerge && (
+              <TooltipContent>
+                <p>
+                  Automerge requires all checks to pass, no unresolved comments,
+                  and no conflicts
+                </p>
+              </TooltipContent>
+            )}
+          </Tooltip>
 
           {/* Task description preview/edit */}
           <div className="space-y-2">

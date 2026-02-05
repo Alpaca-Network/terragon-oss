@@ -9,6 +9,8 @@ import {
 import { getAccessInfoForUser } from "@/lib/subscription";
 import { SUBSCRIPTION_MESSAGES } from "@/lib/subscription-msgs";
 import { UserFacingError } from "@/lib/server-actions";
+import { db } from "@/lib/db";
+import { updateThread } from "@terragon/shared/model/threads";
 
 export type FollowUpArgs = {
   threadId: string;
@@ -49,6 +51,8 @@ export type QueueFollowUpArgs = {
   threadId: string;
   threadChatId: string;
   messages: DBUserMessage[];
+  autoMergePR?: boolean;
+  autoFixFeedback?: boolean;
 };
 
 export const queueFollowUp = userOnlyAction(
@@ -58,10 +62,14 @@ export const queueFollowUp = userOnlyAction(
       threadId,
       threadChatId,
       messages,
+      autoMergePR,
+      autoFixFeedback,
     }: {
       threadId: string;
       threadChatId: string;
       messages: DBUserMessage[];
+      autoMergePR?: boolean;
+      autoFixFeedback?: boolean;
     },
   ) {
     console.log("queueFollowUp", { threadId, threadChatId });
@@ -69,6 +77,27 @@ export const queueFollowUp = userOnlyAction(
     if (tier === "none") {
       throw new UserFacingError(SUBSCRIPTION_MESSAGES.QUEUE_FOLLOW_UP);
     }
+
+    // Update thread settings if autoMergePR or autoFixFeedback are provided
+    if (
+      typeof autoMergePR === "boolean" ||
+      typeof autoFixFeedback === "boolean"
+    ) {
+      const updates: { autoMergePR?: boolean; autoFixFeedback?: boolean } = {};
+      if (typeof autoMergePR === "boolean") {
+        updates.autoMergePR = autoMergePR;
+      }
+      if (typeof autoFixFeedback === "boolean") {
+        updates.autoFixFeedback = autoFixFeedback;
+      }
+      await updateThread({
+        db,
+        userId,
+        threadId,
+        updates,
+      });
+    }
+
     await queueFollowUpInternal({
       userId,
       threadId,
