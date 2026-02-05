@@ -37,7 +37,7 @@ describe("maybeAutoResolvePRComments", () => {
   });
 
   it("should return null if thread not found", async () => {
-    vi.mocked(getThreadMinimal).mockResolvedValue(undefined);
+    vi.mocked(getThreadMinimal).mockResolvedValue(null);
 
     const result = await maybeAutoResolvePRComments({
       userId: "user-123",
