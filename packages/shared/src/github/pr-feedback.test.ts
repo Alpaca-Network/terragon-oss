@@ -8,6 +8,9 @@ import {
   fetchPRDetails,
   fetchPRChecks,
   fetchReviewThreadsResolutionStatus,
+  fetchUnresolvedReviewThreads,
+  resolveReviewThread,
+  resolveThreadsCreatedBefore,
 } from "./pr-feedback";
 import type { PRCheckRun, PRFeedback, PRReviewThread } from "../db/types";
 
@@ -1001,5 +1004,347 @@ describe("fetch functions", () => {
       ref: "abc123",
       per_page: 100,
     });
+  });
+});
+
+describe("fetchUnresolvedReviewThreads", () => {
+  const mockOctokit = {
+    graphql: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should fetch unresolved threads with GraphQL IDs", async () => {
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-1-graphql-id",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [
+                    { databaseId: 101, createdAt: "2024-01-10T10:00:00Z" },
+                  ],
+                },
+              },
+              {
+                id: "thread-2-graphql-id",
+                isResolved: true, // Should be filtered out
+                isOutdated: false,
+                comments: {
+                  nodes: [
+                    { databaseId: 102, createdAt: "2024-01-11T10:00:00Z" },
+                  ],
+                },
+              },
+              {
+                id: "thread-3-graphql-id",
+                isResolved: false,
+                isOutdated: true, // Should be filtered out (outdated)
+                comments: {
+                  nodes: [
+                    { databaseId: 103, createdAt: "2024-01-12T10:00:00Z" },
+                  ],
+                },
+              },
+              {
+                id: "thread-4-graphql-id",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [
+                    { databaseId: 104, createdAt: "2024-01-13T10:00:00Z" },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const result = await fetchUnresolvedReviewThreads(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    // Should only return unresolved, non-outdated threads
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({
+      graphqlId: "thread-1-graphql-id",
+      databaseId: 101,
+      isResolved: false,
+      isOutdated: false,
+      createdAt: "2024-01-10T10:00:00Z",
+    });
+    expect(result[1]).toEqual({
+      graphqlId: "thread-4-graphql-id",
+      databaseId: 104,
+      isResolved: false,
+      isOutdated: false,
+      createdAt: "2024-01-13T10:00:00Z",
+    });
+  });
+
+  it("should handle pagination", async () => {
+    mockOctokit.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: [
+                {
+                  id: "thread-1",
+                  isResolved: false,
+                  isOutdated: false,
+                  comments: {
+                    nodes: [
+                      { databaseId: 1, createdAt: "2024-01-01T00:00:00Z" },
+                    ],
+                  },
+                },
+              ],
+              pageInfo: { hasNextPage: true, endCursor: "cursor1" },
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          pullRequest: {
+            reviewThreads: {
+              nodes: [
+                {
+                  id: "thread-2",
+                  isResolved: false,
+                  isOutdated: false,
+                  comments: {
+                    nodes: [
+                      { databaseId: 2, createdAt: "2024-01-02T00:00:00Z" },
+                    ],
+                  },
+                },
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
+
+    const result = await fetchUnresolvedReviewThreads(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(result).toHaveLength(2);
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(2);
+  });
+
+  it("should return empty array on GraphQL error", async () => {
+    mockOctokit.graphql.mockRejectedValue(new Error("GraphQL error"));
+
+    const result = await fetchUnresolvedReviewThreads(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+    );
+
+    expect(result).toEqual([]);
+  });
+});
+
+describe("resolveReviewThread", () => {
+  const mockOctokit = {
+    graphql: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should resolve a thread successfully", async () => {
+    mockOctokit.graphql.mockResolvedValue({
+      resolveReviewThread: { thread: { id: "thread-id", isResolved: true } },
+    });
+
+    const result = await resolveReviewThread(mockOctokit as any, "thread-id");
+
+    expect(result).toBe(true);
+    expect(mockOctokit.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("resolveReviewThread"),
+      { threadId: "thread-id" },
+    );
+  });
+
+  it("should return false on error", async () => {
+    mockOctokit.graphql.mockRejectedValue(new Error("Permission denied"));
+
+    const result = await resolveReviewThread(mockOctokit as any, "thread-id");
+
+    expect(result).toBe(false);
+  });
+});
+
+describe("resolveThreadsCreatedBefore", () => {
+  const mockOctokit = {
+    graphql: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should resolve threads created before the timestamp", async () => {
+    // First call: fetch threads
+    mockOctokit.graphql.mockResolvedValueOnce({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-before-1",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [{ databaseId: 1, createdAt: "2024-01-05T10:00:00Z" }],
+                },
+              },
+              {
+                id: "thread-before-2",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [{ databaseId: 2, createdAt: "2024-01-08T10:00:00Z" }],
+                },
+              },
+              {
+                id: "thread-after",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [{ databaseId: 3, createdAt: "2024-01-15T10:00:00Z" }],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    // Subsequent calls: resolve mutations
+    mockOctokit.graphql
+      .mockResolvedValueOnce({
+        resolveReviewThread: { thread: { isResolved: true } },
+      })
+      .mockResolvedValueOnce({
+        resolveReviewThread: { thread: { isResolved: true } },
+      });
+
+    const result = await resolveThreadsCreatedBefore(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      "2024-01-10T00:00:00Z", // Only resolve threads before this
+    );
+
+    expect(result).toEqual({
+      resolved: 2, // thread-before-1 and thread-before-2
+      failed: 0,
+      skipped: 1, // thread-after
+    });
+
+    // Should have called graphql 3 times: 1 fetch + 2 resolves
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(3);
+  });
+
+  it("should track failed resolutions", async () => {
+    mockOctokit.graphql.mockResolvedValueOnce({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-1",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [{ databaseId: 1, createdAt: "2024-01-05T10:00:00Z" }],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    // Resolve fails
+    mockOctokit.graphql.mockRejectedValueOnce(new Error("Failed"));
+
+    const result = await resolveThreadsCreatedBefore(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      "2024-01-10T00:00:00Z",
+    );
+
+    expect(result).toEqual({
+      resolved: 0,
+      failed: 1,
+      skipped: 0,
+    });
+  });
+
+  it("should skip all threads if all are after timestamp", async () => {
+    mockOctokit.graphql.mockResolvedValueOnce({
+      repository: {
+        pullRequest: {
+          reviewThreads: {
+            nodes: [
+              {
+                id: "thread-1",
+                isResolved: false,
+                isOutdated: false,
+                comments: {
+                  nodes: [{ databaseId: 1, createdAt: "2024-01-20T10:00:00Z" }],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+
+    const result = await resolveThreadsCreatedBefore(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      "2024-01-10T00:00:00Z",
+    );
+
+    expect(result).toEqual({
+      resolved: 0,
+      failed: 0,
+      skipped: 1,
+    });
+
+    // Should only call graphql once (fetch), no resolve mutations
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 });

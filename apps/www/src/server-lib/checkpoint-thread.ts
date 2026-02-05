@@ -22,6 +22,7 @@ import { maybeUpdateGitHubCheckRunForThreadChat } from "./github";
 import { sendLoopsTransactionalEmail } from "@/lib/loops";
 import { publicAppUrl } from "@terragon/env/next-public";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
+import { maybeAutoResolvePRComments } from "./auto-resolve-pr-comments";
 
 export async function checkpointThread({
   userId,
@@ -112,6 +113,9 @@ export async function checkpointThread({
         conclusion: "success",
         summary: `Task completed: ${threadId}`,
       });
+      // Auto-resolve PR comments that were created before the auto-fix was queued
+      // This marks comments as resolved if the agent addressed them
+      await maybeAutoResolvePRComments({ userId, threadId });
       await maybeProcessFollowUpQueue({
         threadId,
         userId,
