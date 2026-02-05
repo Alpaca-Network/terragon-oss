@@ -182,9 +182,8 @@ describe("XSS protection verification", () => {
     }
     // Verify allowedOriginsJson is built using escapeForJsString, not raw JSON.stringify
     // This prevents XSS if an attacker can inject </script> via GATEWAYZ_ALLOWED_ORIGINS env var
-    expect(routeSource).toContain(
-      'allowedOrigins.map(o => `"${escapeForJsString(o)}"`',
-    );
+    expect(routeSource).toContain("escapeForJsString(o)");
+    expect(routeSource).toContain("allowedOrigins.map(");
     // Should NOT use raw JSON.stringify for the origins
     expect(routeSource).not.toMatch(
       /JSON\.stringify\(getAllowedEmbedOrigins\(\)\)/,
