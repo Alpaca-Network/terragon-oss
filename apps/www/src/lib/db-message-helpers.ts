@@ -380,8 +380,9 @@ export function detectSkillInvocation(text: string): {
   args: string;
 } | null {
   const trimmed = text.trim();
-  // Match /skill-name at the start, followed by optional arguments
-  const match = trimmed.match(/^\/([a-zA-Z0-9_-]+)(?:\s+(.*))?$/);
+  // Match /skill-name at the start, followed by optional arguments (including newlines)
+  // The 's' flag allows '.' to match newline characters for multi-line arguments
+  const match = trimmed.match(/^\/([a-zA-Z0-9_-]+)(?:\s+(.*))?$/s);
   if (!match) {
     return null;
   }

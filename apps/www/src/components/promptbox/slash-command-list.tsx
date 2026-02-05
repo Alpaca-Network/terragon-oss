@@ -101,7 +101,7 @@ export const SlashCommandListContent = forwardRef<
                     <div className="flex items-center gap-2">
                       <span className="font-medium">/{item.name}</span>
                       {isSkill(item) && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded font-medium">
+                        <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-medium">
                           Skill
                         </span>
                       )}

@@ -34,7 +34,7 @@ export function SkillTool({ toolPart }: { toolPart: SkillToolPart }) {
       toolName="Skill"
       toolArg={skillName}
       toolStatus={toolPart.status}
-      toolColor="bg-purple-600"
+      toolColor="purple"
     >
       {toolPart.status === "pending" ? (
         <GenericToolPartContentOneLine toolStatus="pending">

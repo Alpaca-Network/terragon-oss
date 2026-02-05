@@ -17,7 +17,7 @@ import { updateThreadChatWithTransition } from "./update-status";
 import { withThreadChat } from "./thread-resource";
 import { ThreadError } from "./error";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
-import { getSkillContentInternal } from "@/server-actions/github-skills";
+import { getSkillContentInternal } from "@/server-lib/github-skills";
 
 export interface SlashCommandResult {
   handled: boolean;
