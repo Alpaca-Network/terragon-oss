@@ -6,7 +6,6 @@ import {
   eq,
   getTableColumns,
   lte,
-  or,
   sql,
   count,
   ne,
@@ -292,7 +291,7 @@ export async function getScheduledAutomationsDueToRun({
     where: and(
       eq(schema.automations.enabled, true),
       eq(schema.automations.triggerType, "schedule"),
-      or(lte(schema.automations.nextRunAt, currentTime)),
+      lte(schema.automations.nextRunAt, currentTime),
     ),
     orderBy: [schema.automations.nextRunAt],
   });
