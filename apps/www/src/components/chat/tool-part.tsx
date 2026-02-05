@@ -14,6 +14,7 @@ import { WebFetchTool, WebSearchTool } from "./tools/web-tool";
 import { TaskTool } from "./tools/task-tool";
 import { SuggestFollowupTaskTool } from "./tools/suggest-followup-task-tool";
 import { ExitPlanModeTool } from "./tools/exit-plan-mode-tool";
+import { SkillTool } from "./tools/skill-tool";
 import { DefaultTool } from "./tools/default-tool";
 
 const ToolPart = memo(function ToolPart({
@@ -132,6 +133,12 @@ const ToolPart = memo(function ToolPart({
       return (
         <ExitPlanModeTool
           toolPart={toolPart as Extract<AllToolParts, { name: "ExitPlanMode" }>}
+        />
+      );
+    case "Skill":
+      return (
+        <SkillTool
+          toolPart={toolPart as Extract<AllToolParts, { name: "Skill" }>}
         />
       );
     default:

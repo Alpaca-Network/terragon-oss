@@ -139,6 +139,42 @@ export type AIAgentSlashCommand = {
   isLoading?: boolean;
 };
 
+// Skill frontmatter fields from SKILL.md files
+export type AIAgentSkillFrontmatter = {
+  name?: string;
+  description?: string;
+  argumentHint?: string;
+  disableModelInvocation?: boolean;
+  userInvocable?: boolean;
+  // Phase 2 fields (not yet implemented)
+  allowedTools?: string[];
+  model?: string;
+  context?: string;
+  agent?: string;
+};
+
+// Skill metadata for display in UI and model context
+export type AIAgentSkill = {
+  name: string;
+  description: string;
+  argumentHint?: string;
+  disableModelInvocation: boolean;
+  userInvocable: boolean;
+  type: "skill";
+  filePath: string;
+  isLoading?: boolean;
+};
+
+// Union type for slash commands and skills
+export type AIAgentSlashCommandOrSkill = AIAgentSlashCommand | AIAgentSkill;
+
+// Type guard to check if an item is a skill
+export function isSkill(
+  item: AIAgentSlashCommandOrSkill,
+): item is AIAgentSkill {
+  return "type" in item && item.type === "skill";
+}
+
 export type SelectedAIModels = {
   [model in AIModel]?: number;
 };

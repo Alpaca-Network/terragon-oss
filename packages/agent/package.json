@@ -9,7 +9,8 @@
     "./tool-calls": "./src/tool-calls.ts",
     "./types": "./src/types.ts",
     "./versions": "./src/versions.ts",
-    "./proxy": "./src/proxy.ts"
+    "./proxy": "./src/proxy.ts",
+    "./skill-frontmatter": "./src/skill-frontmatter.ts"
   },
   "scripts": {
     "tsc-watch": "tsc --watch --noEmit --preserveWatchOutput",

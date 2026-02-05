@@ -1,4 +1,5 @@
 import { AIModel } from "@terragon/agent/types";
+import { processSkillArguments } from "@terragon/agent/skill-frontmatter";
 import {
   DBMessage,
   DBUserMessage,
@@ -364,4 +365,84 @@ export function imageCount(message: DBUserMessage): number {
 
 export function pdfCount(message: DBUserMessage): number {
   return message.parts.filter((part) => part.type === "pdf").length;
+}
+
+/**
+ * Detects if a message starts with a skill invocation pattern.
+ * Returns the skill name and arguments if found.
+ *
+ * @example
+ * detectSkillInvocation("/explain-code src/main.ts") // { skillName: "explain-code", args: "src/main.ts" }
+ * detectSkillInvocation("hello world") // null
+ */
+export function detectSkillInvocation(text: string): {
+  skillName: string;
+  args: string;
+} | null {
+  const trimmed = text.trim();
+  // Match /skill-name at the start, followed by optional arguments
+  const match = trimmed.match(/^\/([a-zA-Z0-9_-]+)(?:\s+(.*))?$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    skillName: match[1]!,
+    args: match[2]?.trim() || "",
+  };
+}
+
+/**
+ * Processes a skill content by replacing argument placeholders and wrapping
+ * with skill tags.
+ *
+ * @param skillContent - The skill body content (without frontmatter)
+ * @param args - Arguments provided by the user
+ * @param userMessage - The original user message (excluding the /skill-name)
+ * @param sessionId - Optional session ID for ${CLAUDE_SESSION_ID} substitution
+ * @returns The processed message with skill content prepended
+ */
+export function processSkillInMessage({
+  skillContent,
+  args,
+  userMessage,
+  sessionId,
+}: {
+  skillContent: string;
+  args: string;
+  userMessage: string;
+  sessionId?: string;
+}): string {
+  // Process the skill content with argument substitution
+  const processedContent = processSkillArguments(skillContent, args, sessionId);
+
+  // Wrap skill content in tags and append user message
+  const parts: string[] = [];
+
+  parts.push(`<skill>\n${processedContent}\n</skill>`);
+
+  // If there's a user message beyond just the skill invocation, include it
+  if (userMessage.trim()) {
+    parts.push(userMessage.trim());
+  }
+
+  return parts.join("\n\n");
+}
+
+/**
+ * Extracts the user message portion from text that starts with a skill invocation.
+ * Returns the text after the skill name and arguments on the first line.
+ *
+ * @example
+ * extractUserMessageFromSkillInvocation("/explain-code src/main.ts\nPlease explain this") // "Please explain this"
+ */
+export function extractUserMessageFromSkillInvocation(text: string): string {
+  const trimmed = text.trim();
+  const lines = trimmed.split("\n");
+
+  // Remove the first line (which contains /skill-name args)
+  if (lines.length > 1) {
+    return lines.slice(1).join("\n").trim();
+  }
+
+  return "";
 }

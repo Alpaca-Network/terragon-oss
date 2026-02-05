@@ -97,8 +97,10 @@ export async function startAgentMessage({
 }) {
   console.log("Starting agent message", { threadId, threadChatId });
   const userCredentials = await getUserCredentials({ userId });
+  // Track the effective message to use (may be transformed by skill processing)
+  let effectiveMessage = message;
   if (message) {
-    // Check for slash commands
+    // Check for slash commands and skills
     const slashCommandResult = await handleSlashCommand({
       userId,
       threadId,
@@ -112,6 +114,11 @@ export async function startAgentMessage({
       });
       waitUntil(maybeProcessFollowUpQueue({ threadId, userId, threadChatId }));
       return;
+    }
+    // If a skill was processed, use the transformed message
+    if (slashCommandResult.transformedMessage) {
+      effectiveMessage = slashCommandResult.transformedMessage;
+      console.log(`Using skill-transformed message for thread ${threadId}`);
     }
   }
   await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -131,8 +138,8 @@ export async function startAgentMessage({
       }
       // Images should be uploaded from the client already but just in case we have old clients,
       // we see if we need to upload anything here.
-      const uploadedMessage = message
-        ? await uploadUserMessageImages({ userId, message })
+      const uploadedMessage = effectiveMessage
+        ? await uploadUserMessageImages({ userId, message: effectiveMessage })
         : null;
 
       // Only check rate limits if the thread doesn't have any active thread chats.
@@ -377,7 +384,7 @@ export async function startAgentMessage({
           }
           const userMessageToSend = getUserMessageToSend({
             messages: threadChat.messages ?? [],
-            currentMessage: message ?? null,
+            currentMessage: effectiveMessage ?? null,
           });
           if (!userMessageToSend) {
             throw new ThreadError("no-user-message", "", null);
