@@ -273,6 +273,8 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
           <TabsContent value="conflicts" className="mt-0 h-full">
             {header.isLoading ? (
               <MergeStatusSkeleton />
+            ) : header.error ? (
+              <TabErrorState message="Failed to load merge status" />
             ) : (
               <MergeStatusSection
                 mergeableState={headerData.mergeableState}
