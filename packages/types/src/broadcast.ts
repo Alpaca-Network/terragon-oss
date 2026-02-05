@@ -20,6 +20,7 @@ export type BroadcastChannel = BroadcastChannelUser | BroadcastChannelSandbox;
 export const NotificationReasonSchema = z.enum([
   "task-complete", // Task finished working
   "ready-for-review", // Task has PR feedback to review
+  "task-archived", // Task was automatically archived
 ]);
 export type NotificationReason = z.infer<typeof NotificationReasonSchema>;
 

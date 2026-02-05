@@ -98,6 +98,9 @@ export function useNotifications() {
             // For ready-for-review notifications, navigate to comments tab
             if (notificationReason === "ready-for-review") {
               router.push(`/task/${threadId}?panel=comments`);
+            } else if (notificationReason === "task-archived") {
+              // For archived tasks, go to archived view
+              router.push(`/archived`);
             } else {
               router.push(`/task/${threadId}`);
             }
@@ -151,6 +154,13 @@ export function useNotifications() {
               body: threadName
                 ? `${threadName} - Click to view PR feedback`
                 : "A task has PR feedback to review",
+            };
+          case "task-archived":
+            return {
+              title: "Task Completed and Archived",
+              body: threadName
+                ? `${threadName} - Click to view in archived`
+                : "A task has been completed and archived",
             };
           case "task-complete":
           default:

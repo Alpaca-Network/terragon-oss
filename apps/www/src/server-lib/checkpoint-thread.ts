@@ -6,18 +6,23 @@ import {
   updateThread,
 } from "@terragon/shared/model/threads";
 import { getUserSettings, getUser } from "@terragon/shared/model/user";
+import { markThreadChatAsUnread } from "@terragon/shared/model/thread-read-status";
 import { withThreadSandboxSession } from "@/agent/thread-resource";
 import { ThreadError, wrapError } from "@/agent/error";
 import { updateThreadChatWithTransition } from "@/agent/update-status";
 import { maybeProcessFollowUpQueue } from "@/server-lib/process-follow-up-queue";
 import { getAutomation } from "@terragon/shared/model/automations";
-import { PullRequestTriggerConfig } from "@terragon/shared/automations";
+import {
+  PullRequestTriggerConfig,
+  IssueTriggerConfig,
+} from "@terragon/shared/automations";
 import { checkpointThreadAndPush } from "./checkpoint-thread-internal";
 import { maybeSaveClaudeSessionToR2 } from "./claude-session";
 import { maybeUpdateGitHubCheckRunForThreadChat } from "./github";
 import { sendLoopsTransactionalEmail } from "@/lib/loops";
 import { publicAppUrl } from "@terragon/env/next-public";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
+import { maybeAutoResolvePRComments } from "./auto-resolve-pr-comments";
 
 export async function checkpointThread({
   userId,
@@ -108,6 +113,9 @@ export async function checkpointThread({
         conclusion: "success",
         summary: `Task completed: ${threadId}`,
       });
+      // Auto-resolve PR comments that were created before the auto-fix was queued
+      // This marks comments as resolved if the agent addressed them
+      await maybeAutoResolvePRComments({ userId, threadId });
       await maybeProcessFollowUpQueue({
         threadId,
         userId,
@@ -147,14 +155,23 @@ async function maybeAutoArchiveThread({
       automationId: thread.automationId,
       userId,
     });
-    if (!automation || automation.triggerType !== "pull_request") {
+    if (!automation) {
       return;
     }
-    // Check if auto-archive is enabled
-    const prConfig = automation.triggerConfig as PullRequestTriggerConfig;
-    if (prConfig.autoArchiveOnComplete) {
+
+    // Check if auto-archive is enabled for supported trigger types
+    let shouldAutoArchive = false;
+    if (automation.triggerType === "pull_request") {
+      const config = automation.triggerConfig as PullRequestTriggerConfig;
+      shouldAutoArchive = config.autoArchiveOnComplete ?? false;
+    } else if (automation.triggerType === "issue") {
+      const config = automation.triggerConfig as IssueTriggerConfig;
+      shouldAutoArchive = config.autoArchiveOnComplete ?? false;
+    }
+
+    if (shouldAutoArchive) {
       console.log(
-        `Auto-archiving thread ${threadId} for PR automation ${automation.id}`,
+        `Auto-archiving thread ${threadId} for ${automation.triggerType} automation ${automation.id}`,
       );
       await updateThread({
         db,
@@ -164,6 +181,16 @@ async function maybeAutoArchiveThread({
           archived: true,
           updatedAt: new Date(),
         },
+      });
+
+      // Send notification that task was auto-archived
+      await markThreadChatAsUnread({
+        db,
+        userId,
+        threadId,
+        threadChatIdOrNull: threadChatId,
+        shouldPublishRealtimeEvent: true,
+        notificationReason: "task-archived",
       });
     }
   } catch (error) {
