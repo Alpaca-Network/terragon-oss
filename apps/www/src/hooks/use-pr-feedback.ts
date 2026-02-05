@@ -120,10 +120,10 @@ export function usePRFeedback(
   });
 
   // Query 3: Checks - fetches when header is ready (needs headSha)
+  // Always pass headSha from header to avoid redundant API calls in getPRChecks
   const checks = useServerActionQuery<GetPRChecksResult>({
     queryKey: ["pr-checks", threadId, header.data?.headSha, refreshKey],
-    queryFn: () =>
-      getPRChecks({ threadId, headSha: header.data?.headSha ?? undefined }),
+    queryFn: () => getPRChecks({ threadId, headSha: header.data?.headSha }),
     enabled: enabled && header.isSuccess && !!header.data?.headSha,
     staleTime,
     refetchInterval,

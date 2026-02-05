@@ -22,6 +22,10 @@ export type GetPRChecksResult = PRChecksData;
  * Fetches PR check runs and coverage check.
  * Requires headSha - either provided directly or fetched via threadId.
  * This is one of the tab-specific queries for progressive loading.
+ *
+ * IMPORTANT: When using with threadId, always provide headSha if available
+ * (e.g., from getPRHeader) to avoid redundant API calls. The fallback to
+ * fetch headSha is only for backwards compatibility and direct API usage.
  */
 export const getPRChecks = cache(
   userOnlyAction(
