@@ -27,6 +27,8 @@ import {
   userCredentialsAtom,
   userCredentialsRefetchAtom,
 } from "@/atoms/user-credentials";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export function UserAtomsHydrator({
   user,
@@ -74,6 +76,8 @@ export function UserAtomsHydrator({
   const refetchUserSettings = useSetAtom(userSettingsRefetchAtom);
   const refetchUserFlags = useSetAtom(userFlagsRefetchAtom);
   const refetchUserCredentials = useSetAtom(userCredentialsRefetchAtom);
+  const router = useRouter();
+
   useRealtimeUser({
     matches: (message) => !!message.data.userSettings,
     onMessage: () => refetchUserSettings(),
@@ -85,6 +89,27 @@ export function UserAtomsHydrator({
   useRealtimeUser({
     matches: (message) => !!message.data.userCredentials,
     onMessage: () => refetchUserCredentials(),
+  });
+
+  // Show toast notification when task is auto-archived
+  useRealtimeUser({
+    matches: (message) =>
+      message.data.notificationReason === "task-archived" &&
+      message.data.isThreadUnread === true,
+    onMessage: (message) => {
+      const threadName = message.data.threadName || "A task";
+      const threadId = message.data.threadId;
+
+      toast.success(`${threadName} completed and archived`, {
+        duration: 5000,
+        action: threadId
+          ? {
+              label: "View in archived",
+              onClick: () => router.push(`/archived`),
+            }
+          : undefined,
+      });
+    },
   });
   useEffect(() => {
     if (user) {

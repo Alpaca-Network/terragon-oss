@@ -6,6 +6,7 @@ import {
   updateThread,
 } from "@terragon/shared/model/threads";
 import { getUserSettings, getUser } from "@terragon/shared/model/user";
+import { markThreadChatAsUnread } from "@terragon/shared/model/thread-read-status";
 import { withThreadSandboxSession } from "@/agent/thread-resource";
 import { ThreadError, wrapError } from "@/agent/error";
 import { updateThreadChatWithTransition } from "@/agent/update-status";
@@ -164,6 +165,16 @@ async function maybeAutoArchiveThread({
           archived: true,
           updatedAt: new Date(),
         },
+      });
+
+      // Send notification that task was auto-archived
+      await markThreadChatAsUnread({
+        db,
+        userId,
+        threadId,
+        threadChatIdOrNull: threadChatId,
+        shouldPublishRealtimeEvent: true,
+        notificationReason: "task-archived",
       });
     }
   } catch (error) {
