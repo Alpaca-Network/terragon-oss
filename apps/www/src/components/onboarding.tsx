@@ -87,7 +87,7 @@ export function Onboarding({ forceIsDone }: { forceIsDone?: boolean }) {
         refetchUserFlags(),
       ]);
       router.push("/dashboard");
-      toast.success("Welcome to Terragon!");
+      toast.success("Welcome to Gatewayz Code!");
     } catch (error) {
       console.error(error);
     }
