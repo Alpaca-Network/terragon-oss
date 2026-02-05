@@ -73,7 +73,8 @@ class R2Client {
       Key: r2Key,
       ContentType: contentType,
       // Add content length if provided (for exact size matching)
-      ...(contentLength && {
+      // Use !== undefined to handle zero-byte file uploads correctly
+      ...(contentLength !== undefined && {
         ContentLength: contentLength,
       }),
     });
@@ -88,7 +89,7 @@ class R2Client {
       // enforce content length and may cause signature mismatch errors.
       // See: https://github.com/aws/aws-sdk-js-v3/issues/5268
       const signableHeaders = new Set<string>(["host", "content-type"]);
-      if (contentLength) {
+      if (contentLength !== undefined) {
         signableHeaders.add("content-length");
       }
 
