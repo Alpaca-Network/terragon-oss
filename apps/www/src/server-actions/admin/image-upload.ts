@@ -51,7 +51,7 @@ export const generateImageUploadUrl = adminOnly(
     const { presignedUrl, r2Key } = await r2Cdn.generatePresignedUploadUrl(
       uniqueFileName,
       contentType,
-      undefined,
+      fileSize,
       { skipPrefix: true },
     );
 
