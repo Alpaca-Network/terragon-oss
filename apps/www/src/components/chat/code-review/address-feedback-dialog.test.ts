@@ -185,4 +185,107 @@ describe("AddressFeedbackDialog component logic", () => {
       expect(shouldShowBadge(5)).toBe(true);
     });
   });
+
+  describe("automerge eligibility", () => {
+    // This mirrors the actual calculation in the component for canEnableAutoMerge
+    const canEnableAutoMerge = (
+      feedback: Pick<PRFeedback, "comments" | "checks" | "hasConflicts">,
+    ): boolean => {
+      const allChecksPassed = feedback.checks.every(
+        (c) =>
+          c.conclusion === "success" ||
+          c.conclusion === "neutral" ||
+          c.conclusion === "skipped",
+      );
+      const hasNoUnresolvedComments = feedback.comments.unresolved.length === 0;
+      return (
+        allChecksPassed && hasNoUnresolvedComments && !feedback.hasConflicts
+      );
+    };
+
+    it("should allow automerge when all checks pass and no unresolved comments", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [{ conclusion: "success" }, { conclusion: "success" }],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(true);
+    });
+
+    it("should allow automerge when checks are neutral or skipped", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [
+          { conclusion: "success" },
+          { conclusion: "neutral" },
+          { conclusion: "skipped" },
+        ],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(true);
+    });
+
+    it("should allow automerge when there are no checks", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(true);
+    });
+
+    it("should not allow automerge when there are unresolved comments", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 2,
+        checks: [{ conclusion: "success" }],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(false);
+    });
+
+    it("should not allow automerge when there are failing checks", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [{ conclusion: "failure" }],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(false);
+    });
+
+    it("should not allow automerge when there are timed out checks", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [{ conclusion: "timed_out" }],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(false);
+    });
+
+    it("should not allow automerge when there are conflicts", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [{ conclusion: "success" }],
+        hasConflicts: true,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(false);
+    });
+
+    it("should not allow automerge when checks are cancelled", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 0,
+        checks: [{ conclusion: "cancelled" }],
+        hasConflicts: false,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(false);
+    });
+
+    it("should not allow automerge with multiple issues", () => {
+      const feedback = createMockFeedback({
+        unresolvedComments: 1,
+        checks: [{ conclusion: "failure" }],
+        hasConflicts: true,
+      });
+      expect(canEnableAutoMerge(feedback)).toBe(false);
+    });
+  });
 });
