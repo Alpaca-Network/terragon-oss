@@ -25,16 +25,6 @@ describe("handle-daemon-event logging", () => {
     // Spy on console methods to verify logging
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    // Ensure all threads are complete so we don't mess other tests
-    await db.update(schema.thread).set({
-      status: "complete",
-      reattemptQueueAt: null,
-    });
-    await db.update(schema.threadChat).set({
-      status: "complete",
-      reattemptQueueAt: null,
-    });
   });
 
   afterEach(() => {
@@ -211,10 +201,12 @@ describe("handle-daemon-event logging", () => {
       expect(daemonEventCall).toBeDefined();
 
       // The last argument should be the JSON stringified messages
-      const messagesJson = daemonEventCall![daemonEventCall!.length - 1];
+      const messagesJson = daemonEventCall![
+        daemonEventCall!.length - 1
+      ] as string;
       expect(() => JSON.parse(messagesJson)).not.toThrow();
 
-      const parsedMessages = JSON.parse(messagesJson);
+      const parsedMessages = JSON.parse(messagesJson) as ClaudeMessage[];
       expect(parsedMessages).toEqual(messages);
     });
 
@@ -252,14 +244,6 @@ describe("handle-daemon-event logging", () => {
         result: "Task completed",
         session_id: "test-session-id",
         total_cost_usd: 0.01,
-        usage: {
-          input_tokens: 100,
-          cache_creation_input_tokens: 0,
-          cache_read_input_tokens: 0,
-          output_tokens: 50,
-          server_tool_use: { web_search_requests: 0 },
-          service_tier: "standard",
-        },
       };
 
       await handleDaemonEvent({
@@ -278,9 +262,11 @@ describe("handle-daemon-event logging", () => {
       );
       expect(daemonEventCall).toBeDefined();
 
-      const messagesJson = daemonEventCall![daemonEventCall!.length - 1];
-      const parsedMessages = JSON.parse(messagesJson);
-      expect(parsedMessages[0].type).toBe("result");
+      const messagesJson = daemonEventCall![
+        daemonEventCall!.length - 1
+      ] as string;
+      const parsedMessages = JSON.parse(messagesJson) as ClaudeMessage[];
+      expect(parsedMessages[0]!.type).toBe("result");
     });
 
     it("should log when processing stop messages", async () => {
@@ -309,7 +295,7 @@ describe("handle-daemon-event logging", () => {
 
       const stopMessage: ClaudeMessage = {
         type: "custom-stop",
-        session_id: "test-session-id",
+        session_id: null,
         duration_ms: 1000,
       };
 
@@ -329,9 +315,11 @@ describe("handle-daemon-event logging", () => {
       );
       expect(daemonEventCall).toBeDefined();
 
-      const messagesJson = daemonEventCall![daemonEventCall!.length - 1];
-      const parsedMessages = JSON.parse(messagesJson);
-      expect(parsedMessages[0].type).toBe("custom-stop");
+      const messagesJson = daemonEventCall![
+        daemonEventCall!.length - 1
+      ] as string;
+      const parsedMessages = JSON.parse(messagesJson) as ClaudeMessage[];
+      expect(parsedMessages[0]!.type).toBe("custom-stop");
     });
 
     it("should log when processing error messages", async () => {
@@ -360,7 +348,7 @@ describe("handle-daemon-event logging", () => {
 
       const errorMessage: ClaudeMessage = {
         type: "custom-error",
-        session_id: "test-session-id",
+        session_id: null,
         duration_ms: 500,
         error_info: "Test error occurred",
       };
@@ -381,10 +369,15 @@ describe("handle-daemon-event logging", () => {
       );
       expect(daemonEventCall).toBeDefined();
 
-      const messagesJson = daemonEventCall![daemonEventCall!.length - 1];
-      const parsedMessages = JSON.parse(messagesJson);
-      expect(parsedMessages[0].type).toBe("custom-error");
-      expect(parsedMessages[0].error_info).toBe("Test error occurred");
+      const messagesJson = daemonEventCall![
+        daemonEventCall!.length - 1
+      ] as string;
+      const parsedMessages = JSON.parse(messagesJson) as Array<{
+        type: string;
+        error_info?: string;
+      }>;
+      expect(parsedMessages[0]!.type).toBe("custom-error");
+      expect(parsedMessages[0]!.error_info).toBe("Test error occurred");
     });
 
     it("should log with different timezones", async () => {
@@ -501,14 +494,6 @@ describe("handle-daemon-event logging", () => {
           result: "Done",
           session_id: "test-session-id",
           total_cost_usd: 0.01,
-          usage: {
-            input_tokens: 100,
-            cache_creation_input_tokens: 0,
-            cache_read_input_tokens: 0,
-            output_tokens: 50,
-            server_tool_use: { web_search_requests: 0 },
-            service_tier: "standard",
-          },
         },
       ];
 
@@ -528,12 +513,14 @@ describe("handle-daemon-event logging", () => {
       );
       expect(daemonEventCall).toBeDefined();
 
-      const messagesJson = daemonEventCall![daemonEventCall!.length - 1];
-      const parsedMessages = JSON.parse(messagesJson);
+      const messagesJson = daemonEventCall![
+        daemonEventCall!.length - 1
+      ] as string;
+      const parsedMessages = JSON.parse(messagesJson) as ClaudeMessage[];
       expect(parsedMessages).toHaveLength(3);
-      expect(parsedMessages[0].type).toBe("assistant");
-      expect(parsedMessages[1].type).toBe("assistant");
-      expect(parsedMessages[2].type).toBe("result");
+      expect(parsedMessages[0]!.type).toBe("assistant");
+      expect(parsedMessages[1]!.type).toBe("assistant");
+      expect(parsedMessages[2]!.type).toBe("result");
     });
   });
 });

@@ -67,25 +67,25 @@ describe("daemon logging", () => {
   let daemon: TerragonDaemon;
   let loggerInfoSpy: MockInstance;
   let loggerErrorSpy: MockInstance;
-  let loggerWarnSpy: MockInstance;
   let spawnCommandLineMock: MockInstance<DaemonRuntime["spawnCommandLine"]>;
   let serverPostMock: MockInstance<DaemonRuntime["serverPost"]>;
   let spawnPid = 1234;
 
   beforeEach(() => {
-    vi.stubGlobal("Intl", {
-      ...Intl,
-      DateTimeFormat: vi.fn(() => ({
-        resolvedOptions: () => ({ timeZone: "America/New_York" }),
-      })),
-    });
+    // Stub Intl.DateTimeFormat.prototype.resolvedOptions instead of replacing the entire DateTimeFormat
+    // to preserve the full DateTimeFormat API surface (format, formatToParts, etc.)
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "en-US",
+      calendar: "gregory",
+      numberingSystem: "latn",
+      timeZone: "America/New_York",
+    } as Intl.ResolvedDateTimeFormatOptions);
 
     runtime = setupRuntime();
 
     // Spy on logger methods
     loggerInfoSpy = vi.spyOn(runtime.logger, "info");
     loggerErrorSpy = vi.spyOn(runtime.logger, "error");
-    loggerWarnSpy = vi.spyOn(runtime.logger, "warn");
 
     vi.spyOn(runtime, "listenToUnixSocket");
     spawnCommandLineMock = vi

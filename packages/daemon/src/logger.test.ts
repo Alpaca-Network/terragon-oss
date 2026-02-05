@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Logger, LogLevel, OutputFormat, LogEntry } from "./logger";
+import { Logger, LogEntry } from "./logger";
 
 describe("Logger", () => {
   let consoleSpy: {
@@ -86,7 +86,7 @@ describe("Logger", () => {
       const afterTime = new Date().toISOString();
 
       expect(consoleSpy.log).toHaveBeenCalledTimes(1);
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
       const parsed: LogEntry = JSON.parse(loggedJson);
 
       expect(parsed.level).toBe("info");
@@ -102,7 +102,7 @@ describe("Logger", () => {
       const logger = new Logger("json");
       logger.info("With data", { userId: "123", action: "login" });
 
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
       const parsed: LogEntry = JSON.parse(loggedJson);
 
       expect(parsed.level).toBe("info");
@@ -114,8 +114,8 @@ describe("Logger", () => {
       const logger = new Logger("json");
       logger.info("No data");
 
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
-      const parsed = JSON.parse(loggedJson);
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
+      const parsed = JSON.parse(loggedJson) as LogEntry;
 
       expect(Object.keys(parsed)).toEqual(["timestamp", "level", "message"]);
       expect(parsed.data).toBeUndefined();
@@ -125,19 +125,27 @@ describe("Logger", () => {
       const logger = new Logger("json");
 
       logger.info("info");
-      let parsed = JSON.parse(consoleSpy.log.mock.calls[0]![0]);
+      let parsed = JSON.parse(
+        consoleSpy.log.mock.calls[0]![0] as string,
+      ) as LogEntry;
       expect(parsed.level).toBe("info");
 
       logger.error("error");
-      parsed = JSON.parse(consoleSpy.error.mock.calls[0]![0]);
+      parsed = JSON.parse(
+        consoleSpy.error.mock.calls[0]![0] as string,
+      ) as LogEntry;
       expect(parsed.level).toBe("error");
 
       logger.warn("warn");
-      parsed = JSON.parse(consoleSpy.warn.mock.calls[0]![0]);
+      parsed = JSON.parse(
+        consoleSpy.warn.mock.calls[0]![0] as string,
+      ) as LogEntry;
       expect(parsed.level).toBe("warn");
 
       logger.debug("debug");
-      parsed = JSON.parse(consoleSpy.log.mock.calls[1]![0]);
+      parsed = JSON.parse(
+        consoleSpy.log.mock.calls[1]![0] as string,
+      ) as LogEntry;
       expect(parsed.level).toBe("debug");
     });
 
@@ -151,9 +159,9 @@ describe("Logger", () => {
 
       logger.info("Complex", complexData);
 
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
       expect(() => JSON.parse(loggedJson)).not.toThrow();
-      const parsed = JSON.parse(loggedJson);
+      const parsed = JSON.parse(loggedJson) as LogEntry;
       expect(parsed.data).toEqual(complexData);
     });
 
@@ -161,9 +169,9 @@ describe("Logger", () => {
       const logger = new Logger("json");
       logger.info('Message with "quotes" and\nnewlines');
 
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
       expect(() => JSON.parse(loggedJson)).not.toThrow();
-      const parsed = JSON.parse(loggedJson);
+      const parsed = JSON.parse(loggedJson) as LogEntry;
       expect(parsed.message).toBe('Message with "quotes" and\nnewlines');
     });
   });
@@ -198,7 +206,9 @@ describe("Logger", () => {
       const logger = new Logger("json");
       logger.log("info", "message", { key: "value" });
 
-      const parsed = JSON.parse(consoleSpy.log.mock.calls[0]![0]);
+      const parsed = JSON.parse(
+        consoleSpy.log.mock.calls[0]![0] as string,
+      ) as LogEntry;
       expect(parsed.data).toEqual({ key: "value" });
     });
   });
@@ -210,9 +220,9 @@ describe("Logger", () => {
 
       logger.error("An error occurred", { error });
 
-      const loggedJson = consoleSpy.error.mock.calls[0]![0];
-      const parsed = JSON.parse(loggedJson);
-      expect(parsed.data.error).toBeDefined();
+      const loggedJson = consoleSpy.error.mock.calls[0]![0] as string;
+      const parsed = JSON.parse(loggedJson) as LogEntry;
+      expect(parsed.data?.error).toBeDefined();
     });
 
     it("should handle undefined and null in data", () => {
@@ -223,9 +233,9 @@ describe("Logger", () => {
         nullVal: null,
       });
 
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
-      const parsed = JSON.parse(loggedJson);
-      expect(parsed.data.nullVal).toBeNull();
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
+      const parsed = JSON.parse(loggedJson) as LogEntry;
+      expect((parsed.data as { nullVal: null })?.nullVal).toBeNull();
       // undefined values are excluded from JSON.stringify
     });
   });
@@ -235,8 +245,8 @@ describe("Logger", () => {
       const logger = new Logger("json");
       logger.info("Timestamp test");
 
-      const loggedJson = consoleSpy.log.mock.calls[0]![0];
-      const parsed = JSON.parse(loggedJson);
+      const loggedJson = consoleSpy.log.mock.calls[0]![0] as string;
+      const parsed = JSON.parse(loggedJson) as LogEntry;
 
       // ISO 8601 format: YYYY-MM-DDTHH:mm:ss.sssZ
       const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
@@ -256,11 +266,11 @@ describe("Logger", () => {
 
       // Verify all messages are valid JSON
       for (let i = 0; i < 100; i++) {
-        const loggedJson = consoleSpy.log.mock.calls[i]![0];
+        const loggedJson = consoleSpy.log.mock.calls[i]![0] as string;
         expect(() => JSON.parse(loggedJson)).not.toThrow();
-        const parsed = JSON.parse(loggedJson);
+        const parsed = JSON.parse(loggedJson) as LogEntry;
         expect(parsed.message).toBe(`Message ${i}`);
-        expect(parsed.data.index).toBe(i);
+        expect((parsed.data as { index: number })?.index).toBe(i);
       }
     });
 
@@ -272,7 +282,7 @@ describe("Logger", () => {
       logger.info("Third");
 
       const timestamps = consoleSpy.log.mock.calls.map((call) => {
-        const parsed = JSON.parse(call[0]);
+        const parsed = JSON.parse(call[0] as string) as LogEntry;
         return new Date(parsed.timestamp).getTime();
       });
 
@@ -296,9 +306,9 @@ describe("Logger", () => {
         "Text message key: value",
       );
 
-      const jsonCall = consoleSpy.log.mock.calls[1]![0];
+      const jsonCall = consoleSpy.log.mock.calls[1]![0] as string;
       expect(() => JSON.parse(jsonCall)).not.toThrow();
-      const parsed = JSON.parse(jsonCall);
+      const parsed = JSON.parse(jsonCall) as LogEntry;
       expect(parsed.message).toBe("JSON message");
     });
   });
