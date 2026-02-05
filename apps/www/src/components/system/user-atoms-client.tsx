@@ -95,19 +95,20 @@ export function UserAtomsHydrator({
   useRealtimeUser({
     matches: (message) =>
       message.data.notificationReason === "task-archived" &&
-      message.data.isThreadUnread === true,
+      message.data.isThreadUnread === true &&
+      !!message.data.threadId,
     onMessage: (message) => {
-      const threadName = message.data.threadName || "A task";
+      const threadName = message.data.threadName || "Task";
       const threadId = message.data.threadId;
 
+      // Use unique ID to prevent duplicate toasts for the same event
       toast.success(`${threadName} completed and archived`, {
+        id: `task-archived-${threadId}`,
         duration: 5000,
-        action: threadId
-          ? {
-              label: "View in archived",
-              onClick: () => router.push(`/archived`),
-            }
-          : undefined,
+        action: {
+          label: "View in archived",
+          onClick: () => router.push("/archived"),
+        },
       });
     },
   });
