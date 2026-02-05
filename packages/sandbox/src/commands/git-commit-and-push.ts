@@ -4,6 +4,7 @@ import { getCurrentBranchName } from "./git-current-branch-name";
 import { isLocalBranchAheadOfRemote } from "./git-is-ahead";
 import { bashQuote, diffCutoff } from "../utils";
 import { verifyGitIntegrity } from "./git-integrity";
+import { commitSubmoduleChanges, pushSubmodules } from "./git-submodules";
 
 async function commitChangesIfNeeded({
   session,
@@ -63,7 +64,14 @@ async function commitChangesIfNeeded({
   await session.writeTextFile(tempCommitFile, commitMessage + coAuthorTrailer);
 
   try {
-    // First, stage all changes
+    // First, commit any changes within submodules (if any exist)
+    const committedSubmodules = await commitSubmoduleChanges({
+      session,
+      commitMessage,
+      repoRoot,
+    });
+
+    // Stage all changes including submodule pointer updates
     await session.runCommand("git add -A", { cwd: repoRoot });
 
     // Verify repository integrity after staging (which may trigger blob fetching in blobless clones)
@@ -82,6 +90,15 @@ async function commitChangesIfNeeded({
       )}`,
       { cwd: repoRoot },
     );
+
+    // Push submodule commits to their remotes
+    if (committedSubmodules.length > 0) {
+      await pushSubmodules({
+        session,
+        submodulePaths: committedSubmodules,
+        repoRoot,
+      });
+    }
   } finally {
     // Clean up the temp commit message file
     await session.runCommand(`rm ${tempCommitFile}`, { cwd: repoRoot });
