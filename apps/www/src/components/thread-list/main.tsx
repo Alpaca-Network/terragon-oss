@@ -588,27 +588,58 @@ function useThreadList({
   const automationId = queryFilters.automationId;
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      // Check if this update is for a thread already in our visible list
+      const isThreadVisible = threadIds.has(threadId);
+
+      if (isThreadVisible) {
         // If messages were updated but the status didn't change, we don't need to refetch.
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
         return true;
       }
+
+      // For threads not in visible list, check if they should appear based on filters
+      // This handles the case where thread exists on page 2+ or was just created/updated
+
+      // Filter by automation if specified
       if (automationId && data.threadAutomationId !== automationId) {
         return false;
       }
+
+      // Check if archived status matches current view
       if (typeof data.isThreadArchived === "boolean") {
-        if (showArchived === data.isThreadArchived) {
+        // For archived view, only match if thread is archived
+        if (showArchived && data.isThreadArchived) {
+          return true;
+        }
+        // For active view, only match if thread is not archived
+        if (!showArchived && !data.isThreadArchived) {
+          // Also check backlog status for active view
+          if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+            return false;
+          }
           return true;
         }
       }
+
+      // Handle new thread creation
       if (data.isThreadCreated) {
+        // Only match if it's for the current view
+        if (showArchived) {
+          return false; // New threads shouldn't appear in archived view
+        }
         return true;
       }
+
+      // Handle thread status updates (could move thread between pages)
+      if (data.threadStatusUpdated) {
+        return true;
+      }
+
       return false;
     },
-    [threadIds, showArchived, automationId],
+    [threadIds, showArchived, automationId, queryFilters.isBacklog],
   );
   useRealtimeThreadMatch({
     matchThread,

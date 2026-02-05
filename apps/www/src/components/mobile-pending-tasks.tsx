@@ -11,6 +11,7 @@ import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
 import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const MobilePendingTasks = memo(function MobilePendingTasks({
   className,
@@ -23,7 +24,15 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
     "feed" | "changes" | "code-review"
   >("feed");
 
-  const { data, isLoading, isError, refetch } = useInfiniteThreadList({
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useInfiniteThreadList({
     archived: false,
     isBacklog: false,
   });
@@ -45,20 +54,41 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
 
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      // Check if this update is for a thread already in our visible list
+      const isThreadVisible = threadIds.has(threadId);
+
+      if (isThreadVisible) {
+        // If messages were updated but the status didn't change, we don't need to refetch.
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
         return true;
       }
+
+      // For threads not in visible list, check if they should appear
+      // This handles the case where thread exists on page 2+ or was just created/updated
+
+      // Only show active (non-archived, non-backlog) tasks
       if (typeof data.isThreadArchived === "boolean") {
         if (!data.isThreadArchived) {
+          // Also check backlog status
+          if (data.isThreadBacklog) {
+            return false;
+          }
           return true;
         }
       }
+
+      // Handle new thread creation
       if (data.isThreadCreated) {
         return true;
       }
+
+      // Handle thread status updates (could move thread between pages)
+      if (data.threadStatusUpdated) {
+        return true;
+      }
+
       return false;
     },
     [threadIds],
@@ -134,6 +164,28 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
           />
         ))}
       </div>
+
+      {/* Load more button */}
+      {hasNextPage && threads.length > 0 && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="w-full"
+          >
+            {isFetchingNextPage ? (
+              <>
+                <LoaderCircle className="size-3 animate-spin mr-2" />
+                Loading...
+              </>
+            ) : (
+              "Load more"
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Task detail drawer */}
       <KanbanTaskDrawer
