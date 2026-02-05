@@ -615,7 +615,7 @@ function useThreadList({
         }
         // For non-archived views (active or backlog), only match if thread is not archived
         if (!showArchived && !data.isThreadArchived) {
-          // Check backlog status if specified in filter
+          // Check backlog status if we're filtering by it
           if (typeof data.isThreadBacklog === "boolean") {
             // For backlog view, only match if thread is in backlog
             if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
@@ -625,7 +625,15 @@ function useThreadList({
             if (queryFilters.isBacklog === false && data.isThreadBacklog) {
               return false;
             }
+            // Backlog status matches or no filter applied - refetch to update
+            return true;
           }
+          // Backlog status unknown but we have a filter - refetch to verify
+          // This is safe because the server will return correctly filtered data
+          if (queryFilters.isBacklog !== undefined) {
+            return true;
+          }
+          // No backlog filter and status unknown - refetch to update
           return true;
         }
       }
@@ -646,7 +654,11 @@ function useThreadList({
           if (queryFilters.isBacklog === false && data.isThreadBacklog) {
             return false;
           }
+          // Backlog status matches or no filter applied - refetch to show new thread
+          return true;
         }
+        // Backlog status unknown - refetch to verify the new thread matches filters
+        // This is safe because the server will return correctly filtered data
         return true;
       }
 

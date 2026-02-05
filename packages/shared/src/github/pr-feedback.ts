@@ -680,23 +680,35 @@ export async function resolveThreadsCreatedBefore(
   );
 
   const beforeDate = new Date(beforeTimestamp);
-  let resolved = 0;
-  let failed = 0;
+
+  // Separate threads into those to resolve and those to skip
+  const threadsToResolve: ResolvableReviewThread[] = [];
   let skipped = 0;
 
   for (const thread of threads) {
     const threadDate = new Date(thread.createdAt);
-
-    // Only resolve threads created before the given timestamp
     if (threadDate < beforeDate) {
-      const success = await resolveReviewThread(octokit, thread.graphqlId);
-      if (success) {
-        resolved++;
-      } else {
-        failed++;
-      }
+      threadsToResolve.push(thread);
     } else {
       skipped++;
+    }
+  }
+
+  // Resolve threads in parallel for better performance
+  const results = await Promise.allSettled(
+    threadsToResolve.map((thread) =>
+      resolveReviewThread(octokit, thread.graphqlId),
+    ),
+  );
+
+  let resolved = 0;
+  let failed = 0;
+
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value === true) {
+      resolved++;
+    } else {
+      failed++;
     }
   }
 

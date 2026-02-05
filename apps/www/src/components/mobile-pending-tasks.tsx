@@ -71,23 +71,31 @@ export const MobilePendingTasks = memo(function MobilePendingTasks({
       // Only show active (non-archived, non-backlog) tasks
       if (typeof data.isThreadArchived === "boolean") {
         if (!data.isThreadArchived) {
-          // Also check backlog status
-          if (
-            typeof data.isThreadBacklog === "boolean" &&
-            data.isThreadBacklog
-          ) {
-            return false;
+          // Check backlog status - reject if it's a backlog item
+          if (typeof data.isThreadBacklog === "boolean") {
+            if (data.isThreadBacklog) {
+              return false;
+            }
+            // Explicitly not a backlog item - show it
+            return true;
           }
+          // Backlog status unknown - refetch to be safe
           return true;
         }
       }
 
       // Handle new thread creation - only if not in backlog
       if (data.isThreadCreated) {
-        // Don't show in mobile pending tasks if created as backlog item
-        if (typeof data.isThreadBacklog === "boolean" && data.isThreadBacklog) {
-          return false;
+        // Check backlog status for new threads
+        if (typeof data.isThreadBacklog === "boolean") {
+          // Reject backlog items
+          if (data.isThreadBacklog) {
+            return false;
+          }
+          // Explicitly not a backlog item - show it
+          return true;
         }
+        // Backlog status unknown - refetch to be safe
         return true;
       }
 

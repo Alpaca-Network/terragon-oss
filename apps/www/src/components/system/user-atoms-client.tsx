@@ -98,8 +98,11 @@ export function UserAtomsHydrator({
       message.data.isThreadUnread === true &&
       !!message.data.threadId,
     onMessage: (message) => {
-      const threadName = message.data.threadName || "Task";
+      // Guard against undefined threadId (TypeScript doesn't narrow across callbacks)
       const threadId = message.data.threadId;
+      if (!threadId) return;
+
+      const threadName = message.data.threadName || "Task";
 
       // Use unique ID to prevent duplicate toasts for the same event
       toast.success(`${threadName} completed and archived`, {
