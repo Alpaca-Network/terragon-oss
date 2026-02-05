@@ -2,25 +2,32 @@
 
 import React, { useState } from "react";
 import type { ThreadInfoFull } from "@terragon/shared/db/types";
-import { useServerActionQuery } from "@/queries/server-action-helpers";
 import {
   MessageSquare,
   CheckCircle2,
   BarChart3,
   GitMerge,
-  Loader2,
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getPRFeedback } from "@/server-actions/get-pr-feedback";
 import { PRCommentsSection } from "./code-review/pr-comments-section";
 import { ChecksSection } from "./code-review/checks-section";
 import { CoverageSection } from "./code-review/coverage-section";
 import { MergeStatusSection } from "./code-review/merge-status-section";
 import { MergeButton } from "./code-review/merge-button";
 import { AddressFeedbackDialog } from "./code-review/address-feedback-dialog";
-import { createFeedbackSummary } from "@terragon/shared/github/pr-feedback";
+import {
+  usePRFeedback,
+  combinePRFeedbackFromQueries,
+} from "@/hooks/use-pr-feedback";
+import {
+  PRHeaderSkeleton,
+  CommentsSkeleton,
+  ChecksSkeleton,
+  CoverageSkeleton,
+  MergeStatusSkeleton,
+} from "./code-review/skeletons";
 
 interface CodeReviewViewProps {
   thread: ThreadInfoFull;
@@ -32,18 +39,19 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
   const [activeTab, setActiveTab] = useState<TabValue>("comments");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { data, isLoading, error } = useServerActionQuery({
-    queryKey: ["pr-feedback", thread.id, refreshKey],
-    queryFn: () => getPRFeedback({ threadId: thread.id }),
-    enabled: !!thread.githubPRNumber,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // Refetch every minute
-  });
+  const { header, comments, checks, summary, isLoading, hasError } =
+    usePRFeedback(thread.id, {
+      enabled: !!thread.githubPRNumber,
+      refreshKey,
+      staleTime: 30000,
+      refetchInterval: 60000,
+    });
 
+  // No PR associated
   if (!thread.githubPRNumber) {
     return (
       <div className="flex flex-col h-full">
-        <CodeReviewHeader thread={thread} />
+        <CodeReviewHeaderPlaceholder />
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-4">
           <GitMerge className="size-12 mb-4 opacity-30" />
           <p className="text-sm text-center">
@@ -57,40 +65,56 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
     );
   }
 
+  // Header loading - show skeleton for header area
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <CodeReviewHeader thread={thread} />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <PRHeaderSkeleton />
+        <div className="flex-1 overflow-y-auto p-4">
+          <CommentsSkeleton />
         </div>
       </div>
     );
   }
 
-  if (error || !data) {
+  // Header error
+  if (hasError && !header.data) {
     return (
       <div className="flex flex-col h-full">
-        <CodeReviewHeader thread={thread} />
+        <CodeReviewHeaderPlaceholder />
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-4">
           <AlertCircle className="size-8 mb-2 text-destructive" />
           <p className="text-sm text-center">Failed to load PR feedback</p>
           <p className="text-xs text-center mt-1">
-            {error instanceof Error ? error.message : "Unknown error"}
+            {header.error instanceof Error
+              ? header.error.message
+              : "Unknown error"}
           </p>
         </div>
       </div>
     );
   }
 
-  const { feedback } = data;
-  const summary = createFeedbackSummary(feedback);
+  const headerData = header.data;
+  if (!headerData) {
+    return null;
+  }
 
-  // Calculate badge counts
-  const commentCount = summary.unresolvedCommentCount;
-  const failingCheckCount = summary.failingCheckCount;
-  const hasCoverage = summary.hasCoverageCheck;
-  const hasConflicts = summary.hasConflicts;
+  // Combine data for AddressFeedbackDialog (needs full feedback object)
+  const feedback = combinePRFeedbackFromQueries(
+    headerData,
+    comments.data,
+    checks.data,
+  );
+
+  // Calculate badge counts from summary (computed in hook)
+  const commentCount = summary?.unresolvedCommentCount ?? 0;
+  const failingCheckCount = summary?.failingCheckCount ?? 0;
+  const hasCoverage = summary?.hasCoverageCheck ?? false;
+  const coverageCheckPassed = summary?.coverageCheckPassed ?? true;
+  const hasConflicts = summary?.hasConflicts ?? false;
+
+  const handleRefresh = () => setRefreshKey((k) => k + 1);
 
   return (
     <div className="flex flex-col h-full">
@@ -99,25 +123,27 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
         {/* Mobile: single row with PR link, Address Feedback, and Merge button */}
         <div className="flex sm:hidden items-center justify-between gap-2">
           <a
-            href={feedback.prUrl}
+            href={headerData.prUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0"
           >
-            PR #{feedback.prNumber}
+            PR #{headerData.prNumber}
             <ExternalLink className="size-3" />
           </a>
           <div className="flex items-center gap-2">
-            <AddressFeedbackDialog feedback={feedback} thread={thread} />
+            {feedback && (
+              <AddressFeedbackDialog feedback={feedback} thread={thread} />
+            )}
             <MergeButton
-              repoFullName={feedback.repoFullName}
-              prNumber={feedback.prNumber}
-              prTitle={feedback.prTitle}
-              isMergeable={feedback.isMergeable}
-              isAutoMergeEnabled={feedback.isAutoMergeEnabled}
+              repoFullName={headerData.repoFullName}
+              prNumber={headerData.prNumber}
+              prTitle={headerData.prTitle}
+              isMergeable={headerData.isMergeable}
+              isAutoMergeEnabled={headerData.isAutoMergeEnabled}
               threadId={thread.id}
-              onMerged={() => setRefreshKey((k) => k + 1)}
-              onAutoMergeChanged={() => setRefreshKey((k) => k + 1)}
+              onMerged={handleRefresh}
+              onAutoMergeChanged={handleRefresh}
             />
           </div>
         </div>
@@ -128,32 +154,34 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
             <GitMerge className="size-4 flex-shrink-0" />
             <h2 className="text-sm font-medium truncate">Code Review</h2>
             <a
-              href={feedback.prUrl}
+              href={headerData.prUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0"
             >
-              #{feedback.prNumber}
+              #{headerData.prNumber}
               <ExternalLink className="size-3" />
             </a>
           </div>
-          <AddressFeedbackDialog feedback={feedback} thread={thread} />
+          {feedback && (
+            <AddressFeedbackDialog feedback={feedback} thread={thread} />
+          )}
         </div>
 
         {/* Desktop: Merge button row */}
         <div className="hidden sm:flex items-center justify-between gap-2 overflow-hidden">
           <div className="text-xs text-muted-foreground truncate min-w-0 flex-1">
-            {feedback.prTitle}
+            {headerData.prTitle}
           </div>
           <MergeButton
-            repoFullName={feedback.repoFullName}
-            prNumber={feedback.prNumber}
-            prTitle={feedback.prTitle}
-            isMergeable={feedback.isMergeable}
-            isAutoMergeEnabled={feedback.isAutoMergeEnabled}
+            repoFullName={headerData.repoFullName}
+            prNumber={headerData.prNumber}
+            prTitle={headerData.prTitle}
+            isMergeable={headerData.isMergeable}
+            isAutoMergeEnabled={headerData.isAutoMergeEnabled}
             threadId={thread.id}
-            onMerged={() => setRefreshKey((k) => k + 1)}
-            onAutoMergeChanged={() => setRefreshKey((k) => k + 1)}
+            onMerged={handleRefresh}
+            onAutoMergeChanged={handleRefresh}
           />
         </div>
       </div>
@@ -195,7 +223,7 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
           >
             <BarChart3 className="size-4 mr-1.5" />
             Coverage
-            {hasCoverage && !summary.coverageCheckPassed && (
+            {hasCoverage && !coverageCheckPassed && (
               <span className="ml-1.5 size-2 rounded-full bg-red-500" />
             )}
           </TabsTrigger>
@@ -213,25 +241,49 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
 
         <div className="flex-1 overflow-y-auto p-4">
           <TabsContent value="comments" className="mt-0 h-full">
-            <PRCommentsSection
-              unresolved={feedback.comments.unresolved}
-              resolved={feedback.comments.resolved}
-            />
+            {comments.isLoading ? (
+              <CommentsSkeleton />
+            ) : comments.error ? (
+              <TabErrorState message="Failed to load comments" />
+            ) : comments.data ? (
+              <PRCommentsSection
+                unresolved={comments.data.comments.unresolved}
+                resolved={comments.data.comments.resolved}
+              />
+            ) : null}
           </TabsContent>
           <TabsContent value="checks" className="mt-0 h-full">
-            <ChecksSection checks={feedback.checks} />
+            {checks.isLoading ? (
+              <ChecksSkeleton />
+            ) : checks.error ? (
+              <TabErrorState message="Failed to load checks" />
+            ) : checks.data ? (
+              <ChecksSection checks={checks.data.checks} />
+            ) : null}
           </TabsContent>
           <TabsContent value="coverage" className="mt-0 h-full">
-            <CoverageSection coverageCheck={feedback.coverageCheck} />
+            {checks.isLoading ? (
+              <CoverageSkeleton />
+            ) : checks.error ? (
+              <TabErrorState message="Failed to load coverage" />
+            ) : checks.data ? (
+              <CoverageSection coverageCheck={checks.data.coverageCheck} />
+            ) : null}
           </TabsContent>
           <TabsContent value="conflicts" className="mt-0 h-full">
-            <MergeStatusSection
-              mergeableState={feedback.mergeableState}
-              hasConflicts={feedback.hasConflicts}
-              isMergeable={feedback.isMergeable}
-              baseBranch={feedback.baseBranch}
-              headBranch={feedback.headBranch}
-            />
+            {header.isLoading ? (
+              <MergeStatusSkeleton />
+            ) : header.error ? (
+              <TabErrorState message="Failed to load merge status" />
+            ) : (
+              <MergeStatusSection
+                mergeableState={headerData.mergeableState}
+                hasConflicts={headerData.hasConflicts}
+                isMergeable={headerData.isMergeable}
+                baseBranch={headerData.baseBranch}
+                headBranch={headerData.headBranch}
+              />
+            )}
           </TabsContent>
         </div>
       </Tabs>
@@ -239,13 +291,22 @@ export function CodeReviewView({ thread }: CodeReviewViewProps) {
   );
 }
 
-function CodeReviewHeader({ thread }: { thread: ThreadInfoFull }) {
+function CodeReviewHeaderPlaceholder() {
   return (
     <div className="border-b px-4 py-3">
       <div className="flex items-center gap-2">
         <GitMerge className="size-4" />
         <h2 className="text-sm font-medium">Code Review</h2>
       </div>
+    </div>
+  );
+}
+
+function TabErrorState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+      <AlertCircle className="size-8 mb-2 text-destructive opacity-50" />
+      <p className="text-sm">{message}</p>
     </div>
   );
 }
