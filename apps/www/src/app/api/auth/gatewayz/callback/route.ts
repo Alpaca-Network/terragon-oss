@@ -22,6 +22,70 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
+ * Default allowed origins for postMessage in embed mode.
+ * These are the trusted GatewayZ domains that can receive auth completion messages.
+ */
+const DEFAULT_ALLOWED_EMBED_ORIGINS = [
+  "https://gatewayz.ai",
+  "https://www.gatewayz.ai",
+  "https://beta.gatewayz.ai",
+  "https://inbox.gatewayz.ai",
+];
+
+/**
+ * Get the allowed origins for postMessage in embed mode.
+ * Uses GATEWAYZ_ALLOWED_ORIGINS env var if set (comma-separated),
+ * otherwise falls back to defaults.
+ *
+ * Security: Filters out empty strings (from extra commas like "a,,b" or empty env var)
+ * and invalid URLs to prevent postMessage from failing silently or being sent to
+ * unintended targets. Falls back to defaults if env var produces no valid origins,
+ * ensuring auth flow never breaks due to misconfiguration.
+ */
+function getAllowedEmbedOrigins(): string[] {
+  const envOrigins = process.env.GATEWAYZ_ALLOWED_ORIGINS;
+  if (envOrigins) {
+    const origins = envOrigins
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0 && isValidHttpsOrigin(origin));
+    // Fall back to defaults if env var produces no valid origins (empty string, only commas, etc.)
+    return origins.length > 0 ? origins : DEFAULT_ALLOWED_EMBED_ORIGINS;
+  }
+  return DEFAULT_ALLOWED_EMBED_ORIGINS;
+}
+
+/**
+ * Escape a string for safe embedding in a JavaScript string literal.
+ * Handles backslashes, quotes, newlines, Unicode line terminators, and HTML special characters.
+ */
+function escapeForJsString(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\") // Escape backslashes first
+    .replace(/'/g, "\\'") // Escape single quotes
+    .replace(/"/g, '\\"') // Escape double quotes
+    .replace(/\n/g, "\\n") // Escape newlines
+    .replace(/\r/g, "\\r") // Escape carriage returns
+    .replace(/\t/g, "\\t") // Escape tabs
+    .replace(/\u2028/g, "\\u2028") // Escape Unicode line separator
+    .replace(/\u2029/g, "\\u2029") // Escape Unicode paragraph separator
+    .replace(/</g, "\\x3c") // Escape < to prevent </script> injection
+    .replace(/>/g, "\\x3e"); // Escape > for consistency
+}
+
+/**
+ * Validate that a string is a valid HTTPS origin URL.
+ */
+function isValidHttpsOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:" && url.origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate an HTML page for embed mode authentication.
  *
  * In embed mode (iframe), third-party cookies are blocked by modern browsers.
@@ -32,15 +96,27 @@ function getBaseUrl(request: NextRequest): string {
  *
  * The parent window (GatewayZ) will receive the session token and can store it
  * to pass along with subsequent requests if needed.
+ *
+ * Security: postMessage is sent only to trusted GatewayZ origins to prevent
+ * information disclosure to malicious iframe parents.
  */
 function generateEmbedAuthPage(
   redirectUrl: string,
   sessionToken: string,
   gwAuthToken: string,
 ): string {
-  // Encode tokens for safe embedding in JavaScript
-  const safeSessionToken = sessionToken.replace(/'/g, "\\'");
-  const safeGwAuthToken = gwAuthToken.replace(/'/g, "\\'");
+  // Encode all dynamic values for safe embedding in JavaScript string literals
+  const safeSessionToken = escapeForJsString(sessionToken);
+  const safeGwAuthToken = escapeForJsString(gwAuthToken);
+  const safeRedirectUrl = escapeForJsString(redirectUrl);
+
+  // Serialize allowed origins for embedding in the HTML response
+  // Use escapeForJsString to prevent XSS via </script> injection in env var values
+  const allowedOrigins = getAllowedEmbedOrigins();
+  const allowedOriginsJson =
+    "[" +
+    allowedOrigins.map((o) => `"${escapeForJsString(o)}"`).join(",") +
+    "]";
 
   return `<!DOCTYPE html>
 <html>
@@ -60,18 +136,27 @@ function generateEmbedAuthPage(
 
         // Notify parent window that auth is complete
         // Parent can use this to track auth state
+        // Security: Only send to trusted GatewayZ origins
         if (window.parent && window.parent !== window) {
-          window.parent.postMessage({
+          var allowedOrigins = ${allowedOriginsJson};
+          var message = {
             type: 'TERRAGON_AUTH_COMPLETE',
             success: true
-          }, '*');
+          };
+          allowedOrigins.forEach(function(origin) {
+            try {
+              window.parent.postMessage(message, origin);
+            } catch (e) {
+              // Ignore errors for origins that don't match the actual parent
+            }
+          });
         }
       } catch (e) {
         console.error('Failed to store session:', e);
       }
 
       // Navigate to dashboard
-      window.location.href = '${redirectUrl}';
+      window.location.href = '${safeRedirectUrl}';
     })();
   </script>
 </body>
