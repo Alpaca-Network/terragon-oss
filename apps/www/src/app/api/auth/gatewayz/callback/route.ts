@@ -36,13 +36,35 @@ const DEFAULT_ALLOWED_EMBED_ORIGINS = [
  * Get the allowed origins for postMessage in embed mode.
  * Uses GATEWAYZ_ALLOWED_ORIGINS env var if set (comma-separated),
  * otherwise falls back to defaults.
+ * Filters out empty strings to handle trailing commas or empty env var.
  */
 function getAllowedEmbedOrigins(): string[] {
   const envOrigins = process.env.GATEWAYZ_ALLOWED_ORIGINS;
   if (envOrigins) {
-    return envOrigins.split(",").map((origin) => origin.trim());
+    const origins = envOrigins
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0);
+    // Fall back to defaults if env var is empty or only whitespace/commas
+    return origins.length > 0 ? origins : DEFAULT_ALLOWED_EMBED_ORIGINS;
   }
   return DEFAULT_ALLOWED_EMBED_ORIGINS;
+}
+
+/**
+ * Escape a string for safe embedding in a JavaScript string literal.
+ * Handles backslashes, quotes, newlines, and other special characters.
+ */
+function escapeForJsString(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\") // Escape backslashes first
+    .replace(/'/g, "\\'") // Escape single quotes
+    .replace(/"/g, '\\"') // Escape double quotes
+    .replace(/\n/g, "\\n") // Escape newlines
+    .replace(/\r/g, "\\r") // Escape carriage returns
+    .replace(/\t/g, "\\t") // Escape tabs
+    .replace(/</g, "\\x3c") // Escape < to prevent </script> injection
+    .replace(/>/g, "\\x3e"); // Escape > for consistency
 }
 
 /**
@@ -65,9 +87,9 @@ function generateEmbedAuthPage(
   sessionToken: string,
   gwAuthToken: string,
 ): string {
-  // Encode tokens for safe embedding in JavaScript
-  const safeSessionToken = sessionToken.replace(/'/g, "\\'");
-  const safeGwAuthToken = gwAuthToken.replace(/'/g, "\\'");
+  // Encode tokens for safe embedding in JavaScript string literals
+  const safeSessionToken = escapeForJsString(sessionToken);
+  const safeGwAuthToken = escapeForJsString(gwAuthToken);
 
   // Serialize allowed origins for embedding in the HTML response
   const allowedOriginsJson = JSON.stringify(getAllowedEmbedOrigins());
