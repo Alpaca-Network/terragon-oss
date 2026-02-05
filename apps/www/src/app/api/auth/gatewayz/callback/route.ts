@@ -22,6 +22,17 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
+ * Allowed origins for postMessage in embed mode.
+ * These are the trusted GatewayZ domains that can receive auth completion messages.
+ */
+const ALLOWED_EMBED_ORIGINS = [
+  "https://gatewayz.ai",
+  "https://www.gatewayz.ai",
+  "https://beta.gatewayz.ai",
+  "https://inbox.gatewayz.ai",
+];
+
+/**
  * Generate an HTML page for embed mode authentication.
  *
  * In embed mode (iframe), third-party cookies are blocked by modern browsers.
@@ -32,6 +43,9 @@ function getBaseUrl(request: NextRequest): string {
  *
  * The parent window (GatewayZ) will receive the session token and can store it
  * to pass along with subsequent requests if needed.
+ *
+ * Security: postMessage is sent only to trusted GatewayZ origins to prevent
+ * information disclosure to malicious iframe parents.
  */
 function generateEmbedAuthPage(
   redirectUrl: string,
@@ -41,6 +55,9 @@ function generateEmbedAuthPage(
   // Encode tokens for safe embedding in JavaScript
   const safeSessionToken = sessionToken.replace(/'/g, "\\'");
   const safeGwAuthToken = gwAuthToken.replace(/'/g, "\\'");
+
+  // Serialize allowed origins for embedding in the HTML response
+  const allowedOriginsJson = JSON.stringify(ALLOWED_EMBED_ORIGINS);
 
   return `<!DOCTYPE html>
 <html>
@@ -60,11 +77,20 @@ function generateEmbedAuthPage(
 
         // Notify parent window that auth is complete
         // Parent can use this to track auth state
+        // Security: Only send to trusted GatewayZ origins
         if (window.parent && window.parent !== window) {
-          window.parent.postMessage({
+          var allowedOrigins = ${allowedOriginsJson};
+          var message = {
             type: 'TERRAGON_AUTH_COMPLETE',
             success: true
-          }, '*');
+          };
+          allowedOrigins.forEach(function(origin) {
+            try {
+              window.parent.postMessage(message, origin);
+            } catch (e) {
+              // Ignore errors for origins that don't match the actual parent
+            }
+          });
         }
       } catch (e) {
         console.error('Failed to store session:', e);
