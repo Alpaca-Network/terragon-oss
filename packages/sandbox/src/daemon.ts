@@ -138,14 +138,24 @@ async function waitForDaemonReady(
   throw new Error("Daemon failed to start within timeout period");
 }
 
+const DEFAULT_LOG_LINES = 1000;
+
 export async function getDaemonLogs({
   session,
   parseJson = true,
+  maxLines = DEFAULT_LOG_LINES,
 }: {
   session: ISandboxSession;
   parseJson?: boolean;
+  /** Maximum number of lines to return (from the end of the log). Default: 1000 */
+  maxLines?: number;
 }) {
-  const rawLogs = await session.readTextFile(DAEMON_LOG_FILE_PATH);
+  // Use tail command to efficiently get only the last N lines from the sandbox
+  // This avoids transferring potentially large log files over the network
+  const rawLogs = await session.runCommand(
+    `tail -n ${maxLines} ${DAEMON_LOG_FILE_PATH} 2>/dev/null || echo ""`,
+    { cwd: "/", timeoutMs: 5000 },
+  );
   return rawLogs
     .split("\n")
     .filter(Boolean)
