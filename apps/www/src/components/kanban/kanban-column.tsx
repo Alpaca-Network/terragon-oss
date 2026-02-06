@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn as KanbanColumnType, KANBAN_COLUMNS } from "./types";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, LoaderCircle, Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +40,9 @@ export const KanbanColumn = memo(function KanbanColumn({
   onNavigateLeft,
   onNavigateRight,
   className,
+  hasNextPage,
+  onLoadMore,
+  isLoadingMore,
 }: {
   column: KanbanColumnType;
   threads: ThreadInfo[];
@@ -53,6 +56,9 @@ export const KanbanColumn = memo(function KanbanColumn({
   onNavigateLeft?: () => void;
   onNavigateRight?: () => void;
   className?: string;
+  hasNextPage?: boolean;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
 }) {
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === column);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -199,6 +205,24 @@ export const KanbanColumn = memo(function KanbanColumn({
                   onCommentsClick={() => onThreadCommentsClick?.(thread)}
                 />
               ))
+            )}
+            {hasNextPage && onLoadMore && threads.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+                className="w-full"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <LoaderCircle className="size-3 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
             )}
           </div>
         </ScrollArea>

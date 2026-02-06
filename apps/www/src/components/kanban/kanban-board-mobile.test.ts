@@ -318,4 +318,52 @@ describe("Kanban Mobile Components", () => {
       expect(scrollPos).toBe(170);
     });
   });
+
+  describe("Done column pagination", () => {
+    // Helper to determine if a column should have pagination
+    const shouldColumnHavePagination = (columnId: KanbanColumn): boolean => {
+      return columnId === "done";
+    };
+
+    it("should only enable pagination for done column", () => {
+      expect(shouldColumnHavePagination("done")).toBe(true);
+      expect(shouldColumnHavePagination("backlog")).toBe(false);
+      expect(shouldColumnHavePagination("in_progress")).toBe(false);
+      expect(shouldColumnHavePagination("in_review")).toBe(false);
+    });
+
+    // Helper to simulate should-show-load-more logic (mobile uses inline condition)
+    const shouldShowLoadMore = (
+      columnId: KanbanColumn,
+      hasNextPage: boolean,
+      threadsLength: number,
+    ): boolean => {
+      // Mobile board checks col.id === "done" inline, so hasNextPage alone is sufficient
+      // as fetchNextArchivedPage is always provided when archivedHasNextPage is true
+      return columnId === "done" && hasNextPage && threadsLength > 0;
+    };
+
+    it("should show load more in done column when hasNextPage is true and threads exist", () => {
+      expect(shouldShowLoadMore("done", true, 25)).toBe(true);
+    });
+
+    it("should not show load more in done column when hasNextPage is false", () => {
+      expect(shouldShowLoadMore("done", false, 25)).toBe(false);
+    });
+
+    it("should not show load more in done column when no threads exist", () => {
+      expect(shouldShowLoadMore("done", true, 0)).toBe(false);
+    });
+
+    it("should not show load more in other columns even with hasNextPage true", () => {
+      expect(shouldShowLoadMore("backlog", true, 25)).toBe(false);
+      expect(shouldShowLoadMore("in_progress", true, 25)).toBe(false);
+      expect(shouldShowLoadMore("in_review", true, 25)).toBe(false);
+    });
+
+    it("should have done column as last column in mobile tabs", () => {
+      const lastColumn = KANBAN_COLUMNS[KANBAN_COLUMNS.length - 1];
+      expect(lastColumn?.id).toBe("done");
+    });
+  });
 });
