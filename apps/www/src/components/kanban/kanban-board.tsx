@@ -335,13 +335,10 @@ export const KanbanBoard = memo(function KanbanBoard({
     }
 
     // Always add archived threads to Done column
+    // Archived threads should always appear in Done regardless of their status/PR state
     for (const thread of archivedThreads) {
       if (!matchesSearchQuery(thread)) continue;
-      const column = getKanbanColumn(thread);
-      // Only add archived threads that would be in the Done column
-      if (column === "done") {
-        groups.done.push(thread);
-      }
+      groups.done.push(thread);
     }
 
     // Sort each column by updatedAt (most recent first)
