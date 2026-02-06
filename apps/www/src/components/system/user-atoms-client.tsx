@@ -126,11 +126,23 @@ export function UserAtomsHydrator({
         });
       };
 
+      let idleCallbackId: number | undefined;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
       if ("requestIdleCallback" in window) {
-        requestIdleCallback(identify);
+        idleCallbackId = requestIdleCallback(identify);
       } else {
-        setTimeout(identify, 0);
+        timeoutId = setTimeout(identify, 0);
       }
+
+      return () => {
+        if (idleCallbackId !== undefined) {
+          cancelIdleCallback(idleCallbackId);
+        }
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+        }
+      };
     }
   }, [user]);
   return children;
