@@ -204,9 +204,14 @@ export function SimplePromptBox({
               onLoopConfigChange={onLoopConfigChange}
             />
           )}
-          {showCodexTierSelector && (
-            <CodexTierSelector tier={codexTier} onChange={onCodexTierChange} />
-          )}
+          {showCodexTierSelector &&
+            codexTier !== undefined &&
+            onCodexTierChange !== undefined && (
+              <CodexTierSelector
+                tier={codexTier}
+                onChange={onCodexTierChange}
+              />
+            )}
         </div>
         <div className="flex-shrink-0 flex flex-row items-center gap-1">
           {!hideAddContextButton && (

@@ -93,6 +93,7 @@ function CodexTierSelectorInner({
             className={cn(triggerClassName, "flex sm:hidden")}
             aria-expanded={isDrawerOpen}
             aria-haspopup="dialog"
+            aria-label={`Reasoning effort: ${tierConfig[tier].label}`}
             disabled={disabled}
           >
             <span className="flex items-center gap-1">
