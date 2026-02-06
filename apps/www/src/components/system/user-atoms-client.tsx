@@ -118,10 +118,19 @@ export function UserAtomsHydrator({
 
   useEffect(() => {
     if (user) {
-      posthog.identify(user.id, {
-        name: user.name,
-        email: user.email,
-      });
+      // Defer analytics to not block Time to Interactive
+      const identify = () => {
+        posthog.identify(user.id, {
+          name: user.name,
+          email: user.email,
+        });
+      };
+
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(identify);
+      } else {
+        setTimeout(identify, 0);
+      }
     }
   }, [user]);
   return children;
