@@ -39,7 +39,9 @@ async function checkLangfuseFeatureFlag(): Promise<boolean> {
     return enabled;
   } catch (error) {
     console.error("Failed to check langfuseTracing feature flag:", error);
-    // Default to disabled if we can't check the flag
+    // Cache as disabled so we don't hammer the DB on repeated failures
+    langfuseEnabledCache = false;
+    langfuseEnabledCacheTime = now;
     return false;
   }
 }
@@ -124,67 +126,70 @@ export type LangfuseGenerationParams = {
  * Create a generation trace in Langfuse for an LLM call.
  * This is used to track individual LLM API calls for observability.
  * Checks both configuration and feature flag before tracing.
+ *
+ * Returns a promise that resolves when tracing is complete.
+ * In serverless environments, pass this promise to `waitUntil()` to ensure
+ * the tracing completes before the function terminates.
  */
-export function traceGeneration(params: LangfuseGenerationParams): void {
+export async function traceGeneration(
+  params: LangfuseGenerationParams,
+): Promise<void> {
   // Quick sync check - skip if not configured
   if (!isLangfuseConfigured()) {
     return;
   }
 
-  // Run the async feature flag check and tracing in the background
-  void (async () => {
-    try {
-      // Check feature flag (with caching)
-      const isEnabled = await checkLangfuseFeatureFlag();
-      if (!isEnabled) {
-        return;
-      }
-
-      const langfuse = getLangfuse();
-      if (!langfuse) {
-        return;
-      }
-
-      const trace = langfuse.trace({
-        id: params.traceId,
-        name: params.name,
-        userId: params.userId,
-        sessionId: params.sessionId,
-        metadata: params.metadata,
-      });
-
-      trace.generation({
-        name: params.name,
-        model: params.model ?? undefined,
-        input: params.input,
-        output: params.output,
-        usage: params.usage
-          ? {
-              promptTokens: params.usage.promptTokens,
-              completionTokens: params.usage.completionTokens,
-              totalTokens: params.usage.totalTokens,
-            }
-          : undefined,
-        costDetails:
-          params.totalCost !== undefined
-            ? { total: params.totalCost }
-            : undefined,
-        metadata: {
-          provider: params.provider,
-          cacheCreationInputTokens: params.usage?.cacheCreationInputTokens,
-          cacheReadInputTokens: params.usage?.cacheReadInputTokens,
-          ...params.metadata,
-        },
-        startTime: params.startTime,
-        endTime: params.endTime,
-        statusMessage: params.statusMessage,
-        level: params.level,
-      });
-    } catch (error) {
-      // Silently fail - observability should not break the main flow
-      console.error("Failed to trace generation in Langfuse:", error);
+  try {
+    // Check feature flag (with caching)
+    const isEnabled = await checkLangfuseFeatureFlag();
+    if (!isEnabled) {
+      return;
     }
-  })();
+
+    const langfuse = getLangfuse();
+    if (!langfuse) {
+      return;
+    }
+
+    const trace = langfuse.trace({
+      id: params.traceId,
+      name: params.name,
+      userId: params.userId,
+      sessionId: params.sessionId,
+      metadata: params.metadata,
+    });
+
+    trace.generation({
+      name: params.name,
+      model: params.model ?? undefined,
+      input: params.input,
+      output: params.output,
+      usage: params.usage
+        ? {
+            promptTokens: params.usage.promptTokens,
+            completionTokens: params.usage.completionTokens,
+            totalTokens: params.usage.totalTokens,
+          }
+        : undefined,
+      costDetails:
+        params.totalCost !== undefined
+          ? { total: params.totalCost }
+          : undefined,
+      metadata: {
+        provider: params.provider,
+        cacheCreationInputTokens: params.usage?.cacheCreationInputTokens,
+        cacheReadInputTokens: params.usage?.cacheReadInputTokens,
+        ...params.metadata,
+      },
+      startTime: params.startTime,
+      endTime: params.endTime,
+      statusMessage: params.statusMessage,
+      level: params.level,
+    });
+  } catch (error) {
+    // Silently fail - observability should not break the main flow
+    console.error("Failed to trace generation in Langfuse:", error);
+  }
 }
 
 export type LangfuseSpanParams = {
@@ -204,47 +209,48 @@ export type LangfuseSpanParams = {
 /**
  * Create a span trace in Langfuse for tracking operations.
  * Checks both configuration and feature flag before tracing.
+ *
+ * Returns a promise that resolves when tracing is complete.
+ * In serverless environments, pass this promise to `waitUntil()` to ensure
+ * the tracing completes before the function terminates.
  */
-export function traceSpan(params: LangfuseSpanParams): void {
+export async function traceSpan(params: LangfuseSpanParams): Promise<void> {
   // Quick sync check - skip if not configured
   if (!isLangfuseConfigured()) {
     return;
   }
 
-  // Run the async feature flag check and tracing in the background
-  void (async () => {
-    try {
-      // Check feature flag (with caching)
-      const isEnabled = await checkLangfuseFeatureFlag();
-      if (!isEnabled) {
-        return;
-      }
-
-      const langfuse = getLangfuse();
-      if (!langfuse) {
-        return;
-      }
-
-      const trace = langfuse.trace({
-        id: params.traceId,
-        name: params.name,
-        userId: params.userId,
-        sessionId: params.sessionId,
-        metadata: params.metadata,
-      });
-
-      trace.span({
-        name: params.name,
-        input: params.input,
-        output: params.output,
-        metadata: params.metadata,
-        startTime: params.startTime,
-        endTime: params.endTime,
-        statusMessage: params.statusMessage,
-        level: params.level,
-      });
-    } catch (error) {
-      console.error("Failed to trace span in Langfuse:", error);
+  try {
+    // Check feature flag (with caching)
+    const isEnabled = await checkLangfuseFeatureFlag();
+    if (!isEnabled) {
+      return;
     }
-  })();
+
+    const langfuse = getLangfuse();
+    if (!langfuse) {
+      return;
+    }
+
+    const trace = langfuse.trace({
+      id: params.traceId,
+      name: params.name,
+      userId: params.userId,
+      sessionId: params.sessionId,
+      metadata: params.metadata,
+    });
+
+    trace.span({
+      name: params.name,
+      input: params.input,
+      output: params.output,
+      metadata: params.metadata,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      statusMessage: params.statusMessage,
+      level: params.level,
+    });
+  } catch (error) {
+    console.error("Failed to trace span in Langfuse:", error);
+  }
 }

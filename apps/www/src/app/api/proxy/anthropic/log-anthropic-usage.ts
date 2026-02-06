@@ -65,8 +65,8 @@ export async function logAnthropicUsage({
     return;
   }
 
-  // Trace to Langfuse for observability
-  traceGeneration({
+  // Trace to Langfuse for observability (await to ensure completion in serverless)
+  await traceGeneration({
     traceId: messageId ?? undefined,
     name: "anthropic-proxy",
     userId,

@@ -141,15 +141,12 @@ describe("langfuse", () => {
       const { Langfuse } = await import("langfuse");
       const { traceGeneration } = await import("./langfuse");
 
-      traceGeneration({
+      await traceGeneration({
         name: "test-generation",
         userId: "user-123",
         model: "claude-3-opus",
         provider: "anthropic",
       });
-
-      // Wait for async operation to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Langfuse should not be instantiated when not configured
       expect(Langfuse).not.toHaveBeenCalled();
@@ -171,15 +168,12 @@ describe("langfuse", () => {
 
       const { traceGeneration, getLangfuse } = await import("./langfuse");
 
-      traceGeneration({
+      await traceGeneration({
         name: "test-generation",
         userId: "user-123",
         model: "claude-3-opus",
         provider: "anthropic",
       });
-
-      // Wait for async operation to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Langfuse trace should not be called when feature flag is disabled
       const langfuse = getLangfuse();
@@ -202,7 +196,7 @@ describe("langfuse", () => {
 
       const { traceGeneration, getLangfuse } = await import("./langfuse");
 
-      traceGeneration({
+      await traceGeneration({
         name: "test-generation",
         userId: "user-123",
         model: "claude-3-opus",
@@ -216,9 +210,6 @@ describe("langfuse", () => {
           path: "/v1/messages",
         },
       });
-
-      // Wait for async operation to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const langfuse = getLangfuse();
       expect(langfuse?.trace).toHaveBeenCalledWith({
@@ -246,13 +237,10 @@ describe("langfuse", () => {
       const { Langfuse } = await import("langfuse");
       const { traceSpan } = await import("./langfuse");
 
-      traceSpan({
+      await traceSpan({
         name: "test-span",
         userId: "user-123",
       });
-
-      // Wait for async operation to complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(Langfuse).not.toHaveBeenCalled();
     });

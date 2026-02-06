@@ -54,8 +54,8 @@ export async function logGatewayZUsage({
     return;
   }
 
-  // Trace to Langfuse for observability
-  traceGeneration({
+  // Trace to Langfuse for observability (await to ensure completion in serverless)
+  await traceGeneration({
     traceId: gwRequestId ?? undefined,
     name: "gatewayz-proxy",
     userId,
