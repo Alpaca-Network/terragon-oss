@@ -174,7 +174,7 @@ export async function traceGeneration(
         : undefined,
       costDetails:
         params.totalCost !== undefined
-          ? { total: params.totalCost }
+          ? { totalCost: params.totalCost }
           : undefined,
       metadata: {
         provider: params.provider,
@@ -187,6 +187,9 @@ export async function traceGeneration(
       statusMessage: params.statusMessage,
       level: params.level,
     });
+
+    // Flush events to ensure delivery before promise resolves (critical for serverless)
+    await langfuse.flushAsync();
   } catch (error) {
     // Silently fail - observability should not break the main flow
     console.error("Failed to trace generation in Langfuse:", error);
@@ -251,6 +254,9 @@ export async function traceSpan(params: LangfuseSpanParams): Promise<void> {
       statusMessage: params.statusMessage,
       level: params.level,
     });
+
+    // Flush events to ensure delivery before promise resolves (critical for serverless)
+    await langfuse.flushAsync();
   } catch (error) {
     console.error("Failed to trace span in Langfuse:", error);
   }
