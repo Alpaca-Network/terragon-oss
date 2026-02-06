@@ -24,10 +24,13 @@ import {
   ModeSelector,
   LoopConfigInput,
 } from "@/components/promptbox/mode-selector";
+import { CodexTierSelector } from "@/components/promptbox/codex-tier-selector";
 import { TSubmitForm } from "./send-button";
 import { BacklogTemplatePicker } from "@/components/kanban/backlog-templates";
 import { BacklogTemplate } from "@/lib/backlog-templates";
 import { buildTemplateDoc, type TaskMode } from "./task-mode";
+import type { CodexTier } from "@terragon/shared/db/types";
+import { useFeatureFlag } from "@/hooks/use-feature-flag";
 
 export function SimplePromptBox({
   editor,
@@ -63,6 +66,9 @@ export function SimplePromptBox({
   hideAddContextButton = false,
   hideFileAttachmentButton = false,
   hideVoiceInput = false,
+  hideCodexTierSelector = false,
+  codexTier,
+  onCodexTierChange,
 }: {
   forcedAgent: AIAgent | null;
   forcedAgentVersion: number | null;
@@ -97,9 +103,18 @@ export function SimplePromptBox({
   hideAddContextButton?: boolean;
   hideFileAttachmentButton?: boolean;
   hideVoiceInput?: boolean;
+  hideCodexTierSelector?: boolean;
+  codexTier?: CodexTier;
+  onCodexTierChange?: (tier: CodexTier) => void;
 }) {
   const [selectedTemplate, setSelectedTemplate] =
     useState<BacklogTemplate | null>(null);
+  const isCodexTierSelectorEnabled = useFeatureFlag("codexTierSelector");
+  const showCodexTierSelector =
+    isCodexTierSelectorEnabled &&
+    !hideCodexTierSelector &&
+    codexTier !== undefined &&
+    onCodexTierChange !== undefined;
   const showPlanModeSelector = useMemo(() => {
     if (isMultiAgentMode) {
       const selectedModelsArr = Object.keys(selectedModels) as AIModel[];
@@ -188,6 +203,9 @@ export function SimplePromptBox({
               loopConfig={loopConfig}
               onLoopConfigChange={onLoopConfigChange}
             />
+          )}
+          {showCodexTierSelector && (
+            <CodexTierSelector tier={codexTier} onChange={onCodexTierChange} />
           )}
         </div>
         <div className="flex-shrink-0 flex flex-row items-center gap-1">

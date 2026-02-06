@@ -13,6 +13,7 @@ import { SimplePromptBox } from "./simple-promptbox";
 import { richTextToTiptap } from "./tiptap-to-richtext";
 import { cn } from "@/lib/utils";
 import { Attachment } from "@/lib/attachment-types";
+import type { CodexTier } from "@terragon/shared/db/types";
 
 function getInitialRichText(message: DBUserMessage): DBRichTextPart {
   const nodes: DBRichTextNode[] = [];
@@ -55,6 +56,9 @@ export function GenericPromptBox({
   hideAddContextButton = false,
   hideFileAttachmentButton = false,
   hideVoiceInput = false,
+  hideCodexTierSelector = false,
+  codexTier,
+  onCodexTierChange,
 }: {
   message: DBUserMessage;
   className?: string;
@@ -77,6 +81,9 @@ export function GenericPromptBox({
   hideAddContextButton?: boolean;
   hideFileAttachmentButton?: boolean;
   hideVoiceInput?: boolean;
+  hideCodexTierSelector?: boolean;
+  codexTier?: CodexTier;
+  onCodexTierChange?: (tier: CodexTier) => void;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const repositoryCache = useRepositoryCache({
@@ -209,6 +216,9 @@ export function GenericPromptBox({
       hideAddContextButton={hideAddContextButton}
       hideFileAttachmentButton={hideFileAttachmentButton}
       hideVoiceInput={hideVoiceInput}
+      hideCodexTierSelector={hideCodexTierSelector}
+      codexTier={codexTier}
+      onCodexTierChange={onCodexTierChange}
     />
   );
 }
