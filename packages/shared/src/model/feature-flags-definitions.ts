@@ -148,6 +148,12 @@ export const featureFlagsDefinitions = {
     description:
       "Enables the Codex tier selector in the prompt box, allowing users to control reasoning effort level (none/low/medium/high/xhigh) for OpenAI Codex and Claude extended thinking.",
   },
+  claudeCodeAgentTeams: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables Claude Code Agent Teams (experimental), allowing the agent to coordinate multiple Claude Code instances working together as a team with shared tasks and inter-agent messaging.",
+  },
 } as const satisfies Record<string, FeatureFlagDefinition>;
 
 export type FeatureFlagName = keyof typeof featureFlagsDefinitions;
