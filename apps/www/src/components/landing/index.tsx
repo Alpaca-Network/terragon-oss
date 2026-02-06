@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import GridBackground from "./grid-background";
 import Testimonials from "./sections/Testimonials";
 import Footer from "./sections/Footer";
@@ -13,6 +13,7 @@ import { FAQ } from "./sections/FAQ";
 import CTA from "./sections/CTA";
 import { HowItWorks } from "./sections/HowItWorks";
 import AnnouncementBanner from "./sections/AnnouncementBanner";
+import { useGatewayZAuth } from "@/hooks/useGatewayZAuth";
 
 interface LandingProps {
   isShutdownMode?: boolean;
@@ -21,25 +22,40 @@ interface LandingProps {
 
 /**
  * Embed loading component with timeout handling.
+ * Listens for auth via postMessage from GatewayZ parent window.
  * If auth isn't received within 8 seconds, shows a helpful message
  * directing users to access via GatewayZ.
  */
 function EmbedLoading() {
   const [timedOut, setTimedOut] = useState(false);
+  const [authReceived, setAuthReceived] = useState(false);
   const gatewayZInboxUrl = new URL(
     "/inbox",
     process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai",
   ).toString();
 
+  const handleAuthReceived = useCallback(() => {
+    setAuthReceived(true);
+  }, []);
+
+  // Listen for GatewayZ auth via postMessage
+  useGatewayZAuth({
+    enabled: true,
+    onAuthReceived: handleAuthReceived,
+  });
+
   useEffect(() => {
+    // Don't start timeout if auth already received
+    if (authReceived) return;
+
     const timeout = setTimeout(() => {
       setTimedOut(true);
     }, 8000); // 8 second timeout
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [authReceived]);
 
-  if (timedOut) {
+  if (timedOut && !authReceived) {
     return (
       <div className="flex flex-col min-h-[100dvh] w-full relative bg-background text-foreground overflow-x-hidden items-center justify-center">
         <div className="text-center p-8 max-w-md">
