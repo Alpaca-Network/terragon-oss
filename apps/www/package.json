@@ -93,6 +93,7 @@
     "fumadocs-ui": "15.5.3",
     "jose": "^6.1.0",
     "jotai": "^2.12.4",
+    "langfuse": "^3.38.6",
     "loops": "^6.0.0",
     "lucide-react": "^0.511.0",
     "nanoid": "^5.1.5",
