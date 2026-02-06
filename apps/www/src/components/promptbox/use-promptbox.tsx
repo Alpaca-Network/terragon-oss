@@ -180,8 +180,8 @@ export function usePromptBox({
   );
 
   // Threshold for converting pasted text to a file attachment
-  const LARGE_PASTE_LINE_THRESHOLD = 100;
-  const LARGE_PASTE_CHAR_THRESHOLD = 500;
+  const LARGE_PASTE_LINE_THRESHOLD = 1000;
+  const LARGE_PASTE_CHAR_THRESHOLD = 5000;
 
   const editor = useEditor({
     immediatelyRender: false,
