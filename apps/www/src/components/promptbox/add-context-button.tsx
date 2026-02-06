@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import type {
   AIAgent,
   AIAgentSlashCommand,
+  AIAgentSlashCommandOrSkill,
+  AIAgentSkill,
   AIModel,
 } from "@terragon/agent/types";
+import { isSkill } from "@terragon/agent/types";
 import type { Attachment } from "@/lib/attachment-types";
 import { getAgentSlashCommands, modelToAgent } from "@terragon/agent/utils";
 import { MentionListContent } from "./mention-list";
@@ -23,6 +26,9 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
+/**
+ * Load dynamic slash commands from .claude/commands/ directory.
+ */
 export async function getDynamicSlashCommands({
   typeahead,
   agent,
@@ -30,7 +36,7 @@ export async function getDynamicSlashCommands({
   typeahead: Typeahead;
   agent: AIAgent;
 }): Promise<AIAgentSlashCommand[]> {
-  if (agent !== "claudeCode") {
+  if (agent !== "claudeCode" && agent !== "gatewayz") {
     return [];
   }
   const suggestions = await typeahead.getSuggestions(".claude/commands/");
@@ -45,6 +51,75 @@ export async function getDynamicSlashCommands({
       };
     });
   return dynamicCmds;
+}
+
+/**
+ * Load skills from .claude/skills/ directory.
+ * Skills are directories containing a SKILL.md file.
+ */
+export async function getDynamicSkills({
+  typeahead,
+  agent,
+}: {
+  typeahead: Typeahead;
+  agent: AIAgent;
+}): Promise<AIAgentSkill[]> {
+  if (agent !== "claudeCode" && agent !== "gatewayz") {
+    return [];
+  }
+
+  try {
+    // Get all items in .claude/skills/ directory
+    const suggestions = await typeahead.getSuggestions(".claude/skills/");
+
+    // Find directories (potential skill directories)
+    const skillDirs = suggestions.filter((item) => item.type === "tree");
+
+    const skills: AIAgentSkill[] = [];
+
+    for (const dir of skillDirs) {
+      // Check if this directory contains a SKILL.md file
+      const skillDirContents = await typeahead.getSuggestions(`${dir.name}/`);
+      const hasSkillMd = skillDirContents.some(
+        (f) => f.type === "blob" && f.name.endsWith("SKILL.md"),
+      );
+
+      if (hasSkillMd) {
+        const skillName = dir.name.split("/").pop() || "";
+        skills.push({
+          name: skillName,
+          description: "Skill", // Will be enriched by server action later
+          disableModelInvocation: false,
+          userInvocable: true,
+          type: "skill",
+          filePath: `${dir.name}/SKILL.md`,
+        });
+      }
+    }
+
+    return skills;
+  } catch (error) {
+    console.error("Failed to load skills:", error);
+    return [];
+  }
+}
+
+/**
+ * Load both dynamic commands and skills.
+ */
+export async function getDynamicSlashCommandsAndSkills({
+  typeahead,
+  agent,
+}: {
+  typeahead: Typeahead;
+  agent: AIAgent;
+}): Promise<AIAgentSlashCommandOrSkill[]> {
+  const [commands, skills] = await Promise.all([
+    getDynamicSlashCommands({ typeahead, agent }),
+    getDynamicSkills({ typeahead, agent }),
+  ]);
+
+  return [...commands, ...skills];
 }
 
 // Private component for main menu view
@@ -277,51 +352,61 @@ function SlashCommandView({
   isDrawer?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [commandItems, setCommandItems] = useState<AIAgentSlashCommand[]>([]);
+  const [commandItems, setCommandItems] = useState<
+    AIAgentSlashCommandOrSkill[]
+  >([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoadingDynamic, setIsLoadingDynamic] = useState(false);
-  const [dynamicCommands, setDynamicCommands] = useState<AIAgentSlashCommand[]>(
-    [],
-  );
+  const [dynamicItems, setDynamicItems] = useState<
+    AIAgentSlashCommandOrSkill[]
+  >([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const commandListRef = useRef<{
     onKeyDown: (props: { event: KeyboardEvent }) => boolean;
   }>(null);
 
-  // Fetch dynamic commands on mount
+  // Fetch dynamic commands and skills on mount
   useEffect(() => {
     if (typeahead) {
       setIsLoadingDynamic(true);
-      getDynamicSlashCommands({ typeahead, agent })
-        .then((dynamicCmds) => {
-          setDynamicCommands(dynamicCmds);
+      getDynamicSlashCommandsAndSkills({ typeahead, agent })
+        .then((items) => {
+          setDynamicItems(items);
           setIsLoadingDynamic(false);
         })
         .catch((error) => {
-          console.error("Failed to fetch dynamic commands:", error);
+          console.error("Failed to fetch dynamic commands and skills:", error);
           setIsLoadingDynamic(false);
         });
     }
   }, [typeahead, agent]);
 
-  // Filter all commands (static + dynamic) based on query
+  // Filter all commands and skills based on query
   useEffect(() => {
-    const allCommands = [...getAgentSlashCommands(agent), ...dynamicCommands];
+    const staticCommands = getAgentSlashCommands(agent);
+    // Filter skills to only show user-invocable ones
+    const userInvocableItems = dynamicItems.filter(
+      (item) => !isSkill(item) || item.userInvocable,
+    );
+    const allItems: AIAgentSlashCommandOrSkill[] = [
+      ...staticCommands,
+      ...userInvocableItems,
+    ];
     const filtered = query
-      ? allCommands.filter(
+      ? allItems.filter(
           (cmd) =>
             cmd.name.toLowerCase().includes(query.toLowerCase()) ||
             cmd.description.toLowerCase().includes(query.toLowerCase()),
         )
-      : allCommands;
+      : allItems;
 
     // Add loading indicator if still loading
-    const finalItems = isLoadingDynamic
+    const finalItems: AIAgentSlashCommandOrSkill[] = isLoadingDynamic
       ? [
           ...filtered,
           {
             name: "__loading__",
-            description: "Loading custom commands...",
+            description: "Loading commands and skills...",
             isLoading: true,
           },
         ]
@@ -329,7 +414,7 @@ function SlashCommandView({
 
     setCommandItems(finalItems);
     setSelectedIndex(0);
-  }, [query, dynamicCommands, isLoadingDynamic, agent]);
+  }, [query, dynamicItems, isLoadingDynamic, agent]);
 
   // Focus search input on mount
   useEffect(() => {

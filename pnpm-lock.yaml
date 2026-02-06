@@ -815,6 +815,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.6
         version: 1.12.1
+      '@terragon/agent':
+        specifier: workspace:*
+        version: link:../agent
     devDependencies:
       '@terragon/tsconfig':
         specifier: workspace:*

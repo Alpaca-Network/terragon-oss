@@ -7,10 +7,15 @@ import React, {
 } from "react";
 import { SuggestionProps } from "@tiptap/suggestion";
 import { cn } from "@/lib/utils";
-import type { AIModel, AIAgentSlashCommand } from "@terragon/agent/types";
+import type {
+  AIModel,
+  AIAgentSlashCommand,
+  AIAgentSlashCommandOrSkill,
+} from "@terragon/agent/types";
+import { isSkill } from "@terragon/agent/types";
 
 interface SlashCommandListContentProps {
-  items: AIAgentSlashCommand[];
+  items: AIAgentSlashCommandOrSkill[];
   selectedIndex: number;
   onSelectItem: (index: number) => void;
   onExecuteItem?: (index: number) => void;
@@ -83,19 +88,33 @@ export const SlashCommandListContent = forwardRef<
                 index === selectedIndex && "bg-accent text-accent-foreground",
               )}
             >
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0.5 flex-1">
                 {item.isLoading ? (
                   <div className="flex items-center gap-2 py-0.5">
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-transparent" />
                     <span className="text-xs text-muted-foreground italic">
-                      Loading repository commands...
+                      Loading commands and skills...
                     </span>
                   </div>
                 ) : (
                   <>
-                    <div className="font-medium">/{item.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.description}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">/{item.name}</span>
+                      {isSkill(item) && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-medium">
+                          Skill
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">
+                        {item.description}
+                      </span>
+                      {isSkill(item) && item.argumentHint && (
+                        <span className="text-xs text-muted-foreground/70 italic">
+                          {item.argumentHint}
+                        </span>
+                      )}
                     </div>
                   </>
                 )}
@@ -105,7 +124,7 @@ export const SlashCommandListContent = forwardRef<
         </div>
       ) : (
         <div className="py-2 px-2 text-center text-sm text-muted-foreground">
-          No matching commands
+          No matching commands or skills
         </div>
       )}
     </>

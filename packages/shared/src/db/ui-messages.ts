@@ -123,6 +123,7 @@ export type AllToolParts =
   | UIToolPart<"Task", ToolParams["Task"]>
   | UIToolPart<"SuggestFollowupTask", ToolParams["SuggestFollowupTask"]>
   | UIToolPart<"ExitPlanMode", ToolParams["ExitPlanMode"]>
+  | UIToolPart<"Skill", ToolParams["Skill"]>
   | UIToolPart<string, Record<string, any>>;
 
 export type UIToolPart<
@@ -255,5 +256,9 @@ interface ToolParams {
 
   ExitPlanMode: {
     plan: string;
+  };
+
+  Skill: {
+    skill: string;
   };
 }
