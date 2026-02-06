@@ -335,13 +335,21 @@ function toCheckRun(raw: CheckRunsResponse["check_runs"][number]): PRCheckRun {
 /**
  * Groups comments into threads and determines resolved status
  * Uses GitHub's GraphQL API resolution status when available, falls back to heuristics
+ *
+ * @param comments - Raw GitHub review comments
+ * @param resolutionStatus - GraphQL resolution status for each thread
+ * @param autoFixQueuedAt - When feedback was last queued for addressing.
+ *   If provided and a thread was created before this timestamp, it's marked as "in progress"
+ *   (meaning the agent is currently working on addressing it).
  */
 function groupCommentsIntoThreads(
   comments: ReviewCommentsResponse,
   resolutionStatus?: Map<number, { isResolved: boolean; isOutdated: boolean }>,
+  autoFixQueuedAt?: Date | null,
 ): {
   unresolved: PRReviewThread[];
   resolved: PRReviewThread[];
+  inProgress: PRReviewThread[];
 } {
   // Group comments by their thread (using in_reply_to_id to link them)
   const threadMap = new Map<number, PRComment[]>();
@@ -358,6 +366,7 @@ function groupCommentsIntoThreads(
 
   const unresolved: PRReviewThread[] = [];
   const resolved: PRReviewThread[] = [];
+  const inProgress: PRReviewThread[] = [];
 
   for (const [threadId, threadComments] of threadMap) {
     // Sort comments by creation date
@@ -402,9 +411,28 @@ function groupCommentsIntoThreads(
       }
     }
 
+    // Determine if this thread is "in progress" (being addressed)
+    // A thread is in progress if:
+    // 1. It's not resolved
+    // 2. Feedback was queued after the first comment was created
+    // This means the agent is currently working on addressing this comment.
+    let isInProgress = false;
+    if (!isResolved && autoFixQueuedAt) {
+      const firstComment = threadComments[0];
+      if (firstComment) {
+        const commentCreatedAt = new Date(firstComment.createdAt);
+        // Ensure autoFixQueuedAt is a Date object (it may be serialized as string through server actions)
+        const autoFixDate = new Date(autoFixQueuedAt);
+        // Thread is in progress if feedback was queued after the comment was created
+        // Compare timestamps for reliable date comparison
+        isInProgress = autoFixDate.getTime() > commentCreatedAt.getTime();
+      }
+    }
+
     const thread: PRReviewThread = {
       id: String(threadId),
       isResolved,
+      isInProgress,
       comments: threadComments,
     };
 
@@ -412,10 +440,14 @@ function groupCommentsIntoThreads(
       resolved.push(thread);
     } else {
       unresolved.push(thread);
+      // Also add to inProgress if applicable (in progress is a subset of unresolved)
+      if (isInProgress) {
+        inProgress.push(thread);
+      }
     }
   }
 
-  return { unresolved, resolved };
+  return { unresolved, resolved, inProgress };
 }
 
 /**
@@ -442,12 +474,16 @@ export function extractCoverageCheck(checks: PRCheckRun[]): PRCheckRun | null {
 
 /**
  * Aggregates all PR feedback into a single object
+ *
+ * @param autoFixQueuedAt - When feedback was last queued for addressing.
+ *   If provided, threads created before this timestamp will be marked as "in progress".
  */
 export async function aggregatePRFeedback(
   octokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
+  options?: { autoFixQueuedAt?: Date | null },
 ): Promise<PRFeedback> {
   // Fetch PR details first to get head SHA
   // Skip mergeable state polling - the UI handles refetching when state is unknown
@@ -463,8 +499,13 @@ export async function aggregatePRFeedback(
     fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
   ]);
 
-  // Pass resolution status to thread grouping for accurate resolved/unresolved classification
-  const comments = groupCommentsIntoThreads(rawComments, resolutionStatus);
+  // Pass resolution status and autoFixQueuedAt to thread grouping
+  // for accurate resolved/unresolved/inProgress classification
+  const comments = groupCommentsIntoThreads(
+    rawComments,
+    resolutionStatus,
+    options?.autoFixQueuedAt,
+  );
   const checks = rawChecks.check_runs.map(toCheckRun);
   const coverageCheck = extractCoverageCheck(checks);
 
@@ -763,12 +804,16 @@ export async function aggregatePRHeader(
 /**
  * Fetches PR comments with resolution status.
  * Can run in parallel with checks fetch after header is loaded.
+ *
+ * @param autoFixQueuedAt - When feedback was last queued for addressing.
+ *   If provided, threads created before this timestamp will be marked as "in progress".
  */
 export async function aggregatePRComments(
   octokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
+  options?: { autoFixQueuedAt?: Date | null },
 ): Promise<PRCommentsData> {
   // Fetch comments and resolution status in parallel
   const [rawComments, resolutionStatus] = await Promise.all([
@@ -776,7 +821,11 @@ export async function aggregatePRComments(
     fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
   ]);
 
-  const comments = groupCommentsIntoThreads(rawComments, resolutionStatus);
+  const comments = groupCommentsIntoThreads(
+    rawComments,
+    resolutionStatus,
+    options?.autoFixQueuedAt,
+  );
 
   const unresolvedCount = comments.unresolved.reduce(
     (acc, thread) => acc + thread.comments.length,
@@ -786,12 +835,17 @@ export async function aggregatePRComments(
     (acc, thread) => acc + thread.comments.length,
     0,
   );
+  const inProgressCount = comments.inProgress.reduce(
+    (acc, thread) => acc + thread.comments.length,
+    0,
+  );
 
   return {
     comments,
     summary: {
       unresolvedCount,
       resolvedCount,
+      inProgressCount,
     },
   };
 }

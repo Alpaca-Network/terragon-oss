@@ -25,6 +25,7 @@ describe("AddressFeedbackDialog component logic", () => {
           {},
         ) as PRFeedback["comments"]["unresolved"],
         resolved: [],
+        inProgress: [],
       },
       checks: (overrides.checks ?? []).map((c, i) => ({
         id: i,

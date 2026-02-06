@@ -177,7 +177,11 @@ export function combinePRFeedbackFromQueries(
     baseBranch: header.baseBranch,
     headBranch: header.headBranch,
     headSha: header.headSha,
-    comments: comments?.comments ?? { unresolved: [], resolved: [] },
+    comments: comments?.comments ?? {
+      unresolved: [],
+      resolved: [],
+      inProgress: [],
+    },
     checks: checks?.checks ?? [],
     coverageCheck: checks?.coverageCheck ?? null,
     mergeableState: header.mergeableState,
