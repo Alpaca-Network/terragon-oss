@@ -550,9 +550,9 @@ export function getModelDisplayName(model: AIModel): ModelDisplayName {
     // Gatewayz Router - Claude Code models
     case "gatewayz/claude-code/opus":
       return {
-        fullName: "Opus 4.5",
+        fullName: "Opus 4.6",
         mainName: "Opus",
-        subName: "4.5",
+        subName: "4.6",
       };
     case "gatewayz/claude-code/sonnet":
       return {
@@ -625,9 +625,9 @@ export function getModelDisplayName(model: AIModel): ModelDisplayName {
       };
     case "opus":
       return {
-        fullName: "Opus 4.5",
+        fullName: "Opus 4.6",
         mainName: "Opus",
-        subName: "4.5",
+        subName: "4.6",
       };
     case "sonnet":
       return {

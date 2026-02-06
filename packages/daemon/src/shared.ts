@@ -12,6 +12,7 @@ export const DAEMON_VERSION = "1";
 // TODO sawyer: we don't want to depend on shared so mirror the ones we need here.
 export type FeatureFlags = {
   mcpPermissionPrompt?: boolean;
+  claudeCodeAgentTeams?: boolean;
 };
 
 export const LoopConfigSchema = z.object({

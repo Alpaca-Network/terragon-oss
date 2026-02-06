@@ -142,6 +142,12 @@ export const featureFlagsDefinitions = {
     description:
       "Enables Claude Code skills integration (.claude/skills/), allowing users to create and invoke custom skills via /skill-name commands.",
   },
+  claudeCodeAgentTeams: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables Claude Code Agent Teams (experimental), allowing the agent to coordinate multiple Claude Code instances working together as a team with shared tasks and inter-agent messaging.",
+  },
 } as const satisfies Record<string, FeatureFlagDefinition>;
 
 export type FeatureFlagName = keyof typeof featureFlagsDefinitions;

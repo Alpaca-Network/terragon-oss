@@ -640,6 +640,10 @@ export class TerragonDaemon {
       env: {
         ANTHROPIC_API_KEY: getAnthropicApiKeyOrNull(this.runtime),
         BASH_MAX_TIMEOUT_MS: (60 * 1000).toString(),
+        // Enable Agent Teams if the feature flag is set
+        ...(this.getFeatureFlag("claudeCodeAgentTeams")
+          ? { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1" }
+          : {}),
         // Gatewayz takes priority over built-in credits
         ...(!!input.useGatewayz
           ? {
