@@ -165,6 +165,10 @@ export function traceGeneration(params: LangfuseGenerationParams): void {
               totalTokens: params.usage.totalTokens,
             }
           : undefined,
+        costDetails:
+          params.totalCost !== undefined
+            ? { total: params.totalCost }
+            : undefined,
         metadata: {
           provider: params.provider,
           cacheCreationInputTokens: params.usage?.cacheCreationInputTokens,
