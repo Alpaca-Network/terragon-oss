@@ -122,8 +122,13 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
     }),
     [queryFilters],
   );
-  const { data: archivedData, refetch: refetchArchived } =
-    useInfiniteThreadList(archivedFilters);
+  const {
+    data: archivedData,
+    refetch: refetchArchived,
+    hasNextPage: archivedHasNextPage,
+    fetchNextPage: fetchNextArchivedPage,
+    isFetchingNextPage: isFetchingNextArchivedPage,
+  } = useInfiniteThreadList(archivedFilters);
 
   // Fetch backlog threads to show in the Backlog column
   const backlogFilters = useMemo(
@@ -561,6 +566,26 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                         />
                       </div>
                     ))}
+                    {col.id === "done" &&
+                      archivedHasNextPage &&
+                      columnThreads[col.id].length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchNextArchivedPage()}
+                          disabled={isFetchingNextArchivedPage}
+                          className="w-full"
+                        >
+                          {isFetchingNextArchivedPage ? (
+                            <>
+                              <LoaderCircle className="size-3 animate-spin mr-2" />
+                              Loading...
+                            </>
+                          ) : (
+                            "Load more"
+                          )}
+                        </Button>
+                      )}
                   </div>
                 )}
               </div>
