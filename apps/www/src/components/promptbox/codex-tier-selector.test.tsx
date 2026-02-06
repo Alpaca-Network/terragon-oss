@@ -1,34 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CodexTier } from "@terragon/shared/db/types";
-
-// Test the tier configuration values
-const tierConfig = {
-  none: {
-    label: "None",
-    shortLabel: "None",
-    description: "No reasoning, fastest responses",
-  },
-  low: {
-    label: "Low",
-    shortLabel: "Low",
-    description: "Minimal reasoning, quick responses",
-  },
-  medium: {
-    label: "Medium",
-    shortLabel: "Med",
-    description: "Balanced speed and quality",
-  },
-  high: {
-    label: "High",
-    shortLabel: "High",
-    description: "Thorough reasoning",
-  },
-  xhigh: {
-    label: "Max",
-    shortLabel: "Max",
-    description: "Extended thinking for best results",
-  },
-} as const;
+import { tierConfig } from "./codex-tier-selector";
 
 describe("CodexTier configuration", () => {
   it("has all expected tier keys", () => {

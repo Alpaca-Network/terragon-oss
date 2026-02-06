@@ -119,6 +119,7 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
             skipSetup,
             autoFixFeedback,
             autoMergePR,
+            codexTier,
           }),
         );
 
@@ -150,6 +151,7 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
       skipSetup,
       autoFixFeedback,
       autoMergePR,
+      codexTier,
       queryClient,
       onOpenChange,
     ],

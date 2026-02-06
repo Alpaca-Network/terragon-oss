@@ -28,7 +28,7 @@ interface CodexTierSelectorProps {
   disabled?: boolean;
 }
 
-const tierConfig = {
+export const tierConfig = {
   none: {
     icon: ZapOff,
     label: "None",
