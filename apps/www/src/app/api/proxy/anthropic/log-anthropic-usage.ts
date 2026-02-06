@@ -4,6 +4,7 @@ import {
   calculateUsageCostUsd,
   getAnthropicMessagesSkuForModel,
 } from "@terragon/shared/model/usage-pricing";
+import { traceGeneration } from "@/lib/langfuse";
 
 type UsagePayload = {
   input_tokens?: number | null;
@@ -63,6 +64,28 @@ export async function logAnthropicUsage({
   if (costUsd <= 0 && totalTokens <= 0) {
     return;
   }
+
+  // Trace to Langfuse for observability
+  traceGeneration({
+    traceId: messageId ?? undefined,
+    name: "anthropic-proxy",
+    userId,
+    model,
+    provider: "anthropic",
+    usage: {
+      promptTokens: inputTokens,
+      completionTokens: outputTokens,
+      totalTokens,
+      cacheCreationInputTokens,
+      cacheReadInputTokens: cachedInputTokens,
+    },
+    totalCost: costUsd,
+    metadata: {
+      path,
+      sku,
+      messageId,
+    },
+  });
 
   await trackUsageEventBatched({
     db,
