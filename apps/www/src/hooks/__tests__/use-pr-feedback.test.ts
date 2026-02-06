@@ -26,6 +26,7 @@ describe("combinePRFeedbackFromQueries", () => {
         {
           id: "thread-1",
           isResolved: false,
+          isInProgress: false,
           comments: [
             {
               id: 1,
@@ -43,10 +44,12 @@ describe("combinePRFeedbackFromQueries", () => {
         },
       ],
       resolved: [],
+      inProgress: [],
     },
     summary: {
       unresolvedCount: 1,
       resolvedCount: 0,
+      inProgressCount: 0,
     },
   };
 
@@ -106,7 +109,11 @@ describe("combinePRFeedbackFromQueries", () => {
     );
 
     expect(result).not.toBeNull();
-    expect(result?.comments).toEqual({ unresolved: [], resolved: [] });
+    expect(result?.comments).toEqual({
+      unresolved: [],
+      resolved: [],
+      inProgress: [],
+    });
     expect(result?.checks).toHaveLength(1);
   });
 
@@ -132,7 +139,11 @@ describe("combinePRFeedbackFromQueries", () => {
 
     expect(result).not.toBeNull();
     expect(result?.prNumber).toBe(123);
-    expect(result?.comments).toEqual({ unresolved: [], resolved: [] });
+    expect(result?.comments).toEqual({
+      unresolved: [],
+      resolved: [],
+      inProgress: [],
+    });
     expect(result?.checks).toEqual([]);
     expect(result?.coverageCheck).toBeNull();
     expect(result?.isMergeable).toBe(true);

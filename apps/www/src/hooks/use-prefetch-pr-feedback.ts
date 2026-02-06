@@ -42,6 +42,7 @@ export function usePrefetchPRFeedback(threads: ThreadInfo[]) {
       id: t.id,
       githubPRNumber: t.githubPRNumber,
       githubRepoFullName: t.githubRepoFullName,
+      autoFixQueuedAt: t.autoFixQueuedAt,
     }));
 
     // Mark only the threads we're actually fetching as prefetched

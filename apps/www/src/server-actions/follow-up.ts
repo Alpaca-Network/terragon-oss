@@ -53,6 +53,8 @@ export type QueueFollowUpArgs = {
   messages: DBUserMessage[];
   autoMergePR?: boolean;
   autoFixFeedback?: boolean;
+  // When true, updates autoFixQueuedAt timestamp to mark comments as "in progress"
+  isAddressingFeedback?: boolean;
 };
 
 export const queueFollowUp = userOnlyAction(
@@ -64,12 +66,14 @@ export const queueFollowUp = userOnlyAction(
       messages,
       autoMergePR,
       autoFixFeedback,
+      isAddressingFeedback,
     }: {
       threadId: string;
       threadChatId: string;
       messages: DBUserMessage[];
       autoMergePR?: boolean;
       autoFixFeedback?: boolean;
+      isAddressingFeedback?: boolean;
     },
   ) {
     console.log("queueFollowUp", { threadId, threadChatId });
@@ -78,17 +82,28 @@ export const queueFollowUp = userOnlyAction(
       throw new UserFacingError(SUBSCRIPTION_MESSAGES.QUEUE_FOLLOW_UP);
     }
 
-    // Update thread settings if autoMergePR or autoFixFeedback are provided
+    // Update thread settings if autoMergePR, autoFixFeedback, or isAddressingFeedback are provided
     if (
       typeof autoMergePR === "boolean" ||
-      typeof autoFixFeedback === "boolean"
+      typeof autoFixFeedback === "boolean" ||
+      isAddressingFeedback
     ) {
-      const updates: { autoMergePR?: boolean; autoFixFeedback?: boolean } = {};
+      const updates: {
+        autoMergePR?: boolean;
+        autoFixFeedback?: boolean;
+        autoFixQueuedAt?: Date;
+      } = {};
       if (typeof autoMergePR === "boolean") {
         updates.autoMergePR = autoMergePR;
       }
       if (typeof autoFixFeedback === "boolean") {
         updates.autoFixFeedback = autoFixFeedback;
+      }
+      // Set autoFixQueuedAt when feedback is being addressed
+      // This timestamp is used to determine if comments are "in progress"
+      // (comments created before this timestamp are being addressed)
+      if (isAddressingFeedback) {
+        updates.autoFixQueuedAt = new Date();
       }
       await updateThread({
         db,

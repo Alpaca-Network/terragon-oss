@@ -340,6 +340,9 @@ export const thread = pgTable(
     autoFixIterationCount: integer("auto_fix_iteration_count")
       .notNull()
       .default(0),
+    // Timestamp when PR feedback was last queued for addressing.
+    // Used to determine if unresolved comments should be marked as "in progress"
+    // (i.e., comments created before this timestamp are being addressed).
     autoFixQueuedAt: timestamp("auto_fix_queued_at", { withTimezone: true }),
     sourceType: text("source_type").$type<ThreadSource>(),
     sourceMetadata: jsonb("source_metadata").$type<ThreadSourceMetadata>(),
