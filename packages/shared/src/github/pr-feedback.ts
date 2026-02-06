@@ -421,8 +421,11 @@ function groupCommentsIntoThreads(
       const firstComment = threadComments[0];
       if (firstComment) {
         const commentCreatedAt = new Date(firstComment.createdAt);
+        // Ensure autoFixQueuedAt is a Date object (it may be serialized as string through server actions)
+        const autoFixDate = new Date(autoFixQueuedAt);
         // Thread is in progress if feedback was queued after the comment was created
-        isInProgress = autoFixQueuedAt > commentCreatedAt;
+        // Compare timestamps for reliable date comparison
+        isInProgress = autoFixDate.getTime() > commentCreatedAt.getTime();
       }
     }
 

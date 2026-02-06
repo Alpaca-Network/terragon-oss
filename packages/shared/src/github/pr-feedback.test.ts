@@ -1604,4 +1604,43 @@ describe("autoFixQueuedAt time check (in-progress comments)", () => {
       "old comment",
     );
   });
+
+  it("should handle autoFixQueuedAt as a string (serialized through server actions)", async () => {
+    const commentCreatedAt = "2024-01-01T10:00:00Z"; // Comment created at 10:00
+    // Simulate server action serialization - Date becomes a string
+    const autoFixQueuedAt = "2024-01-01T12:00:00.000Z" as unknown as Date;
+
+    setupMinimalMocks();
+    mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          body: "Please fix this",
+          path: "file.ts",
+          line: 10,
+          original_line: 10,
+          side: "RIGHT",
+          user: { login: "reviewer", avatar_url: "https://example.com" },
+          created_at: commentCreatedAt,
+          updated_at: commentCreatedAt,
+          in_reply_to_id: null,
+          html_url: "https://github.com/owner/repo/pull/123#comment-1",
+        },
+      ],
+    });
+
+    const feedback = await aggregatePRFeedback(
+      mockOctokit as any,
+      "owner",
+      "repo",
+      123,
+      { autoFixQueuedAt },
+    );
+
+    // Comment should be unresolved but marked as in-progress even with string date
+    expect(feedback.comments.unresolved).toHaveLength(1);
+    expect(feedback.comments.unresolved[0]!.isResolved).toBe(false);
+    expect(feedback.comments.unresolved[0]!.isInProgress).toBe(true);
+    expect(feedback.comments.inProgress).toHaveLength(1);
+  });
 });
