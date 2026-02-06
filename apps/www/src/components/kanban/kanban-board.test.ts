@@ -492,25 +492,32 @@ describe("Kanban Board Desktop", () => {
     // Helper to simulate should-show-load-more logic
     const shouldShowLoadMore = (
       hasNextPage: boolean,
+      onLoadMore: (() => void) | undefined,
       threadsLength: number,
     ): boolean => {
-      return hasNextPage && threadsLength > 0;
+      return hasNextPage && !!onLoadMore && threadsLength > 0;
     };
 
-    it("should show load more button when hasNextPage is true and threads exist", () => {
-      expect(shouldShowLoadMore(true, 25)).toBe(true);
+    const mockLoadMore = () => {};
+
+    it("should show load more button when hasNextPage is true, onLoadMore provided, and threads exist", () => {
+      expect(shouldShowLoadMore(true, mockLoadMore, 25)).toBe(true);
     });
 
     it("should not show load more button when hasNextPage is false", () => {
-      expect(shouldShowLoadMore(false, 25)).toBe(false);
+      expect(shouldShowLoadMore(false, mockLoadMore, 25)).toBe(false);
     });
 
     it("should not show load more button when no threads exist", () => {
-      expect(shouldShowLoadMore(true, 0)).toBe(false);
+      expect(shouldShowLoadMore(true, mockLoadMore, 0)).toBe(false);
     });
 
     it("should not show load more button when hasNextPage false and no threads", () => {
-      expect(shouldShowLoadMore(false, 0)).toBe(false);
+      expect(shouldShowLoadMore(false, mockLoadMore, 0)).toBe(false);
+    });
+
+    it("should not show load more button when onLoadMore is undefined", () => {
+      expect(shouldShowLoadMore(true, undefined, 25)).toBe(false);
     });
 
     // Helper to simulate pagination props for columns

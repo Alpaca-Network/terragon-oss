@@ -206,7 +206,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                 />
               ))
             )}
-            {hasNextPage && threads.length > 0 && (
+            {hasNextPage && onLoadMore && threads.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"

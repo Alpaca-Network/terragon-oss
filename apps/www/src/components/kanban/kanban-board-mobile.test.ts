@@ -332,12 +332,14 @@ describe("Kanban Mobile Components", () => {
       expect(shouldColumnHavePagination("in_review")).toBe(false);
     });
 
-    // Helper to simulate should-show-load-more logic
+    // Helper to simulate should-show-load-more logic (mobile uses inline condition)
     const shouldShowLoadMore = (
       columnId: KanbanColumn,
       hasNextPage: boolean,
       threadsLength: number,
     ): boolean => {
+      // Mobile board checks col.id === "done" inline, so hasNextPage alone is sufficient
+      // as fetchNextArchivedPage is always provided when archivedHasNextPage is true
       return columnId === "done" && hasNextPage && threadsLength > 0;
     };
 
