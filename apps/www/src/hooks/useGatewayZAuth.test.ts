@@ -140,6 +140,33 @@ describe("useGatewayZAuth", () => {
     expect(onAuthReceived).not.toHaveBeenCalled();
   });
 
+  it("should not listen when not in an iframe (security protection)", () => {
+    // Set parent to same as window (not in iframe)
+    Object.defineProperty(window, "parent", {
+      value: window,
+      writable: true,
+      configurable: true,
+    });
+
+    const onAuthReceived = vi.fn();
+    renderHook(() => useGatewayZAuth({ enabled: true, onAuthReceived }));
+
+    const messageEvent = new MessageEvent("message", {
+      origin: "https://beta.gatewayz.ai",
+      data: {
+        type: "GATEWAYZ_AUTH",
+        token: "test-token-123",
+      },
+    });
+
+    act(() => {
+      window.dispatchEvent(messageEvent);
+    });
+
+    // Should not process auth when not in iframe to prevent hijacking
+    expect(onAuthReceived).not.toHaveBeenCalled();
+  });
+
   it("should send auth request to parent window", async () => {
     vi.useFakeTimers();
     const mockPostMessage = vi.fn();

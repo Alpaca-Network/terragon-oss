@@ -3,10 +3,11 @@
 import { useEffect, useCallback, useRef } from "react";
 
 /**
- * Default allowed origins for receiving postMessage auth from GatewayZ.
+ * Allowed origins for receiving postMessage auth from GatewayZ.
  * These are the trusted GatewayZ domains that can send auth tokens.
+ * Must match the allowed origins in the server callback route.
  */
-const DEFAULT_ALLOWED_ORIGINS = [
+const ALLOWED_ORIGINS = [
   "https://gatewayz.ai",
   "https://www.gatewayz.ai",
   "https://beta.gatewayz.ai",
@@ -14,20 +15,16 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ];
 
 /**
- * Get allowed origins from environment or use defaults.
+ * Check if currently running in an iframe context.
  */
-function getAllowedOrigins(): string[] {
-  if (typeof window === "undefined") return DEFAULT_ALLOWED_ORIGINS;
-
-  const envOrigins = process.env.NEXT_PUBLIC_GATEWAYZ_ALLOWED_ORIGINS;
-  if (envOrigins) {
-    const origins = envOrigins
-      .split(",")
-      .map((o) => o.trim())
-      .filter((o) => o.length > 0);
-    return origins.length > 0 ? origins : DEFAULT_ALLOWED_ORIGINS;
+function isInIframe(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.parent !== window;
+  } catch {
+    // Cross-origin iframe access throws, which means we're in an iframe
+    return true;
   }
-  return DEFAULT_ALLOWED_ORIGINS;
 }
 
 interface UseGatewayZAuthOptions {
@@ -63,36 +60,34 @@ export function useGatewayZAuth(options: UseGatewayZAuthOptions = {}) {
   const requestAuth = useCallback(() => {
     if (typeof window === "undefined" || requestSentRef.current) return;
 
+    // Only send requests when in an iframe
+    if (!isInIframe()) return;
+
     try {
-      if (window.parent && window.parent !== window) {
-        const allowedOrigins = getAllowedOrigins();
-        allowedOrigins.forEach((origin) => {
-          try {
-            window.parent.postMessage(
-              { type: "GATEWAYZ_AUTH_REQUEST" },
-              origin,
-            );
-          } catch {
-            // Ignore errors for origins that don't match actual parent
-          }
-        });
-        requestSentRef.current = true;
-      }
+      ALLOWED_ORIGINS.forEach((origin) => {
+        try {
+          window.parent.postMessage({ type: "GATEWAYZ_AUTH_REQUEST" }, origin);
+        } catch {
+          // Ignore errors for origins that don't match actual parent
+        }
+      });
+      requestSentRef.current = true;
     } catch {
       // Ignore errors (e.g., cross-origin restrictions)
     }
   }, []);
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    // Only enable when explicitly enabled AND running in an iframe
+    // This prevents auth hijacking via window.open from allowed origins
+    if (!enabled || typeof window === "undefined" || !isInIframe()) return;
 
     const handleMessage = (event: MessageEvent) => {
       // Prevent duplicate processing
       if (authReceivedRef.current) return;
 
-      // Validate origin
-      const allowedOrigins = getAllowedOrigins();
-      if (!allowedOrigins.includes(event.origin)) {
+      // Validate origin against allowed list
+      if (!ALLOWED_ORIGINS.includes(event.origin)) {
         return;
       }
 
