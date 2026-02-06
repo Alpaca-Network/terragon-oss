@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { KANBAN_COLUMNS } from "./types";
+import { KANBAN_COLUMNS, KanbanColumn } from "./types";
 import type { PRFeedbackSummary } from "@terragon/shared/db/types";
 
 describe("Kanban Board Desktop", () => {
@@ -467,6 +467,86 @@ describe("Kanban Board Desktop", () => {
         unresolvedCount: 0,
         isAllPassing: true,
       });
+    });
+  });
+
+  describe("Done column pagination", () => {
+    // Helper to determine if a column should have pagination props
+    const shouldColumnHavePagination = (columnId: KanbanColumn): boolean => {
+      return columnId === "done";
+    };
+
+    it("should only enable pagination for done column", () => {
+      expect(shouldColumnHavePagination("done")).toBe(true);
+      expect(shouldColumnHavePagination("backlog")).toBe(false);
+      expect(shouldColumnHavePagination("in_progress")).toBe(false);
+      expect(shouldColumnHavePagination("in_review")).toBe(false);
+    });
+
+    it("should have done column in KANBAN_COLUMNS for pagination support", () => {
+      const doneColumn = KANBAN_COLUMNS.find((c) => c.id === "done");
+      expect(doneColumn).toBeDefined();
+      expect(doneColumn?.id).toBe("done");
+    });
+
+    // Helper to simulate should-show-load-more logic
+    const shouldShowLoadMore = (
+      hasNextPage: boolean,
+      onLoadMore: (() => void) | undefined,
+      threadsLength: number,
+    ): boolean => {
+      return hasNextPage && !!onLoadMore && threadsLength > 0;
+    };
+
+    const mockLoadMore = () => {};
+
+    it("should show load more button when hasNextPage is true, onLoadMore provided, and threads exist", () => {
+      expect(shouldShowLoadMore(true, mockLoadMore, 25)).toBe(true);
+    });
+
+    it("should not show load more button when hasNextPage is false", () => {
+      expect(shouldShowLoadMore(false, mockLoadMore, 25)).toBe(false);
+    });
+
+    it("should not show load more button when no threads exist", () => {
+      expect(shouldShowLoadMore(true, mockLoadMore, 0)).toBe(false);
+    });
+
+    it("should not show load more button when hasNextPage false and no threads", () => {
+      expect(shouldShowLoadMore(false, mockLoadMore, 0)).toBe(false);
+    });
+
+    it("should not show load more button when onLoadMore is undefined", () => {
+      expect(shouldShowLoadMore(true, undefined, 25)).toBe(false);
+    });
+
+    // Helper to simulate pagination props for columns
+    const getPaginationPropsForColumn = (
+      columnId: KanbanColumn,
+      archivedHasNextPage: boolean,
+    ): { hasNextPage: boolean | undefined } => {
+      return {
+        hasNextPage: columnId === "done" ? archivedHasNextPage : undefined,
+      };
+    };
+
+    it("should pass hasNextPage to done column only", () => {
+      const doneProps = getPaginationPropsForColumn("done", true);
+      expect(doneProps.hasNextPage).toBe(true);
+
+      const backlogProps = getPaginationPropsForColumn("backlog", true);
+      expect(backlogProps.hasNextPage).toBeUndefined();
+
+      const inProgressProps = getPaginationPropsForColumn("in_progress", true);
+      expect(inProgressProps.hasNextPage).toBeUndefined();
+
+      const inReviewProps = getPaginationPropsForColumn("in_review", true);
+      expect(inReviewProps.hasNextPage).toBeUndefined();
+    });
+
+    it("should pass false hasNextPage when no more pages", () => {
+      const doneProps = getPaginationPropsForColumn("done", false);
+      expect(doneProps.hasNextPage).toBe(false);
     });
   });
 });

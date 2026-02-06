@@ -252,8 +252,13 @@ export const KanbanBoard = memo(function KanbanBoard({
     }),
     [queryFilters],
   );
-  const { data: archivedData, refetch: refetchArchived } =
-    useInfiniteThreadList(archivedFilters);
+  const {
+    data: archivedData,
+    refetch: refetchArchived,
+    hasNextPage: archivedHasNextPage,
+    fetchNextPage: fetchNextArchivedPage,
+    isFetchingNextPage: isFetchingNextArchivedPage,
+  } = useInfiniteThreadList(archivedFilters);
 
   // Fetch backlog threads to show in the Backlog column
   const backlogFilters = useMemo(
@@ -611,6 +616,19 @@ export const KanbanBoard = memo(function KanbanBoard({
                 onNavigateLeft={() => navigateColumn("left")}
                 onNavigateRight={() => navigateColumn("right")}
                 className="max-w-none"
+                hasNextPage={
+                  currentColumn.id === "done" ? archivedHasNextPage : undefined
+                }
+                onLoadMore={
+                  currentColumn.id === "done"
+                    ? fetchNextArchivedPage
+                    : undefined
+                }
+                isLoadingMore={
+                  currentColumn.id === "done"
+                    ? isFetchingNextArchivedPage
+                    : undefined
+                }
               />
             </div>
           </div>
@@ -808,6 +826,17 @@ export const KanbanBoard = memo(function KanbanBoard({
                       : undefined
                   }
                   onThreadCommentsClick={handleThreadCommentsClick}
+                  hasNextPage={
+                    column.id === "done" ? archivedHasNextPage : undefined
+                  }
+                  onLoadMore={
+                    column.id === "done" ? fetchNextArchivedPage : undefined
+                  }
+                  isLoadingMore={
+                    column.id === "done"
+                      ? isFetchingNextArchivedPage
+                      : undefined
+                  }
                 />
               ))}
             </div>
