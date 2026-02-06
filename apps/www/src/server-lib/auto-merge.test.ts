@@ -295,6 +295,28 @@ describe("maybeEnableAutoMerge", () => {
     );
   });
 
+  it("should handle unstable status error when PR has failing checks", async () => {
+    mockPullsGet.mockResolvedValue({
+      data: {
+        merged: false,
+        state: "open",
+        auto_merge: null,
+        node_id: "PR_123",
+      },
+    });
+    mockGraphql.mockRejectedValue({
+      errors: [{ message: "Pull request is in unstable status" }],
+    });
+
+    const result = await maybeEnableAutoMerge({
+      threadId,
+      userId: user.id,
+    });
+
+    expect(result.enabled).toBe(false);
+    expect(result.reason).toBe("Pull request is in unstable status");
+  });
+
   it("should handle generic GraphQL errors", async () => {
     mockPullsGet.mockResolvedValue({
       data: {
