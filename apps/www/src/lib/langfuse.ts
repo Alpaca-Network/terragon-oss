@@ -47,10 +47,11 @@ async function checkLangfuseFeatureFlag(): Promise<boolean> {
 }
 
 /**
- * Check if Langfuse is configured and enabled
+ * Check if Langfuse is configured (synchronous check for API keys).
+ * Note: This does NOT check the feature flag - use traceGeneration/traceSpan
+ * which perform the async feature flag check internally.
  */
 export function isLangfuseEnabled(): boolean {
-  // Synchronous check - requires API keys to be configured
   return isLangfuseConfigured();
 }
 
@@ -68,7 +69,7 @@ export function getLangfuse(): Langfuse | null {
       secretKey: env.LANGFUSE_SECRET_KEY,
       publicKey: env.LANGFUSE_PUBLIC_KEY,
       baseUrl: env.LANGFUSE_HOST || "https://cloud.langfuse.com",
-      // Flush events on shutdown
+      // Flush after each event to ensure prompt delivery in serverless environments
       flushAt: 1,
       flushInterval: 1000,
     });
