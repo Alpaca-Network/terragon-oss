@@ -53,7 +53,7 @@ export type QueueFollowUpArgs = {
   messages: DBUserMessage[];
   autoMergePR?: boolean;
   autoFixFeedback?: boolean;
-  // When true, updates feedbackQueuedAt timestamp to mark comments as "in progress"
+  // When true, updates autoFixQueuedAt timestamp to mark comments as "in progress"
   isAddressingFeedback?: boolean;
 };
 
@@ -91,7 +91,7 @@ export const queueFollowUp = userOnlyAction(
       const updates: {
         autoMergePR?: boolean;
         autoFixFeedback?: boolean;
-        feedbackQueuedAt?: Date;
+        autoFixQueuedAt?: Date;
       } = {};
       if (typeof autoMergePR === "boolean") {
         updates.autoMergePR = autoMergePR;
@@ -99,11 +99,11 @@ export const queueFollowUp = userOnlyAction(
       if (typeof autoFixFeedback === "boolean") {
         updates.autoFixFeedback = autoFixFeedback;
       }
-      // Set feedbackQueuedAt when feedback is being addressed
+      // Set autoFixQueuedAt when feedback is being addressed
       // This timestamp is used to determine if comments are "in progress"
       // (comments created before this timestamp are being addressed)
       if (isAddressingFeedback) {
-        updates.feedbackQueuedAt = new Date();
+        updates.autoFixQueuedAt = new Date();
       }
       await updateThread({
         db,

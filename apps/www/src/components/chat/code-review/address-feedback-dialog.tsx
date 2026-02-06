@@ -177,7 +177,7 @@ export function AddressFeedbackDialog({
         threadChatId: threadChat.id,
         autoMergePR,
         autoFixFeedback,
-        // Set isAddressingFeedback to update feedbackQueuedAt timestamp
+        // Set isAddressingFeedback to update autoFixQueuedAt timestamp
         // This allows us to mark comments as "in progress" if they were created before this timestamp
         isAddressingFeedback: true,
         messages: [

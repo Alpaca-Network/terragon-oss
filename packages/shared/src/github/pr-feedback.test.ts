@@ -1008,7 +1008,7 @@ describe("fetch functions", () => {
   });
 });
 
-describe("feedbackQueuedAt time check (in-progress comments)", () => {
+describe("autoFixQueuedAt time check (in-progress comments)", () => {
   const mockOctokit = {
     rest: {
       pulls: {
@@ -1058,9 +1058,9 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
     vi.clearAllMocks();
   });
 
-  it("should mark unresolved comments as in-progress when feedbackQueuedAt is after comment creation", async () => {
+  it("should mark unresolved comments as in-progress when autoFixQueuedAt is after comment creation", async () => {
     const commentCreatedAt = "2024-01-01T10:00:00Z"; // Comment created at 10:00
-    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z"); // Feedback queued at 12:00 (after comment)
+    const autoFixQueuedAt = new Date("2024-01-01T12:00:00Z"); // Feedback queued at 12:00 (after comment)
 
     setupMinimalMocks();
     mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
@@ -1086,7 +1086,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
       "owner",
       "repo",
       123,
-      { feedbackQueuedAt },
+      { autoFixQueuedAt },
     );
 
     // Comment should be unresolved but marked as in-progress
@@ -1096,9 +1096,9 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
     expect(feedback.comments.inProgress).toHaveLength(1);
   });
 
-  it("should NOT mark comments as in-progress when feedbackQueuedAt is before comment creation", async () => {
+  it("should NOT mark comments as in-progress when autoFixQueuedAt is before comment creation", async () => {
     const commentCreatedAt = "2024-01-01T14:00:00Z"; // Comment created at 14:00
-    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z"); // Feedback queued at 12:00 (before comment)
+    const autoFixQueuedAt = new Date("2024-01-01T12:00:00Z"); // Feedback queued at 12:00 (before comment)
 
     setupMinimalMocks();
     mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
@@ -1124,7 +1124,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
       "owner",
       "repo",
       123,
-      { feedbackQueuedAt },
+      { autoFixQueuedAt },
     );
 
     // Comment should be unresolved and NOT in-progress (created after feedback was queued)
@@ -1136,7 +1136,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
 
   it("should NOT mark resolved comments as in-progress", async () => {
     const commentCreatedAt = "2024-01-01T10:00:00Z";
-    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z");
+    const autoFixQueuedAt = new Date("2024-01-01T12:00:00Z");
 
     setupMinimalMocks();
     mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
@@ -1162,7 +1162,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
       "owner",
       "repo",
       123,
-      { feedbackQueuedAt },
+      { autoFixQueuedAt },
     );
 
     // Comment is resolved (has "Done" keyword), so it should NOT be in inProgress
@@ -1171,7 +1171,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
     expect(feedback.comments.inProgress).toHaveLength(0);
   });
 
-  it("should handle null feedbackQueuedAt (no comments in-progress)", async () => {
+  it("should handle null autoFixQueuedAt (no comments in-progress)", async () => {
     const commentCreatedAt = "2024-01-01T10:00:00Z";
 
     setupMinimalMocks();
@@ -1193,7 +1193,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
       ],
     });
 
-    // No feedbackQueuedAt provided
+    // No autoFixQueuedAt provided
     const feedback = await aggregatePRFeedback(
       mockOctokit as any,
       "owner",
@@ -1201,7 +1201,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
       123,
     );
 
-    // Comment should be unresolved but NOT in-progress (no feedbackQueuedAt)
+    // Comment should be unresolved but NOT in-progress (no autoFixQueuedAt)
     expect(feedback.comments.unresolved).toHaveLength(1);
     expect(feedback.comments.unresolved[0]!.isInProgress).toBe(false);
     expect(feedback.comments.inProgress).toHaveLength(0);
@@ -1210,7 +1210,7 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
   it("should mark multiple older comments as in-progress and leave newer ones not in-progress", async () => {
     const oldCommentCreatedAt = "2024-01-01T10:00:00Z"; // Before feedback queued
     const newCommentCreatedAt = "2024-01-01T14:00:00Z"; // After feedback queued
-    const feedbackQueuedAt = new Date("2024-01-01T12:00:00Z");
+    const autoFixQueuedAt = new Date("2024-01-01T12:00:00Z");
 
     setupMinimalMocks();
     mockOctokit.rest.pulls.listReviewComments.mockResolvedValue({
@@ -1249,12 +1249,12 @@ describe("feedbackQueuedAt time check (in-progress comments)", () => {
       "owner",
       "repo",
       123,
-      { feedbackQueuedAt },
+      { autoFixQueuedAt },
     );
 
     // Both comments are unresolved
     expect(feedback.comments.unresolved).toHaveLength(2);
-    // Only the old comment (created before feedbackQueuedAt) should be in-progress
+    // Only the old comment (created before autoFixQueuedAt) should be in-progress
     expect(feedback.comments.inProgress).toHaveLength(1);
     expect(feedback.comments.inProgress[0]!.comments[0]!.body).toContain(
       "old comment",

@@ -340,7 +340,7 @@ export const thread = pgTable(
     // Timestamp when PR feedback was last queued for addressing.
     // Used to determine if unresolved comments should be marked as "in progress"
     // (i.e., comments created before this timestamp are being addressed).
-    feedbackQueuedAt: timestamp("feedback_queued_at"),
+    autoFixQueuedAt: timestamp("auto_fix_queued_at", { withTimezone: true }),
     sourceType: text("source_type").$type<ThreadSource>(),
     sourceMetadata: jsonb("source_metadata").$type<ThreadSourceMetadata>(),
     // Thread version:

@@ -28,8 +28,8 @@ export const getPRComments = cache(
       let repoFullName: string;
       let prNumber: number;
 
-      // Track feedbackQueuedAt from thread if available
-      let feedbackQueuedAt: Date | null = null;
+      // Track autoFixQueuedAt from thread if available
+      let autoFixQueuedAt: Date | null = null;
 
       if ("threadId" in params) {
         const thread = await getThreadMinimal({
@@ -48,7 +48,7 @@ export const getPRComments = cache(
 
         repoFullName = thread.githubRepoFullName;
         prNumber = thread.githubPRNumber;
-        feedbackQueuedAt = thread.feedbackQueuedAt ?? null;
+        autoFixQueuedAt = thread.autoFixQueuedAt ?? null;
       } else {
         repoFullName = params.repoFullName;
         prNumber = params.prNumber;
@@ -59,7 +59,7 @@ export const getPRComments = cache(
       try {
         const octokit = await getOctokitForApp({ owner, repo });
         return await aggregatePRComments(octokit, owner, repo, prNumber, {
-          feedbackQueuedAt,
+          autoFixQueuedAt,
         });
       } catch (error: any) {
         if (error.status === 404) {

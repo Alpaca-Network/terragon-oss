@@ -315,14 +315,14 @@ function toCheckRun(raw: CheckRunsResponse["check_runs"][number]): PRCheckRun {
  *
  * @param comments - Raw GitHub review comments
  * @param resolutionStatus - GraphQL resolution status for each thread
- * @param feedbackQueuedAt - When feedback was last queued for addressing.
+ * @param autoFixQueuedAt - When feedback was last queued for addressing.
  *   If provided and a thread was created before this timestamp, it's marked as "in progress"
  *   (meaning the agent is currently working on addressing it).
  */
 function groupCommentsIntoThreads(
   comments: ReviewCommentsResponse,
   resolutionStatus?: Map<number, { isResolved: boolean; isOutdated: boolean }>,
-  feedbackQueuedAt?: Date | null,
+  autoFixQueuedAt?: Date | null,
 ): {
   unresolved: PRReviewThread[];
   resolved: PRReviewThread[];
@@ -394,12 +394,12 @@ function groupCommentsIntoThreads(
     // 2. Feedback was queued after the first comment was created
     // This means the agent is currently working on addressing this comment.
     let isInProgress = false;
-    if (!isResolved && feedbackQueuedAt) {
+    if (!isResolved && autoFixQueuedAt) {
       const firstComment = threadComments[0];
       if (firstComment) {
         const commentCreatedAt = new Date(firstComment.createdAt);
         // Thread is in progress if feedback was queued after the comment was created
-        isInProgress = feedbackQueuedAt > commentCreatedAt;
+        isInProgress = autoFixQueuedAt > commentCreatedAt;
       }
     }
 
@@ -449,7 +449,7 @@ export function extractCoverageCheck(checks: PRCheckRun[]): PRCheckRun | null {
 /**
  * Aggregates all PR feedback into a single object
  *
- * @param feedbackQueuedAt - When feedback was last queued for addressing.
+ * @param autoFixQueuedAt - When feedback was last queued for addressing.
  *   If provided, threads created before this timestamp will be marked as "in progress".
  */
 export async function aggregatePRFeedback(
@@ -457,7 +457,7 @@ export async function aggregatePRFeedback(
   owner: string,
   repo: string,
   prNumber: number,
-  options?: { feedbackQueuedAt?: Date | null },
+  options?: { autoFixQueuedAt?: Date | null },
 ): Promise<PRFeedback> {
   // Fetch PR details first to get head SHA
   // Skip mergeable state polling - the UI handles refetching when state is unknown
@@ -473,12 +473,12 @@ export async function aggregatePRFeedback(
     fetchReviewThreadsResolutionStatus(octokit, owner, repo, prNumber),
   ]);
 
-  // Pass resolution status and feedbackQueuedAt to thread grouping
+  // Pass resolution status and autoFixQueuedAt to thread grouping
   // for accurate resolved/unresolved/inProgress classification
   const comments = groupCommentsIntoThreads(
     rawComments,
     resolutionStatus,
-    options?.feedbackQueuedAt,
+    options?.autoFixQueuedAt,
   );
   const checks = rawChecks.check_runs.map(toCheckRun);
   const coverageCheck = extractCoverageCheck(checks);
@@ -638,7 +638,7 @@ export async function aggregatePRHeader(
  * Fetches PR comments with resolution status.
  * Can run in parallel with checks fetch after header is loaded.
  *
- * @param feedbackQueuedAt - When feedback was last queued for addressing.
+ * @param autoFixQueuedAt - When feedback was last queued for addressing.
  *   If provided, threads created before this timestamp will be marked as "in progress".
  */
 export async function aggregatePRComments(
@@ -646,7 +646,7 @@ export async function aggregatePRComments(
   owner: string,
   repo: string,
   prNumber: number,
-  options?: { feedbackQueuedAt?: Date | null },
+  options?: { autoFixQueuedAt?: Date | null },
 ): Promise<PRCommentsData> {
   // Fetch comments and resolution status in parallel
   const [rawComments, resolutionStatus] = await Promise.all([
@@ -657,7 +657,7 @@ export async function aggregatePRComments(
   const comments = groupCommentsIntoThreads(
     rawComments,
     resolutionStatus,
-    options?.feedbackQueuedAt,
+    options?.autoFixQueuedAt,
   );
 
   const unresolvedCount = comments.unresolved.reduce(
