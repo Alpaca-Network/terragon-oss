@@ -2,7 +2,7 @@
 
 import { userOnlyAction } from "@/lib/auth-server";
 import { SelectedAIModels } from "@terragon/agent/types";
-import { DBUserMessage, ThreadSource } from "@terragon/shared";
+import { CodexTier, DBUserMessage, ThreadSource } from "@terragon/shared";
 import { createNewThread } from "../server-lib/new-thread-shared";
 import { getAccessInfoForUser } from "@/lib/subscription";
 import { SUBSCRIPTION_MESSAGES } from "@/lib/subscription-msgs";
@@ -24,6 +24,7 @@ export type NewThreadArgs = {
   scheduleAt?: number | null;
   selectedModels?: SelectedAIModels;
   sourceType?: ThreadSource;
+  codexTier?: CodexTier;
 };
 
 export const newThread = userOnlyAction(
@@ -44,6 +45,7 @@ export const newThread = userOnlyAction(
       createNewBranch = true,
       scheduleAt,
       sourceType = "www",
+      codexTier,
     }: NewThreadArgs,
   ): Promise<{ threadId: string; threadChatId: string }> {
     console.log("newThread", { userId, githubRepoFullName });
@@ -71,6 +73,7 @@ export const newThread = userOnlyAction(
       skipSetup,
       autoFixFeedback,
       autoMergePR,
+      codexTier,
     });
     if (selectedModels && !saveAsDraft) {
       await newThreadsMultiModel({

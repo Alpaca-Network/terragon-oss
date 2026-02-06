@@ -20,10 +20,13 @@ import {
   skipSetupCookieAtom,
   autoFixFeedbackCookieAtom,
   autoMergePRCookieAtom,
+  codexTierCookieAtom,
 } from "@/atoms/user-cookies";
 import { useAtom } from "jotai";
 import { AutoFixFeedbackToggle } from "./auto-fix-feedback-toggle";
 import { AutoMergeToggle } from "./auto-merge-toggle";
+import type { CodexTier } from "@terragon/shared/db/types";
+import { defaultCodexTier } from "@/lib/cookies";
 
 interface PromptBoxToolBeltProps {
   /** Whether to show the skip archive button */
@@ -200,6 +203,7 @@ export function usePromptBoxToolBeltOptions({
   initialCreateNewBranch,
   initialAutoFixFeedback,
   initialAutoMergePR,
+  initialCodexTier,
 }: {
   branchName: string | null;
   shouldUseCookieValues?: boolean;
@@ -208,6 +212,7 @@ export function usePromptBoxToolBeltOptions({
   initialCreateNewBranch?: boolean;
   initialAutoFixFeedback?: boolean;
   initialAutoMergePR?: boolean;
+  initialCodexTier?: CodexTier;
 }) {
   const [skipArchiving, setSkipArchiving] = useState<boolean>(false);
   const [skipSetupCookie, setSkipSetupCookie] = useAtom(skipSetupCookieAtom);
@@ -222,6 +227,7 @@ export function usePromptBoxToolBeltOptions({
   const [autoMergePRCookie, setAutoMergePRCookie] = useAtom(
     autoMergePRCookieAtom,
   );
+  const [codexTierCookie, setCodexTierCookie] = useAtom(codexTierCookieAtom);
 
   const [skipSetupLocal, setSkipSetupLocal] = useState<boolean>(
     shouldUseCookieValues ? skipSetupCookie : (initialSkipSetup ?? false),
@@ -244,6 +250,11 @@ export function usePromptBoxToolBeltOptions({
   );
   const [autoMergePRLocal, setAutoMergePRLocal] = useState<boolean>(
     shouldUseCookieValues ? autoMergePRCookie : (initialAutoMergePR ?? false),
+  );
+  const [codexTierLocal, setCodexTierLocal] = useState<CodexTier>(
+    shouldUseCookieValues
+      ? (codexTierCookie as CodexTier)
+      : (initialCodexTier ?? defaultCodexTier),
   );
 
   const createNewBranch = useMemo(() => {
@@ -307,6 +318,16 @@ export function usePromptBoxToolBeltOptions({
     [shouldUseCookieValues, setAutoMergePRCookie, setAutoMergePRLocal],
   );
 
+  const setCodexTier = useCallback(
+    (value: CodexTier) => {
+      setCodexTierLocal(value);
+      if (shouldUseCookieValues) {
+        setCodexTierCookie(value);
+      }
+    },
+    [shouldUseCookieValues, setCodexTierCookie, setCodexTierLocal],
+  );
+
   const branchNameRef = useRef(branchName);
   useEffect(() => {
     if (branchName && branchName !== branchNameRef.current) {
@@ -322,11 +343,13 @@ export function usePromptBoxToolBeltOptions({
     skipArchiving,
     autoFixFeedback: autoFixFeedbackLocal,
     autoMergePR: autoMergePRLocal,
+    codexTier: codexTierLocal,
     setSkipSetup,
     setSkipArchiving,
     setDisableGitCheckpointing,
     setCreateNewBranch,
     setAutoFixFeedback,
     setAutoMergePR,
+    setCodexTier,
   };
 }

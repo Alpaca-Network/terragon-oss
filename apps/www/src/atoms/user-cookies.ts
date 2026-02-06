@@ -6,11 +6,13 @@ import {
   ThreadListGroupBy,
   SecondaryPanelView,
   DashboardViewMode,
+  CodexTierCookie,
   defaultCollapsedSections,
   defaultThreadListGroupBy,
   defaultDashboardViewMode,
   defaultTimeZone,
   defaultSecondaryPanelView,
+  defaultCodexTier,
   timeZoneKey,
   threadListCollapsedSectionsKey,
   disableGitCheckpointingKey,
@@ -23,6 +25,7 @@ import {
   secondaryPaneClosedKey,
   secondaryPanelViewKey,
   dashboardViewModeKey,
+  codexTierKey,
 } from "@/lib/cookies";
 import { getCookieOrNull, setCookie } from "@/lib/cookies-client";
 
@@ -100,6 +103,12 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
         case dashboardViewModeKey: {
           if (userCookies[key]) {
             set(dashboardViewModeAtom, userCookies[key]);
+          }
+          break;
+        }
+        case codexTierKey: {
+          if (userCookies[key]) {
+            set(codexTierCookieAtom, userCookies[key]);
           }
           break;
         }
@@ -308,3 +317,11 @@ export const kanbanNewTaskDialogOpenAtom = atom<boolean>(false);
 // Atom for controlling the quick add backlog dialog from Kanban view
 // This is a simple in-memory atom (not persisted) for UI state
 export const kanbanQuickAddBacklogOpenAtom = atom<boolean>(false);
+
+// Persist the last-selected value for codex tier (reasoning effort level)
+export const codexTierCookieAtom = atomWithStorage<CodexTierCookie>(
+  codexTierKey,
+  defaultCodexTier,
+  cookieStorage,
+  { getOnInit: true },
+);

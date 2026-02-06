@@ -826,6 +826,7 @@ type ThreadForThreadChatInfoFull = Pick<
   | "queuedMessages"
   | "messages"
   | "lastUsedModel"
+  | "codexTier"
 > & {
   isUnread: boolean;
 };
@@ -863,6 +864,7 @@ function createLegacyThreadChatFull(
     loopConfig: thread.loopConfig ?? null,
     isUnread: thread.isUnread,
     lastUsedModel: thread.lastUsedModel,
+    codexTier: thread.codexTier ?? "medium",
     messages: thread.messages ?? [],
     queuedMessages: thread.queuedMessages ?? [],
   };

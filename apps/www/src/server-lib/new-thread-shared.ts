@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { generateThreadName } from "@/server-lib/generate-thread-name";
 import {
   Automation,
+  CodexTier,
   DBUserMessage,
   ThreadSource,
   ThreadSourceMetadata,
@@ -63,6 +64,7 @@ export interface CreateThreadOptions {
   sourceType: ThreadSource;
   sourceMetadata?: ThreadSourceMetadata;
   delayMs?: number;
+  codexTier?: CodexTier;
 }
 
 /**
@@ -90,6 +92,7 @@ export async function createNewThread({
   sourceType,
   sourceMetadata,
   delayMs = 0,
+  codexTier,
 }: CreateThreadOptions): Promise<{ threadId: string; threadChatId: string }> {
   // Enforce per-user shadow-ban rate limit if applicable
   await checkShadowBanTaskCreationRateLimit(userId);
@@ -227,6 +230,7 @@ export async function createNewThread({
       permissionMode: message.permissionMode || "allowAll",
       status: scheduleAt ? "scheduled" : saveAsDraft ? "draft" : "queued",
       lastUsedModel: modelOrDefault,
+      codexTier,
     },
     enableThreadChatCreation,
   });

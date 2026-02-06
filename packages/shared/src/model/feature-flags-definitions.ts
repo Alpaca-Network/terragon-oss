@@ -142,6 +142,12 @@ export const featureFlagsDefinitions = {
     description:
       "Enables Claude Code skills integration (.claude/skills/), allowing users to create and invoke custom skills via /skill-name commands.",
   },
+  codexTierSelector: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables the Codex tier selector in the prompt box, allowing users to control reasoning effort level (none/low/medium/high/xhigh) for OpenAI Codex and Claude extended thinking.",
+  },
   claudeCodeAgentTeams: {
     defaultValue: false,
     enabledForPreview: true,
