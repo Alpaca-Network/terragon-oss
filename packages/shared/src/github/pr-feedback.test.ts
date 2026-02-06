@@ -99,7 +99,7 @@ describe("createFeedbackSummary", () => {
     baseBranch: "main",
     headBranch: "feature",
     headSha: "abc123",
-    comments: { unresolved: [], resolved: [] },
+    comments: { unresolved: [], resolved: [], inProgress: [] },
     checks: [],
     coverageCheck: null,
     mergeableState: "clean",
@@ -115,6 +115,7 @@ describe("createFeedbackSummary", () => {
   ): PRReviewThread => ({
     id: String(Math.floor(Math.random() * 1000)),
     isResolved,
+    isInProgress: false,
     comments: Array.from({ length: commentCount }, (_, i) => ({
       id: i,
       body: `Comment ${i}`,
@@ -147,6 +148,7 @@ describe("createFeedbackSummary", () => {
       comments: {
         unresolved: [createThread(2), createThread(3)],
         resolved: [],
+        inProgress: [],
       },
     });
     const summary = createFeedbackSummary(feedback);
@@ -158,6 +160,7 @@ describe("createFeedbackSummary", () => {
       comments: {
         unresolved: [],
         resolved: [createThread(1, true), createThread(2, true)],
+        inProgress: [],
       },
     });
     const summary = createFeedbackSummary(feedback);
