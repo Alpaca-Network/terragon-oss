@@ -27,7 +27,8 @@
     "inspect": "pnpx @modelcontextprotocol/inspector node dist/bundled.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.6"
+    "@modelcontextprotocol/sdk": "^1.0.6",
+    "@terragon/agent": "workspace:*"
   },
   "devDependencies": {
     "@terragon/tsconfig": "workspace:*",

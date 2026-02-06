@@ -136,6 +136,12 @@ export const featureFlagsDefinitions = {
     description:
       "Enables the Gatewayz Code Router integration, allowing intelligent model selection based on optimization mode (balanced, price, or quality).",
   },
+  claudeCodeSkillsIntegration: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables Claude Code skills integration (.claude/skills/), allowing users to create and invoke custom skills via /skill-name commands.",
+  },
 } as const satisfies Record<string, FeatureFlagDefinition>;
 
 export type FeatureFlagName = keyof typeof featureFlagsDefinitions;
