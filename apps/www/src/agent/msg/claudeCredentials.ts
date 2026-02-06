@@ -16,6 +16,29 @@ import {
 
 const API_BASE_URL = "https://api.anthropic.com";
 
+/**
+ * Validate a Claude access token by calling the profile API.
+ * Returns true if the token is valid, false otherwise.
+ */
+export async function validateClaudeAccessToken(
+  accessToken: string,
+): Promise<boolean> {
+  try {
+    const profileUrl = `${API_BASE_URL}/api/oauth/profile`;
+    const response = await fetch(profileUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("[validateClaudeAccessToken] Failed to validate token");
+    return false;
+  }
+}
+
 interface OAuthProfile {
   account?: {
     uuid: string;
