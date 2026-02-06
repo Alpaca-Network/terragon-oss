@@ -58,11 +58,13 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
     createNewBranch,
     autoFixFeedback,
     autoMergePR,
+    codexTier,
     setSkipSetup,
     setDisableGitCheckpointing,
     setCreateNewBranch,
     setAutoFixFeedback,
     setAutoMergePR,
+    setCodexTier,
   } = usePromptBoxToolBeltOptions({
     branchName,
     shouldUseCookieValues: true,
@@ -117,6 +119,7 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
             skipSetup,
             autoFixFeedback,
             autoMergePR,
+            codexTier,
           }),
         );
 
@@ -148,6 +151,7 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
       skipSetup,
       autoFixFeedback,
       autoMergePR,
+      codexTier,
       queryClient,
       onOpenChange,
     ],
@@ -188,6 +192,8 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
             supportSaveAsDraft={true}
             supportSchedule={true}
             supportMultiAgentPromptSubmission={true}
+            codexTier={codexTier}
+            onCodexTierChange={setCodexTier}
           />
 
           <div className="flex items-center justify-between">

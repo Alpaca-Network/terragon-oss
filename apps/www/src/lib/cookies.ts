@@ -11,6 +11,7 @@ export const threadListCollapsedKey = "thread-list-collapsed";
 export const secondaryPaneClosedKey = "secondary-panel-closed";
 export const secondaryPanelViewKey = "secondary-panel-view";
 export const dashboardViewModeKey = "dashboard-view-mode";
+export const codexTierKey = "codex-tier";
 
 export type ThreadListGroupBy = "lastUpdated" | "repository" | "createdAt";
 export type DashboardViewMode = "list" | "kanban" | "new-project";
@@ -24,6 +25,9 @@ export type SecondaryPanelView =
   | "coverage"
   | "merge";
 export const defaultSecondaryPanelView: SecondaryPanelView = "files-changed";
+
+export type CodexTierCookie = "none" | "low" | "medium" | "high" | "xhigh";
+export const defaultCodexTier: CodexTierCookie = "medium";
 
 export type CollapsedSections = {
   [key: string]: boolean;
@@ -47,6 +51,7 @@ export type UserCookies = {
   [secondaryPaneClosedKey]?: boolean;
   [secondaryPanelViewKey]?: SecondaryPanelView;
   [dashboardViewModeKey]?: DashboardViewMode;
+  [codexTierKey]?: CodexTierCookie;
 };
 
 export const defaultTimeZone = "UTC";
@@ -65,6 +70,7 @@ export const getDefaultUserCookies = (): UserCookies => {
     [secondaryPaneClosedKey]: false,
     [secondaryPanelViewKey]: defaultSecondaryPanelView,
     [dashboardViewModeKey]: defaultDashboardViewMode,
+    [codexTierKey]: defaultCodexTier,
   };
 };
 
