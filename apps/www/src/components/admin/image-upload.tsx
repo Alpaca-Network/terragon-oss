@@ -65,6 +65,11 @@ export function AdminImageUpload() {
         xhr.onerror = () => reject(new Error("Upload failed"));
 
         xhr.open("PUT", presignedUrl);
+        // IMPORTANT: Presigned URLs contain authentication in the URL itself.
+        // We must explicitly not send credentials to prevent cookies or other auth
+        // headers from being sent, which would cause R2 to return
+        // "InvalidArgument: Authorization" error.
+        xhr.withCredentials = false;
         xhr.setRequestHeader("Content-Type", file.type);
         xhr.send(file);
       });
