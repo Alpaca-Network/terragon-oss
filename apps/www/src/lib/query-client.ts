@@ -10,6 +10,9 @@ export function getOrCreateQueryClient(): QueryClient {
       defaultOptions: {
         queries: {
           staleTime: 60 * 1000,
+          gcTime: 5 * 60 * 1000, // 5 min garbage collection
+          refetchOnWindowFocus: false, // Prevent refetch spam on tab switch
+          retry: 1, // Reduce retries (default is 3)
         },
       },
     });

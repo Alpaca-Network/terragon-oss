@@ -118,10 +118,31 @@ export function UserAtomsHydrator({
 
   useEffect(() => {
     if (user) {
-      posthog.identify(user.id, {
-        name: user.name,
-        email: user.email,
-      });
+      // Defer analytics to not block Time to Interactive
+      const identify = () => {
+        posthog.identify(user.id, {
+          name: user.name,
+          email: user.email,
+        });
+      };
+
+      let idleCallbackId: number | undefined;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+      if ("requestIdleCallback" in window) {
+        idleCallbackId = requestIdleCallback(identify);
+      } else {
+        timeoutId = setTimeout(identify, 0);
+      }
+
+      return () => {
+        if (idleCallbackId !== undefined) {
+          cancelIdleCallback(idleCallbackId);
+        }
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+        }
+      };
     }
   }, [user]);
   return children;
