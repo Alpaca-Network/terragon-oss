@@ -34,8 +34,8 @@ export function PRFeedbackIndicators({
     queryKey: ["pr-header", threadId],
     queryFn: () => getPRHeader({ threadId }),
     enabled: hasPR,
-    staleTime: 10000, // 10 seconds
-    refetchInterval: 15000, // Refetch every 15 seconds for frequent updates
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds (reduced from 15s to save API calls)
   });
 
   // Comments query - loads in parallel with header
@@ -43,8 +43,8 @@ export function PRFeedbackIndicators({
     queryKey: ["pr-comments", threadId],
     queryFn: () => getPRComments({ threadId }),
     enabled: hasPR && headerQuery.isSuccess,
-    staleTime: 10000,
-    refetchInterval: 15000,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds (reduced from 15s to save API calls)
   });
 
   // Checks query - requires headSha from header
@@ -53,8 +53,8 @@ export function PRFeedbackIndicators({
     queryFn: () =>
       getPRChecks({ threadId, headSha: headerQuery.data?.headSha }),
     enabled: hasPR && headerQuery.isSuccess && !!headerQuery.data?.headSha,
-    staleTime: 10000,
-    refetchInterval: 15000,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every 60 seconds (reduced from 15s to save API calls)
   });
 
   // Don't render anything if no PR
