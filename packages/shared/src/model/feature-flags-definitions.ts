@@ -154,6 +154,12 @@ export const featureFlagsDefinitions = {
     description:
       "Enables Claude Code Agent Teams (experimental), allowing the agent to coordinate multiple Claude Code instances working together as a team with shared tasks and inter-agent messaging.",
   },
+  langfuseTracing: {
+    defaultValue: false,
+    enabledForPreview: false,
+    description:
+      "Enables Langfuse LLM observability tracing for API proxy calls (Anthropic, Gatewayz). Requires LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY environment variables to be configured.",
+  },
 } as const satisfies Record<string, FeatureFlagDefinition>;
 
 export type FeatureFlagName = keyof typeof featureFlagsDefinitions;

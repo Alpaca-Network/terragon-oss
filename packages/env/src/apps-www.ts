@@ -116,4 +116,12 @@ export const env = envsafe({
 
   // Loops (marketing email & events)
   LOOPS_API_KEY: str({ allowEmpty: true, default: "" }),
+
+  // Langfuse (LLM observability)
+  LANGFUSE_SECRET_KEY: str({ allowEmpty: true, default: "" }),
+  LANGFUSE_PUBLIC_KEY: str({ allowEmpty: true, default: "" }),
+  LANGFUSE_HOST: str({
+    allowEmpty: true,
+    default: "https://cloud.langfuse.com",
+  }),
 });
