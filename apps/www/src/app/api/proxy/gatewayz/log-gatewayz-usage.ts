@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { gatewayZUsageEvents } from "@terragon/shared/db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { traceGeneration } from "@/lib/langfuse";
 
 type UsagePayload = {
   prompt_tokens?: number | null;
@@ -52,6 +53,25 @@ export async function logGatewayZUsage({
   if (totalTokens <= 0) {
     return;
   }
+
+  // Trace to Langfuse for observability (await to ensure completion in serverless)
+  await traceGeneration({
+    traceId: gwRequestId ?? undefined,
+    name: "gatewayz-proxy",
+    userId,
+    model,
+    provider: provider ?? "gatewayz",
+    usage: {
+      promptTokens: inputTokens,
+      completionTokens: outputTokens,
+      totalTokens,
+    },
+    metadata: {
+      path,
+      gwRequestId,
+      upstreamProvider: provider,
+    },
+  });
 
   try {
     await db.insert(gatewayZUsageEvents).values({

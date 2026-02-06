@@ -284,6 +284,9 @@ const threadChatShared = {
     .default("allowAll"),
   loopConfig: jsonb("loop_config").$type<LoopConfig>(),
   lastUsedModel: text("last_used_model").$type<AIModel>(),
+  codexTier: text("codex_tier")
+    .$type<"none" | "low" | "medium" | "high" | "xhigh">()
+    .default("medium"),
 };
 
 export const thread = pgTable(

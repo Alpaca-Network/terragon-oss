@@ -170,13 +170,16 @@ export async function maybeQueueAutoFixFollowUp({
     source: "github",
   });
 
-  // Increment iteration count
+  // Increment iteration count and record queue timestamp
+  // The timestamp is used to auto-resolve PR comments that existed before this queue time
+  const queuedAt = new Date();
   await updateThread({
     db,
     userId,
     threadId,
     updates: {
       autoFixIterationCount: currentIterations + 1,
+      autoFixQueuedAt: queuedAt,
     },
   });
 

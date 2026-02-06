@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { logAnthropicUsage } from "../log-anthropic-usage";
 import { validateProxyRequestModel } from "@/server-lib/proxy-model-validation";
 import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
+import { waitUntil } from "@vercel/functions";
 
 const ANTHROPIC_API_BASE = "https://api.anthropic.com/";
 const DEFAULT_ANTHROPIC_PATH = "v1/messages";
@@ -425,13 +426,16 @@ async function proxyRequest(
           id?: string | null;
         };
         if (json?.usage) {
-          await logAnthropicUsage({
-            path: targetUrl.pathname,
-            usage: json.usage,
-            userId: authContext.userId,
-            model: json.model ?? null,
-            messageId: json.id ?? null,
-          });
+          // Use waitUntil to avoid blocking the response
+          waitUntil(
+            logAnthropicUsage({
+              path: targetUrl.pathname,
+              usage: json.usage,
+              userId: authContext.userId,
+              model: json.model ?? null,
+              messageId: json.id ?? null,
+            }),
+          );
         }
       } catch (error) {
         console.error("Failed to log Anthropic messages usage (json)", error);

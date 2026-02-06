@@ -151,6 +151,11 @@ export const enableAutoMerge = userOnlyAction(
             "Cannot enable auto-merge due to branch protection rules.",
           );
         }
+        if (errorMessage.includes("unstable status")) {
+          throw new UserFacingError(
+            "Cannot enable auto-merge: PR has failing checks. Auto-merge will be enabled once all checks pass.",
+          );
+        }
 
         throw new UserFacingError(
           `Failed to enable auto-merge: ${errorMessage}`,

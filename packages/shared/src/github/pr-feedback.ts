@@ -34,6 +34,7 @@ type GraphQLReviewThread = {
   comments: {
     nodes: Array<{
       databaseId: number;
+      createdAt: string;
     }>;
   };
 };
@@ -52,6 +53,15 @@ type GraphQLReviewThreadsResponse = {
   };
 };
 
+// Extended type for threads that can be resolved
+export type ResolvableReviewThread = {
+  graphqlId: string;
+  databaseId: number;
+  isResolved: boolean;
+  isOutdated: boolean;
+  createdAt: string;
+};
+
 // GraphQL query to fetch review thread resolution status
 const REVIEW_THREADS_QUERY = `
   query GetReviewThreads($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
@@ -65,6 +75,7 @@ const REVIEW_THREADS_QUERY = `
             comments(first: 1) {
               nodes {
                 databaseId
+                createdAt
               }
             }
           }
@@ -73,6 +84,18 @@ const REVIEW_THREADS_QUERY = `
             endCursor
           }
         }
+      }
+    }
+  }
+`;
+
+// GraphQL mutation to resolve a review thread
+const RESOLVE_REVIEW_THREAD_MUTATION = `
+  mutation ResolveReviewThread($threadId: ID!) {
+    resolveReviewThread(input: { threadId: $threadId }) {
+      thread {
+        id
+        isResolved
       }
     }
   }
@@ -588,6 +611,147 @@ export const COVERAGE_INTEGRATION_OPTIONS = [
     description: "Code quality and security with coverage",
   },
 ] as const;
+
+/**
+ * Fetches all unresolved review threads with their GraphQL IDs (needed for resolution).
+ * Returns threads that can be resolved programmatically.
+ */
+export async function fetchUnresolvedReviewThreads(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<ResolvableReviewThread[]> {
+  const threads: ResolvableReviewThread[] = [];
+
+  let cursor: string | null = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    try {
+      const response: GraphQLReviewThreadsResponse =
+        await octokit.graphql<GraphQLReviewThreadsResponse>(
+          REVIEW_THREADS_QUERY,
+          {
+            owner,
+            repo,
+            prNumber,
+            cursor,
+          },
+        );
+
+      const reviewThreads = response.repository.pullRequest?.reviewThreads;
+      const nodes = reviewThreads?.nodes || [];
+
+      for (const thread of nodes) {
+        // Only include unresolved threads that aren't outdated
+        if (!thread.isResolved && !thread.isOutdated) {
+          const firstComment = thread.comments.nodes[0];
+          if (firstComment?.databaseId && firstComment?.createdAt) {
+            threads.push({
+              graphqlId: thread.id,
+              databaseId: firstComment.databaseId,
+              isResolved: thread.isResolved,
+              isOutdated: thread.isOutdated,
+              createdAt: firstComment.createdAt,
+            });
+          }
+        }
+      }
+
+      hasNextPage = reviewThreads?.pageInfo?.hasNextPage || false;
+      cursor = reviewThreads?.pageInfo?.endCursor || null;
+    } catch (error) {
+      console.warn(
+        "Failed to fetch unresolved review threads via GraphQL:",
+        error,
+      );
+      break;
+    }
+  }
+
+  return threads;
+}
+
+/**
+ * Resolves a single review thread using its GraphQL ID.
+ * Returns true if successfully resolved, false otherwise.
+ */
+export async function resolveReviewThread(
+  octokit: Octokit,
+  threadId: string,
+): Promise<boolean> {
+  try {
+    await octokit.graphql(RESOLVE_REVIEW_THREAD_MUTATION, {
+      threadId,
+    });
+    return true;
+  } catch (error) {
+    console.warn(`Failed to resolve review thread ${threadId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Resolves all unresolved review threads that were created before a given timestamp.
+ * This is useful for auto-resolving comments after the agent has addressed them.
+ *
+ * @param octokit - GitHub Octokit instance
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param prNumber - Pull request number
+ * @param beforeTimestamp - ISO timestamp; threads created before this will be resolved
+ * @returns Object with counts of resolved and failed threads
+ */
+export async function resolveThreadsCreatedBefore(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  beforeTimestamp: string,
+): Promise<{ resolved: number; failed: number; skipped: number }> {
+  const threads = await fetchUnresolvedReviewThreads(
+    octokit,
+    owner,
+    repo,
+    prNumber,
+  );
+
+  const beforeDate = new Date(beforeTimestamp);
+
+  // Separate threads into those to resolve and those to skip
+  const threadsToResolve: ResolvableReviewThread[] = [];
+  let skipped = 0;
+
+  for (const thread of threads) {
+    const threadDate = new Date(thread.createdAt);
+    if (threadDate < beforeDate) {
+      threadsToResolve.push(thread);
+    } else {
+      skipped++;
+    }
+  }
+
+  // Resolve threads in parallel for better performance
+  const results = await Promise.allSettled(
+    threadsToResolve.map((thread) =>
+      resolveReviewThread(octokit, thread.graphqlId),
+    ),
+  );
+
+  let resolved = 0;
+  let failed = 0;
+
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value === true) {
+      resolved++;
+    } else {
+      failed++;
+    }
+  }
+
+  return { resolved, failed, skipped };
+}
 
 // =============================================================================
 // Split Aggregation Functions (for progressive loading)

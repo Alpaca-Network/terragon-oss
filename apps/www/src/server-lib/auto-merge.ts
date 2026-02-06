@@ -138,7 +138,8 @@ export async function maybeEnableAutoMerge({
         errorMessage.includes("not authorized") ||
         errorMessage.includes("Auto-merge is not allowed") ||
         errorMessage.includes("auto-merge is not enabled") ||
-        errorMessage.includes("protected branch")
+        errorMessage.includes("protected branch") ||
+        errorMessage.includes("unstable status")
       ) {
         console.log(
           `Could not enable auto-merge for PR #${prNumber}: ${errorMessage}`,

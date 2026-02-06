@@ -259,6 +259,33 @@ describe("enableAutoMerge", () => {
       "You are not authorized to enable auto-merge on this PR",
     );
   });
+
+  it("should handle unstable status error when PR has failing checks", async () => {
+    const { session } = await createTestUser({ db });
+    await mockLoggedInUser(session);
+
+    const prDetails = {
+      node_id: "PR_123",
+      merged: false,
+      state: "open",
+      auto_merge: null,
+    };
+
+    mockOctokit.rest.pulls.get.mockResolvedValue({ data: prDetails });
+    mockOctokit.graphql.mockRejectedValue({
+      errors: [{ message: "Pull request is in unstable status" }],
+    });
+
+    const result = await enableAutoMerge({
+      repoFullName: "owner/repo",
+      prNumber: 123,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain(
+      "Cannot enable auto-merge: PR has failing checks",
+    );
+  });
 });
 
 describe("disableAutoMerge", () => {

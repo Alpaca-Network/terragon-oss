@@ -35,6 +35,11 @@ export async function uploadFileToR2({
       "Content-Type": file.type,
     },
     body: buffer,
+    // IMPORTANT: Presigned URLs contain authentication in the URL itself.
+    // We must explicitly omit credentials to prevent the browser from sending
+    // cookies or other auth headers, which would cause R2 to return
+    // "InvalidArgument: Authorization" error.
+    credentials: "omit",
   });
   if (!uploadResponse.ok) {
     throw new Error(`Upload failed: ${await uploadResponse.text()}`);

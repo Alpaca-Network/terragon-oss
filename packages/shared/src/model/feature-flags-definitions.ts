@@ -136,6 +136,30 @@ export const featureFlagsDefinitions = {
     description:
       "Enables the Gatewayz Code Router integration, allowing intelligent model selection based on optimization mode (balanced, price, or quality).",
   },
+  claudeCodeSkillsIntegration: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables Claude Code skills integration (.claude/skills/), allowing users to create and invoke custom skills via /skill-name commands.",
+  },
+  codexTierSelector: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables the Codex tier selector in the prompt box, allowing users to control reasoning effort level (none/low/medium/high/xhigh) for OpenAI Codex and Claude extended thinking.",
+  },
+  claudeCodeAgentTeams: {
+    defaultValue: false,
+    enabledForPreview: true,
+    description:
+      "Enables Claude Code Agent Teams (experimental), allowing the agent to coordinate multiple Claude Code instances working together as a team with shared tasks and inter-agent messaging.",
+  },
+  langfuseTracing: {
+    defaultValue: false,
+    enabledForPreview: false,
+    description:
+      "Enables Langfuse LLM observability tracing for API proxy calls (Anthropic, Gatewayz). Requires LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY environment variables to be configured.",
+  },
 } as const satisfies Record<string, FeatureFlagDefinition>;
 
 export type FeatureFlagName = keyof typeof featureFlagsDefinitions;

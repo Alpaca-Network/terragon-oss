@@ -456,6 +456,9 @@ importers:
       jotai:
         specifier: ^2.12.4
         version: 2.12.4(@types/react@19.1.8)(react@19.1.2)
+      langfuse:
+        specifier: ^3.38.6
+        version: 3.38.6
       loops:
         specifier: ^6.0.0
         version: 6.0.0
@@ -809,6 +812,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.6
         version: 1.12.1
+      '@terragon/agent':
+        specifier: workspace:*
+        version: link:../agent
     devDependencies:
       '@terragon/tsconfig':
         specifier: workspace:*
@@ -8212,6 +8218,14 @@ packages:
   kysely@0.28.7:
     resolution: {integrity: sha512-u/cAuTL4DRIiO2/g4vNGRgklEKNIj5Q3CG7RoUB5DV5SfEC2hMvPxKi0GWPmnzwL2ryIeud2VTcEEmqzTzEPNw==}
     engines: {node: '>=20.0.0'}
+
+  langfuse-core@3.38.6:
+    resolution: {integrity: sha512-EcZXa+DK9FJdi1I30+u19eKjuBJ04du6j2Nybk19KKCuraLczg/ppkTQcGvc4QOk//OAi3qUHrajUuV74RXsBQ==}
+    engines: {node: '>=18'}
+
+  langfuse@3.38.6:
+    resolution: {integrity: sha512-mtwfsNGIYvObRh+NYNGlJQJDiBN+Wr3Hnr++wN25mxuOpSTdXX+JQqVCyAqGL5GD2TAXRZ7COsN42Vmp9krYmg==}
+    engines: {node: '>=18'}
 
   language-subtag-registry@0.3.23:
     resolution: {integrity: sha512-0K65Lea881pHotoGEa5gDlMxt3pctLi2RplBb7Ezh4rRdLEOtgi7n4EwK9lamnUCkKBqaeKRVebTq6BAxSkpXQ==}
@@ -19583,6 +19597,14 @@ snapshots:
   ky@1.8.1: {}
 
   kysely@0.28.7: {}
+
+  langfuse-core@3.38.6:
+    dependencies:
+      mustache: 4.2.0
+
+  langfuse@3.38.6:
+    dependencies:
+      langfuse-core: 3.38.6
 
   language-subtag-registry@0.3.23: {}
 

@@ -229,6 +229,7 @@ export type ThreadInfo = Omit<
   | "contextLength"
   | "messages"
   | "gitDiff"
+  | "codexTier"
 > & {
   isUnread: boolean;
   visibility: ThreadVisibility | null;
@@ -385,6 +386,11 @@ export type UserCredit = typeof schema.userCredits.$inferSelect;
 export type UserCreditInsert = typeof schema.userCredits.$inferInsert;
 
 export type GatewayZTier = "free" | "pro" | "max";
+
+// Codex reasoning effort tiers - controls how much thinking the model does
+// Maps to OpenAI's reasoning.effort parameter and Claude's extended thinking budget
+export type CodexTier = "none" | "low" | "medium" | "high" | "xhigh";
+export const defaultCodexTier: CodexTier = "medium";
 
 export type UserCredentials = {
   hasClaude: boolean;
