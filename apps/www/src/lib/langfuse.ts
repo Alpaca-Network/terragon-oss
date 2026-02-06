@@ -174,7 +174,7 @@ export async function traceGeneration(
         : undefined,
       costDetails:
         params.totalCost !== undefined
-          ? { totalCost: params.totalCost }
+          ? { total: params.totalCost }
           : undefined,
       metadata: {
         provider: params.provider,
