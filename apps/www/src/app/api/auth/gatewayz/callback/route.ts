@@ -5,6 +5,7 @@ import {
   connectGatewayZToExistingUser,
 } from "@/lib/gatewayz-auth-server";
 import { getUserIdOrNull } from "@/lib/auth-server";
+import { validateReturnUrl } from "@/lib/url-validation";
 
 /**
  * Get the base URL for redirects.
@@ -176,7 +177,11 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const baseUrl = getBaseUrl(request);
     const token = url.searchParams.get("gwauth");
-    const returnUrl = url.searchParams.get("returnUrl") || "/dashboard";
+    const rawReturnUrl = url.searchParams.get("returnUrl") || "/dashboard";
+    // Validate returnUrl to prevent open redirect vulnerabilities
+    // This is a defense-in-depth measure since initiate already validates,
+    // but attackers could craft direct callback URLs bypassing initiate
+    const returnUrl = validateReturnUrl(rawReturnUrl, baseUrl);
     const embed = url.searchParams.get("embed") === "true";
     const mode = url.searchParams.get("mode") || "login"; // "login" or "connect"
 

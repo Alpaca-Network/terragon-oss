@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { publicAppUrl } from "@terragon/env/next-public";
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "@/lib/redis";
+import { validateReturnUrl } from "@/lib/url-validation";
 
 /**
  * Rate limiter for Gatewayz auth initiation
@@ -18,36 +19,6 @@ const authInitiateRateLimit = new Ratelimit({
  */
 function getGatewayZUrl(): string {
   return process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://gatewayz.ai";
-}
-
-/**
- * Validate that the returnUrl is a safe relative path or same-origin URL.
- * Prevents open redirect vulnerabilities.
- */
-function validateReturnUrl(returnUrl: string, baseUrl: string): string {
-  // Default to dashboard if empty
-  if (!returnUrl) {
-    return "/dashboard";
-  }
-
-  // Allow relative paths starting with /
-  if (returnUrl.startsWith("/") && !returnUrl.startsWith("//")) {
-    return returnUrl;
-  }
-
-  // Check if it's a same-origin absolute URL
-  try {
-    const parsedUrl = new URL(returnUrl);
-    const parsedBase = new URL(baseUrl);
-    if (parsedUrl.origin === parsedBase.origin) {
-      return parsedUrl.pathname + parsedUrl.search;
-    }
-  } catch {
-    // Invalid URL, fall through to default
-  }
-
-  // Default to dashboard for invalid or external URLs
-  return "/dashboard";
 }
 
 /**
