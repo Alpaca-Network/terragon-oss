@@ -303,6 +303,8 @@ function SystemMessage({ message }: { message: UISystemMessage }) {
         return "Scheduled task cancelled.";
       case "fix-github-checks":
         return "Fixing GitHub Checks...";
+      case "unknown-slash-command":
+        return message.parts[0]?.text ?? "Unknown slash command.";
       case "stop":
       case "git-diff":
         return "";
@@ -318,6 +320,7 @@ function SystemMessage({ message }: { message: UISystemMessage }) {
       case "fix-github-checks":
       case "generic-retry":
       case "invalid-token-retry":
+      case "unknown-slash-command":
         return "bg-red-500";
       case "clear-context":
       case "compact-result":
