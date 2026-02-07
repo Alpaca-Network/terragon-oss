@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GenericPromptBox } from "@/components/promptbox/generic-promptbox";
-import { RepoBranchSelector } from "@/components/repo-branch-selector";
+import { RepoBranchHeader } from "@/components/repo-branch-header";
 import {
   useSelectedRepo,
   useSelectedBranch,
@@ -169,6 +169,11 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
 
         <div className="space-y-3 flex-1 overflow-y-auto min-h-0 py-2">
           <div className="flex items-center gap-2">
+            <RepoBranchHeader
+              selectedRepoFullName={repoFullName || null}
+              selectedBranch={branchName || null}
+              onChange={handleRepoBranchChange}
+            />
             <BacklogTemplatePicker
               onTemplateSelect={handleTemplateSelect}
               selectedTemplateId={selectedTemplate?.id}
@@ -194,15 +199,17 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
             supportMultiAgentPromptSubmission={true}
             codexTier={codexTier}
             onCodexTierChange={setCodexTier}
+            showAutoFixFeedback={true}
+            autoFixFeedbackValue={autoFixFeedback}
+            onAutoFixFeedbackChange={setAutoFixFeedback}
+            autoFixFeedbackDisabled={!repoFullName}
+            showAutoMergePR={true}
+            autoMergePRValue={autoMergePR}
+            onAutoMergePRChange={setAutoMergePR}
+            autoMergePRDisabled={!repoFullName}
           />
 
-          <div className="flex items-center justify-between">
-            <RepoBranchSelector
-              selectedRepoFullName={repoFullName || null}
-              selectedBranch={branchName || null}
-              onChange={handleRepoBranchChange}
-            />
-
+          <div className="flex items-center justify-end">
             <PromptBoxToolBelt
               showSkipSetup={true}
               skipSetupValue={skipSetup}
@@ -216,14 +223,6 @@ function NewTaskDialogInner({ open, onOpenChange }: NewTaskDialogProps) {
               createNewBranchValue={createNewBranch}
               onCreateNewBranchChange={setCreateNewBranch}
               createNewBranchDisabled={!repoFullName}
-              showAutoFixFeedback={true}
-              autoFixFeedbackValue={autoFixFeedback}
-              onAutoFixFeedbackChange={setAutoFixFeedback}
-              autoFixFeedbackDisabled={!repoFullName}
-              showAutoMergePR={true}
-              autoMergePRValue={autoMergePR}
-              onAutoMergePRChange={setAutoMergePR}
-              autoMergePRDisabled={!repoFullName}
             />
           </div>
 

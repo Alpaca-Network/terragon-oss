@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useImperativeHandle } from "react";
 import { usePromptBox, HandleSubmit, HandleStop } from "./use-promptbox";
 import { useRepositoryCache } from "./typeahead/repository-cache";
+import { usePromptBoxToolBeltOptions } from "./prompt-box-tool-belt";
 import { isAgentStoppable, isAgentWorking } from "@/agent/thread-status";
 import {
   ThreadStatus,
@@ -48,6 +49,13 @@ export const ThreadPromptBox = React.forwardRef<
 >((props, ref) => {
   const [isRecording, setIsRecording] = useState(false);
   const isWorking = props.status !== null && isAgentWorking(props.status);
+
+  const { autoFixFeedback, autoMergePR, setAutoFixFeedback, setAutoMergePR } =
+    usePromptBoxToolBeltOptions({
+      branchName: props.branchName,
+      shouldUseCookieValues: true,
+    });
+
   const repositoryCache = useRepositoryCache({
     repoFullName: props.repoFullName,
     branchName: props.branchName,
@@ -176,6 +184,12 @@ export const ThreadPromptBox = React.forwardRef<
         onTaskModeChange={setTaskMode}
         loopConfig={loopConfig}
         onLoopConfigChange={setLoopConfig}
+        showAutoFixFeedback={true}
+        autoFixFeedbackValue={autoFixFeedback}
+        onAutoFixFeedbackChange={setAutoFixFeedback}
+        showAutoMergePR={true}
+        autoMergePRValue={autoMergePR}
+        onAutoMergePRChange={setAutoMergePR}
       />
     </div>
   );
