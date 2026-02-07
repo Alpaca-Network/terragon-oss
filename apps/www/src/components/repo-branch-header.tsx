@@ -32,9 +32,13 @@ function RepoBranchHeaderInner({
   const repoDisplayName = selectedRepoFullName?.split("/")[1] || null;
 
   const handleChange = (repoFullName: string | null, branch: string | null) => {
+    const repoChanged = repoFullName !== selectedRepoFullName;
+    const branchChanged = branch !== selectedBranch;
+
     onChange(repoFullName, branch);
-    // Close popover after selection
-    if (repoFullName && branch) {
+
+    // Close popover when user makes a selection (repo or branch changes)
+    if (repoChanged || branchChanged) {
       setOpen(false);
     }
   };
