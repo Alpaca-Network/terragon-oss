@@ -45,23 +45,33 @@ export const getStripeCheckoutUrl = userOnlyAction(
     const cancelUrl = `${publicAppUrl()}/settings/billing?checkout=cancelled`;
 
     // Use Better Auth's Stripe plugin to create the checkout session
-    const res = await auth.api.upgradeSubscription({
-      body: {
-        plan: normalizedPlan,
-        successUrl,
-        cancelUrl,
-        disableRedirect: true,
-        subscriptionId: subscription?.id,
-      },
-      headers: await headers(),
-    });
-    // The stripe plugin may return either a redirect object or a Checkout Session.
-    const url: string | null | undefined =
-      ("redirect" in res ? (res as { url: string }).url : undefined) ??
-      ("id" in res && (res as any).object === "checkout.session"
-        ? (res as { url?: string | null }).url
-        : undefined);
+    let res: Record<string, unknown>;
+    try {
+      res = (await auth.api.upgradeSubscription({
+        body: {
+          plan: normalizedPlan,
+          successUrl,
+          cancelUrl,
+          disableRedirect: true,
+          subscriptionId: subscription?.id,
+        },
+        headers: await headers(),
+      })) as Record<string, unknown>;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("Stripe upgradeSubscription failed:", message, error);
+      throw new UserFacingError(
+        `Failed to get Stripe checkout URL: ${message}`,
+      );
+    }
+    // Both response paths (billing portal upgrade and new checkout session)
+    // include a `url` property at the top level.
+    const url = typeof res?.url === "string" ? res.url : undefined;
     if (!url) {
+      console.error(
+        "Stripe upgradeSubscription returned no url. Response keys:",
+        Object.keys(res ?? {}),
+      );
       throw new UserFacingError("Failed to get Stripe checkout URL");
     }
     return url;
