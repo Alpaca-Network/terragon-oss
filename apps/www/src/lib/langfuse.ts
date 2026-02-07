@@ -26,10 +26,6 @@ async function checkLangfuseFeatureFlag(): Promise<boolean> {
     langfuseEnabledCache !== null &&
     now - langfuseEnabledCacheTime < CACHE_TTL_MS
   ) {
-    console.log(
-      "[Langfuse] Using cached feature flag value:",
-      langfuseEnabledCache,
-    );
     return langfuseEnabledCache;
   }
 
@@ -38,19 +34,11 @@ async function checkLangfuseFeatureFlag(): Promise<boolean> {
       db,
       name: "langfuseTracing",
     });
-    console.log(
-      "[Langfuse] Feature flag globalOverride check result:",
-      enabled,
-      "- If false, ensure Global Override is set to ON in admin panel",
-    );
     langfuseEnabledCache = enabled;
     langfuseEnabledCacheTime = now;
     return enabled;
   } catch (error) {
-    console.error(
-      "[Langfuse] Failed to check langfuseTracing feature flag:",
-      error,
-    );
+    console.error("Failed to check langfuseTracing feature flag:", error);
     // Cache as disabled so we don't hammer the DB on repeated failures
     langfuseEnabledCache = false;
     langfuseEnabledCacheTime = now;
@@ -149,9 +137,6 @@ export async function traceGeneration(
 ): Promise<void> {
   // Quick sync check - skip if not configured
   if (!isLangfuseConfigured()) {
-    console.log(
-      "[Langfuse] Skipping trace - not configured (missing API keys)",
-    );
     return;
   }
 
@@ -159,16 +144,8 @@ export async function traceGeneration(
     // Check feature flag (with caching)
     const isEnabled = await checkLangfuseFeatureFlag();
     if (!isEnabled) {
-      console.log("[Langfuse] Skipping trace - feature flag disabled");
       return;
     }
-
-    console.log(
-      "[Langfuse] Tracing generation:",
-      params.name,
-      "for user:",
-      params.userId,
-    );
 
     const langfuse = getLangfuse();
     if (!langfuse) {
@@ -213,13 +190,9 @@ export async function traceGeneration(
 
     // Flush events to ensure delivery before promise resolves (critical for serverless)
     await langfuse.flushAsync();
-    console.log(
-      "[Langfuse] Successfully flushed generation trace:",
-      params.name,
-    );
   } catch (error) {
     // Silently fail - observability should not break the main flow
-    console.error("[Langfuse] Failed to trace generation:", error);
+    console.error("Failed to trace generation in Langfuse:", error);
   }
 }
 
