@@ -15,7 +15,7 @@ import {
   useSelectedRepo,
   useSelectedBranch,
 } from "@/hooks/useSelectedRepoAndBranch";
-import { RepoBranchSelector } from "../repo-branch-selector";
+import { RepoBranchHeader } from "../repo-branch-header";
 import { CredentialsWarning } from "./credentials-warning";
 import { useCredentialInfoForAgent } from "@/atoms/user-credentials";
 import {
@@ -173,6 +173,12 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
 
   return (
     <div className="flex flex-col gap-2">
+      <RepoBranchHeader
+        selectedRepoFullName={repoFullName || null}
+        selectedBranch={branchName || null}
+        onChange={onRepoBranchChange}
+        className="self-start -mb-1"
+      />
       <SimplePromptBox
         forcedAgent={null}
         forcedAgentVersion={null}
@@ -199,15 +205,17 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
         supportSchedule={true}
         taskMode={taskMode}
         onTaskModeChange={setTaskMode}
+        showAutoFixFeedback={true}
+        autoFixFeedbackValue={autoFixFeedback}
+        onAutoFixFeedbackChange={setAutoFixFeedback}
+        autoFixFeedbackDisabled={!repoFullName}
+        showAutoMergePR={true}
+        autoMergePRValue={autoMergePR}
+        onAutoMergePRChange={setAutoMergePR}
+        autoMergePRDisabled={!repoFullName}
       />
       <CredentialsWarning selectedModel={selectedModel} />
-      <div className="flex items-center justify-between w-full">
-        <RepoBranchSelector
-          selectedRepoFullName={repoFullName || null}
-          selectedBranch={branchName || null}
-          onChange={onRepoBranchChange}
-        />
-
+      <div className="flex items-center justify-end w-full">
         <PromptBoxToolBelt
           showSkipSetup={true}
           skipSetupValue={skipSetup}
@@ -221,14 +229,6 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
           createNewBranchValue={createNewBranch}
           onCreateNewBranchChange={setCreateNewBranch}
           createNewBranchDisabled={!repoFullName}
-          showAutoFixFeedback={true}
-          autoFixFeedbackValue={autoFixFeedback}
-          onAutoFixFeedbackChange={setAutoFixFeedback}
-          autoFixFeedbackDisabled={!repoFullName}
-          showAutoMergePR={true}
-          autoMergePRValue={autoMergePR}
-          onAutoMergePRChange={setAutoMergePR}
-          autoMergePRDisabled={!repoFullName}
         />
       </div>
       {/* Smart Context Section */}

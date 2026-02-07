@@ -59,6 +59,14 @@ export function GenericPromptBox({
   hideCodexTierSelector = false,
   codexTier,
   onCodexTierChange,
+  showAutoFixFeedback = false,
+  autoFixFeedbackValue = false,
+  onAutoFixFeedbackChange,
+  autoFixFeedbackDisabled = false,
+  showAutoMergePR = false,
+  autoMergePRValue = false,
+  onAutoMergePRChange,
+  autoMergePRDisabled = false,
 }: {
   message: DBUserMessage;
   className?: string;
@@ -84,6 +92,14 @@ export function GenericPromptBox({
   hideCodexTierSelector?: boolean;
   codexTier?: CodexTier;
   onCodexTierChange?: (tier: CodexTier) => void;
+  showAutoFixFeedback?: boolean;
+  autoFixFeedbackValue?: boolean;
+  onAutoFixFeedbackChange?: (value: boolean) => void;
+  autoFixFeedbackDisabled?: boolean;
+  showAutoMergePR?: boolean;
+  autoMergePRValue?: boolean;
+  onAutoMergePRChange?: (value: boolean) => void;
+  autoMergePRDisabled?: boolean;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const repositoryCache = useRepositoryCache({
@@ -219,6 +235,14 @@ export function GenericPromptBox({
       hideCodexTierSelector={hideCodexTierSelector}
       codexTier={codexTier}
       onCodexTierChange={onCodexTierChange}
+      showAutoFixFeedback={showAutoFixFeedback}
+      autoFixFeedbackValue={autoFixFeedbackValue}
+      onAutoFixFeedbackChange={onAutoFixFeedbackChange}
+      autoFixFeedbackDisabled={autoFixFeedbackDisabled}
+      showAutoMergePR={showAutoMergePR}
+      autoMergePRValue={autoMergePRValue}
+      onAutoMergePRChange={onAutoMergePRChange}
+      autoMergePRDisabled={autoMergePRDisabled}
     />
   );
 }
