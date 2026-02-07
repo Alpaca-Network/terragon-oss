@@ -147,6 +147,64 @@ describe("validateReturnUrl", () => {
     });
   });
 
+  describe("URL query parameter handling", () => {
+    it("should work with URL API to add params to URLs with existing query strings", () => {
+      // This tests the pattern used in the callback route to add success/error params
+      const baseUrl = "https://www.terragonlabs.com";
+
+      // Simulate what the callback does: validate returnUrl, then add a param
+      const returnUrl = validateReturnUrl("/settings?tab=agent", baseUrl);
+      const successUrl = new URL(returnUrl, baseUrl);
+      successUrl.searchParams.set("gatewayz_connected", "true");
+
+      // Should properly append with & not ?
+      expect(successUrl.pathname).toBe("/settings");
+      expect(successUrl.searchParams.get("tab")).toBe("agent");
+      expect(successUrl.searchParams.get("gatewayz_connected")).toBe("true");
+      expect(successUrl.toString()).toBe(
+        "https://www.terragonlabs.com/settings?tab=agent&gatewayz_connected=true",
+      );
+    });
+
+    it("should work with URL API to add params to URLs without query strings", () => {
+      const baseUrl = "https://www.terragonlabs.com";
+      const returnUrl = validateReturnUrl("/settings", baseUrl);
+      const successUrl = new URL(returnUrl, baseUrl);
+      successUrl.searchParams.set("gatewayz_connected", "true");
+
+      expect(successUrl.toString()).toBe(
+        "https://www.terragonlabs.com/settings?gatewayz_connected=true",
+      );
+    });
+
+    it("should work with URL API to add error params to URLs with fragments", () => {
+      const baseUrl = "https://www.terragonlabs.com";
+      const returnUrl = validateReturnUrl("/settings#advanced", baseUrl);
+      const errorUrl = new URL(returnUrl, baseUrl);
+      errorUrl.searchParams.set("error", "gatewayz_already_linked");
+
+      // Query params should come before the fragment
+      expect(errorUrl.toString()).toBe(
+        "https://www.terragonlabs.com/settings?error=gatewayz_already_linked#advanced",
+      );
+    });
+
+    it("should work with URL API to add params to URLs with both query and fragment", () => {
+      const baseUrl = "https://www.terragonlabs.com";
+      const returnUrl = validateReturnUrl(
+        "/settings?tab=agent#advanced",
+        baseUrl,
+      );
+      const successUrl = new URL(returnUrl, baseUrl);
+      successUrl.searchParams.set("gatewayz_connected", "true");
+
+      // Should add to existing query, keep fragment at end
+      expect(successUrl.toString()).toBe(
+        "https://www.terragonlabs.com/settings?tab=agent&gatewayz_connected=true#advanced",
+      );
+    });
+  });
+
   describe("attack vectors", () => {
     it("should prevent open redirect via URL encoding", () => {
       // Encoded forward slashes shouldn't bypass the check
