@@ -19,6 +19,30 @@ import { ThreadError } from "./error";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
 import { getSkillContentInternal } from "@/server-lib/github-skills";
 
+// Built-in slash commands that are passed through to the agent (daemon)
+// These are handled by Claude Code or other agents, not the server
+const AGENT_HANDLED_COMMANDS = [
+  "init",
+  "pr-comments",
+  "review",
+  "test-prompt-too-long", // For end-to-end testing
+];
+
+// Server-handled slash commands
+const SERVER_HANDLED_COMMANDS = ["clear", "compact"];
+
+/**
+ * Extract slash command name from message text.
+ * Returns the command name (without /) if the message starts with a slash command pattern,
+ * or null if no slash command is detected.
+ */
+export function extractSlashCommandName(messageText: string): string | null {
+  const trimmed = messageText.trim();
+  // Match /command-name at the start (command names can contain letters, numbers, hyphens, underscores)
+  const match = trimmed.match(/^\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1]! : null;
+}
+
 export interface SlashCommandResult {
   handled: boolean;
   /** If skill was processed, the transformed message (preserves model from original) */
@@ -65,12 +89,23 @@ export async function handleSlashCommand({
     });
   }
 
+  // Check if message starts with a slash command pattern
+  const messageText = convertToPlainText({ message }).trim();
+  const commandName = extractSlashCommandName(messageText);
+
+  // If it's a known agent-handled command, pass through to daemon immediately
+  // This check must happen BEFORE skill checking to avoid blocking valid daemon commands
+  if (commandName && AGENT_HANDLED_COMMANDS.includes(commandName)) {
+    return { handled: false };
+  }
+
   // Check for skill invocation (e.g., /skill-name args)
   // Only process skills if the message has a model (DBUserMessageWithModel)
   if (message.model) {
     const skillResult = await handleSkillInvocation({
       userId,
       threadId,
+      threadChatId,
       message: message as DBUserMessageWithModel,
     });
     if (skillResult.handled || skillResult.transformedMessage) {
@@ -78,8 +113,20 @@ export async function handleSlashCommand({
     }
   }
 
-  // Let /test-prompt-too-long pass through to the daemon for end-to-end testing
-  // The daemon will handle it and send back a mock error response
+  // At this point, if message starts with a slash command that:
+  // - Is not a server-handled command (/clear, /compact)
+  // - Is not a known agent-handled command (/init, /pr-comments, /review)
+  // - Is not a valid skill in the repository
+  // Then it's an unknown command - show error to user
+  if (commandName) {
+    return await handleUnknownSlashCommand({
+      userId,
+      threadId,
+      threadChatId,
+      message,
+      commandName,
+    });
+  }
 
   // No slash command detected
   return {
@@ -205,6 +252,61 @@ async function handleCompactCommand({
   };
 }
 
+async function handleUnknownSlashCommand({
+  userId,
+  threadId,
+  threadChatId,
+  message,
+  commandName,
+}: {
+  userId: string;
+  threadId: string;
+  threadChatId: string;
+  message: DBUserMessage;
+  commandName: string;
+}): Promise<SlashCommandResult> {
+  console.log(`Unknown slash command: /${commandName}`);
+  getPostHogServer().capture({
+    distinctId: userId,
+    event: "slash_command_unknown",
+    properties: {
+      threadId,
+      threadChatId,
+      command: commandName,
+    },
+  });
+
+  // Only show server-handled commands that are guaranteed to work
+  // Agent-handled commands may not be supported depending on the agent/model
+  const systemMessage: DBSystemMessage = {
+    type: "system",
+    message_type: "unknown-slash-command",
+    parts: [
+      {
+        type: "text",
+        text: `Unknown command: /${commandName}. Available commands: ${SERVER_HANDLED_COMMANDS.map((c) => `/${c}`).join(", ")}. You can also use custom slash commands defined in your repository's .claude/commands/ directory.`,
+      },
+    ],
+    timestamp: new Date().toISOString(),
+  };
+
+  await updateThreadChatWithTransition({
+    userId,
+    threadId,
+    threadChatId,
+    eventType: "system.slash-command-done",
+    chatUpdates: {
+      appendMessages: [message, systemMessage],
+      sessionId: null,
+      errorMessage: null,
+      errorMessageInfo: null,
+      contextLength: null,
+    },
+  });
+
+  return { handled: true };
+}
+
 /**
  * Handle skill invocation patterns like /skill-name args.
  * If a valid skill is found, transforms the message to include skill content.
@@ -212,10 +314,12 @@ async function handleCompactCommand({
 async function handleSkillInvocation({
   userId,
   threadId,
+  threadChatId,
   message,
 }: {
   userId: string;
   threadId: string;
+  threadChatId: string;
   message: DBUserMessageWithModel;
 }): Promise<SlashCommandResult> {
   // Check if skills feature is enabled
