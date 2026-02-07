@@ -482,7 +482,9 @@ export const KanbanBoardMobile = memo(function KanbanBoardMobile({
                     getColumnHeaderColor(col.id),
                   )}
                 >
-                  <span className="text-xs font-medium">{col.title}</span>
+                  <span className="text-xs font-medium text-center">
+                    {col.title}
+                  </span>
                   <span
                     className={cn(
                       "text-xs px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center transition-all",
