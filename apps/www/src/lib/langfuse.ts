@@ -38,7 +38,11 @@ async function checkLangfuseFeatureFlag(): Promise<boolean> {
       db,
       name: "langfuseTracing",
     });
-    console.log("[Langfuse] Feature flag check result:", enabled);
+    console.log(
+      "[Langfuse] Feature flag globalOverride check result:",
+      enabled,
+      "- If false, ensure Global Override is set to ON in admin panel",
+    );
     langfuseEnabledCache = enabled;
     langfuseEnabledCacheTime = now;
     return enabled;

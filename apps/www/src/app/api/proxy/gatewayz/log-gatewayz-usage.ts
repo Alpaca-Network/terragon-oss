@@ -31,7 +31,7 @@ export async function logGatewayZUsage({
   gwRequestId?: string | null;
   provider?: string;
 }) {
-  console.log("Gatewayz usage", {
+  console.log("[logGatewayZUsage] Called with:", {
     path,
     usage,
     provider,

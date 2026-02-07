@@ -26,7 +26,7 @@ export async function logAnthropicUsage({
   model?: string | null;
   messageId?: string | null;
 }) {
-  console.log("Anthropic usage", {
+  console.log("[logAnthropicUsage] Called with:", {
     path,
     usage,
     ...(model ? { model } : {}),
