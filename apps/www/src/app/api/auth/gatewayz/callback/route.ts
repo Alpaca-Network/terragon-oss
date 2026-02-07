@@ -231,9 +231,10 @@ export async function GET(request: NextRequest) {
         });
 
         // Redirect back to settings with success message
-        return NextResponse.redirect(
-          new URL(`${returnUrl}?gatewayz_connected=true`, baseUrl),
-        );
+        // Use URL API to properly handle existing query params/fragments
+        const successUrl = new URL(returnUrl, baseUrl);
+        successUrl.searchParams.set("gatewayz_connected", "true");
+        return NextResponse.redirect(successUrl);
       } catch (error) {
         // Handle collision error - GatewayZ account already linked to another user
         if (
@@ -244,9 +245,10 @@ export async function GET(request: NextRequest) {
             userId: existingUserId,
             gwUserId: gwSession.gwUserId,
           });
-          return NextResponse.redirect(
-            new URL(`${returnUrl}?error=gatewayz_already_linked`, baseUrl),
-          );
+          // Use URL API to properly handle existing query params/fragments
+          const errorUrl = new URL(returnUrl, baseUrl);
+          errorUrl.searchParams.set("error", "gatewayz_already_linked");
+          return NextResponse.redirect(errorUrl);
         }
         throw error; // Re-throw other errors
       }
