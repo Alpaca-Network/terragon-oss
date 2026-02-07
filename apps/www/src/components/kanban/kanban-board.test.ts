@@ -574,4 +574,36 @@ describe("Kanban Board Desktop", () => {
       expect(shouldArchivedThreadGoToDone(false)).toBe(false);
     });
   });
+
+  describe("Archived thread deduplication", () => {
+    // Helper that mirrors the deduplication logic in kanban-board.tsx
+    // When a thread appears in both regular threads and archived threads (due to caching race),
+    // we should skip adding it from archived threads to prevent duplicates
+    const shouldSkipArchivedThread = (
+      threadId: string,
+      threadIds: Set<string>,
+    ): boolean => {
+      return threadIds.has(threadId);
+    };
+
+    it("should skip archived thread if it already exists in regular threads", () => {
+      // This handles the race condition where:
+      // 1. Thread is in cached regular threads query
+      // 2. Thread gets archived
+      // 3. Archived query returns the thread
+      // Without deduplication, the thread would appear in multiple columns
+      const threadIds = new Set(["thread-1", "thread-2"]);
+      expect(shouldSkipArchivedThread("thread-1", threadIds)).toBe(true);
+    });
+
+    it("should not skip archived thread if it does not exist in regular threads", () => {
+      const threadIds = new Set(["thread-1", "thread-2"]);
+      expect(shouldSkipArchivedThread("thread-3", threadIds)).toBe(false);
+    });
+
+    it("should handle empty regular threads set", () => {
+      const threadIds = new Set<string>();
+      expect(shouldSkipArchivedThread("thread-1", threadIds)).toBe(false);
+    });
+  });
 });

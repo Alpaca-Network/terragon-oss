@@ -337,6 +337,8 @@ export const KanbanBoard = memo(function KanbanBoard({
     // Always add archived threads to Done column
     // Archived threads should always appear in Done regardless of their status/PR state
     for (const thread of archivedThreads) {
+      // Avoid duplicates (threads that might be in both queries due to caching)
+      if (threadIds.has(thread.id)) continue;
       if (!matchesSearchQuery(thread)) continue;
       groups.done.push(thread);
     }
