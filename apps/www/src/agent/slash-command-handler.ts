@@ -89,6 +89,16 @@ export async function handleSlashCommand({
     });
   }
 
+  // Check if message starts with a slash command pattern
+  const messageText = convertToPlainText({ message }).trim();
+  const commandName = extractSlashCommandName(messageText);
+
+  // If it's a known agent-handled command, pass through to daemon immediately
+  // This check must happen BEFORE skill checking to avoid blocking valid daemon commands
+  if (commandName && AGENT_HANDLED_COMMANDS.includes(commandName)) {
+    return { handled: false };
+  }
+
   // Check for skill invocation (e.g., /skill-name args)
   // Only process skills if the message has a model (DBUserMessageWithModel)
   if (message.model) {
@@ -103,17 +113,12 @@ export async function handleSlashCommand({
     }
   }
 
-  // Check if message starts with a slash command pattern
-  const messageText = convertToPlainText({ message }).trim();
-  const commandName = extractSlashCommandName(messageText);
-
+  // At this point, if message starts with a slash command that:
+  // - Is not a server-handled command (/clear, /compact)
+  // - Is not a known agent-handled command (/init, /pr-comments, /review)
+  // - Is not a valid skill in the repository
+  // Then it's an unknown command - show error to user
   if (commandName) {
-    // Check if it's an agent-handled command (pass through to daemon)
-    if (AGENT_HANDLED_COMMANDS.includes(commandName)) {
-      return { handled: false };
-    }
-
-    // Unknown slash command - show error to user
     return await handleUnknownSlashCommand({
       userId,
       threadId,
@@ -271,18 +276,15 @@ async function handleUnknownSlashCommand({
     },
   });
 
-  const availableCommands = [
-    ...SERVER_HANDLED_COMMANDS,
-    ...AGENT_HANDLED_COMMANDS.filter((cmd) => cmd !== "test-prompt-too-long"),
-  ];
-
+  // Only show server-handled commands that are guaranteed to work
+  // Agent-handled commands may not be supported depending on the agent/model
   const systemMessage: DBSystemMessage = {
     type: "system",
     message_type: "unknown-slash-command",
     parts: [
       {
         type: "text",
-        text: `Unknown command: /${commandName}. Available commands: ${availableCommands.map((c) => `/${c}`).join(", ")}. You can also use custom slash commands defined in your repository's .claude/commands/ directory.`,
+        text: `Unknown command: /${commandName}. Available commands: ${SERVER_HANDLED_COMMANDS.map((c) => `/${c}`).join(", ")}. You can also use custom slash commands defined in your repository's .claude/commands/ directory.`,
       },
     ],
     timestamp: new Date().toISOString(),
