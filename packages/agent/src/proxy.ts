@@ -1,4 +1,9 @@
-export type ModelProvider = "openai" | "openrouter" | "anthropic" | "google";
+export type ModelProvider =
+  | "openai"
+  | "openrouter"
+  | "anthropic"
+  | "google"
+  | "gatewayz";
 
 export type ModelValidationResult =
   | { valid: true }
@@ -55,6 +60,7 @@ const MODEL_PROVIDER_CONFIG: Record<ModelProvider, ModelValidationConfig> = {
       startsWithMatcher("qwen/qwen3-coder"),
       startsWithMatcher("moonshotai/kimi-k2"),
       startsWithMatcher("z-ai/glm-4.6"),
+      startsWithMatcher("z-ai/glm-4.7"),
       exactMatcher("google/gemini-2.5-pro"),
       startsWithMatcher("google/gemini-3-pro"),
     ],
@@ -69,6 +75,40 @@ const MODEL_PROVIDER_CONFIG: Record<ModelProvider, ModelValidationConfig> = {
     ],
     missingModelMessage: "Model must be specified in request body",
     unsupportedModelMessage: (model) => `Invalid model requested: ${model}`,
+  },
+  // Gatewayz is a unified gateway that routes to all providers
+  // It supports all models from all providers it connects to
+  gatewayz: {
+    allowedMatchers: [
+      // Anthropic models
+      includesMatcher("sonnet"),
+      includesMatcher("haiku"),
+      includesMatcher("opus"),
+      includesMatcher("claude"),
+      // OpenAI models
+      includesMatcher("gpt-5"),
+      includesMatcher("gpt-4"),
+      includesMatcher("codex"),
+      // Google models
+      startsWithMatcher("gemini"),
+      // Z.AI models
+      startsWithMatcher("glm-4"),
+      // Chinese/other models
+      includesMatcher("grok"),
+      startsWithMatcher("qwen"),
+      startsWithMatcher("kimi"),
+      startsWithMatcher("deepseek"),
+      startsWithMatcher("minimax"),
+      // Code Router models (gatewayz:code:balanced, gatewayz:code:price, gatewayz:code:performance)
+      startsWithMatcher("gatewayz:code:"),
+      // Legacy Code Router model names (for backward compatibility)
+      exactMatcher("gatewayz/code-router"),
+      exactMatcher("gatewayz/code-router/price"),
+      exactMatcher("gatewayz/code-router/quality"),
+    ],
+    missingModelMessage: "Model must be specified in request body",
+    unsupportedModelMessage: (model) =>
+      `Model not supported via Gatewayz. Requested model: ${model}`,
   },
 };
 

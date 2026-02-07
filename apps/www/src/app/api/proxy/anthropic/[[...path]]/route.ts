@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
 import { env } from "@terragon/env/apps-www";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { getUserCreditBalance } from "@terragon/shared/model/credits";
-import { maybeTriggerCreditAutoReload } from "@/server-lib/credit-auto-reload";
 import { logAnthropicUsage } from "../log-anthropic-usage";
-import { waitUntil } from "@vercel/functions";
 import { validateProxyRequestModel } from "@/server-lib/proxy-model-validation";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
+import { waitUntil } from "@vercel/functions";
 
 const ANTHROPIC_API_BASE = "https://api.anthropic.com/";
 const DEFAULT_ANTHROPIC_PATH = "v1/messages";
@@ -314,10 +312,85 @@ async function proxyRequest(
     headers.set("anthropic-version", ANTHROPIC_API_VERSION);
   }
 
-  const body =
-    request.method === "GET" || request.method === "HEAD"
-      ? undefined
-      : await request.arrayBuffer();
+  let body: ArrayBuffer | Uint8Array | undefined;
+  if (request.method === "GET" || request.method === "HEAD") {
+    body = undefined;
+  } else {
+    const requestBody = await request.arrayBuffer();
+
+    // Transform image attachments for messages endpoint
+    if (isMessagesPath(targetUrl.pathname)) {
+      try {
+        const decoded = new TextDecoder().decode(requestBody);
+        const json = JSON.parse(decoded) as {
+          messages?: Array<{
+            role: string;
+            content:
+              | string
+              | Array<{
+                  type: string;
+                  image_url?: string;
+                  mime_type?: string;
+                  [key: string]: unknown;
+                }>;
+          }>;
+          [key: string]: unknown;
+        };
+
+        // Transform image parts if present
+        if (json.messages && Array.isArray(json.messages)) {
+          for (const message of json.messages) {
+            if (Array.isArray(message.content)) {
+              for (let i = 0; i < message.content.length; i++) {
+                const part = message.content[i];
+                if (part && part.type === "image" && part.image_url) {
+                  // Transform { type: "image", image_url, mime_type } to Anthropic format
+                  // { type: "image", source: { type: "url", url } } or { type: "image", source: { type: "base64", media_type, data } }
+                  const imageUrl = part.image_url;
+
+                  if (imageUrl.startsWith("data:")) {
+                    // Handle base64 data URLs
+                    // Format: data:image/png;base64,DATA or data:image/png;charset=utf-8;base64,DATA
+                    const match = imageUrl.match(
+                      /^data:([^;,]+)(?:;[^;,]*)*;base64,(.+)$/,
+                    );
+                    if (match) {
+                      message.content[i] = {
+                        type: "image",
+                        source: {
+                          type: "base64",
+                          media_type: match[1]!,
+                          data: match[2]!,
+                        },
+                      };
+                    }
+                  } else {
+                    // Handle regular URLs (R2, etc.)
+                    message.content[i] = {
+                      type: "image",
+                      source: {
+                        type: "url",
+                        url: imageUrl,
+                      },
+                    };
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Re-encode the transformed body
+        body = new TextEncoder().encode(JSON.stringify(json));
+      } catch (error) {
+        // If transformation fails, use original body
+        console.error("Failed to transform image attachments", error);
+        body = requestBody;
+      }
+    } else {
+      body = requestBody;
+    }
+  }
 
   const response = await fetch(targetUrl, {
     method: request.method,
@@ -353,13 +426,16 @@ async function proxyRequest(
           id?: string | null;
         };
         if (json?.usage) {
-          await logAnthropicUsage({
-            path: targetUrl.pathname,
-            usage: json.usage,
-            userId: authContext.userId,
-            model: json.model ?? null,
-            messageId: json.id ?? null,
-          });
+          // Use waitUntil to avoid blocking the response
+          waitUntil(
+            logAnthropicUsage({
+              path: targetUrl.pathname,
+              usage: json.usage,
+              userId: authContext.userId,
+              model: json.model ?? null,
+              messageId: json.id ?? null,
+            }),
+          );
         }
       } catch (error) {
         console.error("Failed to log Anthropic messages usage (json)", error);
@@ -421,20 +497,9 @@ async function authorize(
       return { response: new Response("Unauthorized", { status: 401 }) };
     }
 
-    const { balanceCents } = await getUserCreditBalance({
-      db,
-      userId,
-      skipAggCache: false,
-    });
-    waitUntil(maybeTriggerCreditAutoReload({ userId, balanceCents }));
-    if (balanceCents <= 0) {
-      console.log("Anthropic proxy access denied: insufficient credits", {
-        userId,
-        balanceCents,
-      });
-      return {
-        response: new Response("Insufficient credits", { status: 402 }),
-      };
+    const creditCheck = await checkProxyCredits(userId, "Anthropic");
+    if (!creditCheck.allowed) {
+      return { response: creditCheck.response };
     }
     return { response: null, userId };
   } catch (err) {

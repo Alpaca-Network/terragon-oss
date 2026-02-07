@@ -4,6 +4,7 @@ import { AIAgent, AIAgentCredentials, AIModel } from "@terragon/agent/types";
 import { getAgentProviderCredentialsDecrypted } from "@terragon/shared/model/agent-provider-credentials";
 import { getCodexCredentialsJSONOrNull } from "@/agent/msg/codexCredentials";
 import { getClaudeCredentialsJSONOrNull } from "@/agent/msg/claudeCredentials";
+import { getGeminiCredentialsOrNull } from "@/agent/msg/geminiCredentials";
 import { ThreadError } from "./error";
 
 export async function getAndVerifyCredentials({
@@ -77,11 +78,37 @@ export async function getAndVerifyCredentials({
         type: "built-in-credits",
       };
     }
-    case "gemini":
+    case "gemini": {
+      const geminiCredentials = await getGeminiCredentialsOrNull({ userId });
+      if (geminiCredentials.token) {
+        return {
+          type: "env-var",
+          key: "GEMINI_API_KEY",
+          value: geminiCredentials.token,
+        };
+      }
+      if (geminiCredentials.error) {
+        throw new ThreadError(
+          "invalid-gemini-credentials",
+          geminiCredentials.error,
+          null,
+        );
+      }
+      return {
+        type: "built-in-credits",
+      };
+    }
     case "opencode": {
       return {
         type: "built-in-credits",
       };
+    }
+    case "gatewayz": {
+      // Gatewayz is a meta-agent that routes to underlying agents.
+      // Credentials should be fetched for the underlying agent, not "gatewayz".
+      throw new Error(
+        "Gatewayz agent should not be passed directly to getAgentCredentialsOrNull. Fetch credentials for the underlying agent.",
+      );
     }
     default: {
       const _exhaustiveCheck: never = agent;

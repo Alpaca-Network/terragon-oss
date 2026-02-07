@@ -43,35 +43,59 @@ describe("buildOpencodeConfig", () => {
             "npm": "@ai-sdk/openai-compatible",
             "name": "Terragon",
             "options": {
-              "baseURL": "https://www.terragonlabs.com/api/proxy/openrouter/v1",
+              "baseURL": "https://www.terragonlabs.com/api/proxy/gatewayz/v1",
               "headers": {
                 "X-Daemon-Token": "{env:DAEMON_TOKEN}"
               }
             },
             "models": {
+              "glm-4.7": {
+                "id": "glm-4.7",
+                "name": "GLM 4.7"
+              },
+              "glm-4.7-flash": {
+                "id": "glm-4.7-flash",
+                "name": "GLM 4.7 Flash"
+              },
+              "glm-4.7-lite": {
+                "id": "glm-4.7-lite",
+                "name": "GLM 4.7 Lite"
+              },
               "glm-4.6": {
-                "id": "z-ai/glm-4.6:exacto",
+                "id": "glm-4.6",
                 "name": "GLM 4.6"
               },
               "kimi-k2": {
-                "id": "moonshotai/kimi-k2-0905:exacto",
+                "id": "kimi-k2",
                 "name": "Kimi K2"
               },
               "grok-code": {
-                "id": "x-ai/grok-code-fast-1",
+                "id": "grok-code-fast-1",
                 "name": "Grok Code Fast 1"
               },
               "qwen3-coder": {
-                "id": "qwen/qwen3-coder:exacto",
+                "id": "qwen3-coder",
                 "name": "Qwen3 Coder 480B"
               },
               "gemini-2.5-pro": {
-                "id": "google/gemini-2.5-pro",
+                "id": "gemini-2.5-pro",
                 "name": "Gemini 2.5 Pro"
               },
               "gemini-3-pro": {
-                "id": "google/gemini-3-pro-preview",
+                "id": "gemini-3-pro",
                 "name": "Gemini 3 Pro"
+              },
+              "gpt-5": {
+                "id": "gpt-5",
+                "name": "GPT-5"
+              },
+              "gpt-5-codex": {
+                "id": "gpt-5-codex",
+                "name": "GPT-5 Codex"
+              },
+              "sonnet": {
+                "id": "claude-sonnet-4-5",
+                "name": "Sonnet 4.5"
               }
             }
           },
@@ -146,15 +170,12 @@ describe("opencode model validation", () => {
     enableOpenRouterOpenAIAnthropicModel: true,
     enableOpencodeGemini3ProModelOption: true,
   });
-  const OPENROUTER_MODELS = OPENCODE_MODELS.filter((model) =>
-    model.startsWith("opencode/"),
-  );
 
-  it.each(OPENROUTER_MODELS)("should support %s", (model) => {
+  it.each(OPENCODE_MODELS)("should support %s", (model) => {
     const modelId = getModelId(model);
     expect(modelId).toBeDefined();
     expect(
-      validateProviderModel({ provider: "openrouter", model: modelId }),
+      validateProviderModel({ provider: "gatewayz", model: modelId }),
     ).toEqual({ valid: true });
   });
 });

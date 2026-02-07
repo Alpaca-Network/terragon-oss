@@ -11,7 +11,7 @@ import { isGatewayZEmbedMode } from "@/lib/gatewayz-auth-server";
 export const maxDuration = 800;
 
 export const metadata: Metadata = {
-  title: "Terragon - Delegate coding tasks to AI background agents",
+  title: "Gatewayz Code - Delegate coding tasks to AI background agents",
   description:
     "Run coding agents in parallel inside remote sandboxes. Automate multiple tasks concurrently and asynchronously with full development environments.",
   keywords: [
@@ -41,11 +41,11 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Terragon - Delegate coding tasks to AI background agents",
+    title: "Gatewayz Code - Delegate coding tasks to AI background agents",
     description:
       "Run coding agents in parallel inside remote sandboxes. Automate multiple development tasks concurrently with AI-powered assistance.",
     url: "https://www.terragonlabs.com",
-    siteName: "Terragon",
+    siteName: "Gatewayz Code",
     type: "website",
     locale: "en_US",
     images: [
@@ -53,13 +53,13 @@ export const metadata: Metadata = {
         url: OG_IMAGE_URL,
         width: 1200,
         height: 630,
-        alt: "Terragon - AI coding agents platform",
+        alt: "Gatewayz Code - AI coding agents platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Terragon - Delegate coding tasks to AI background agents",
+    title: "Gatewayz Code - Delegate coding tasks to AI background agents",
     description:
       "Run coding agents in parallel inside remote sandboxes. Automate development tasks with AI.",
     site: "@terragonlabs",
@@ -96,7 +96,10 @@ export default async function Home() {
     <>
       <StructuredData />
       <main className="w-full">
-        <Landing isShutdownMode={flags.shutdownMode} isEmbedMode={isEmbedMode} />
+        <Landing
+          isShutdownMode={flags.shutdownMode}
+          isEmbedMode={isEmbedMode}
+        />
       </main>
       {/* Google tag (gtag.js) - Production only */}
       {process.env.NODE_ENV === "production" && (

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import * as aiSdkRoute from "./[[...path]]/route";
 import { logAnthropicUsage } from "./log-anthropic-usage";
 import { auth } from "@/lib/auth";
-import { getUserCreditBalance } from "@terragon/shared/model/credits";
+import { checkProxyCredits } from "@/server-lib/proxy-credit-check";
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -13,12 +13,8 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
-vi.mock("@terragon/shared/model/credits", () => ({
-  getUserCreditBalance: vi.fn(),
-}));
-
-vi.mock("@/server-lib/credit-auto-reload", () => ({
-  maybeTriggerCreditAutoReload: vi.fn(),
+vi.mock("@/server-lib/proxy-credit-check", () => ({
+  checkProxyCredits: vi.fn(),
 }));
 
 vi.mock("@terragon/env/apps-www", () => ({
@@ -77,7 +73,7 @@ function createRequest({
 
 describe("Anthropic proxy route", () => {
   const verifyApiKeyMock = vi.mocked(auth.api.verifyApiKey);
-  const getUserCreditBalanceMock = vi.mocked(getUserCreditBalance);
+  const checkProxyCreditsMock = vi.mocked(checkProxyCredits);
   const logUsageMock = vi.mocked(logAnthropicUsage);
   const { POST } = aiSdkRoute;
 
@@ -89,9 +85,9 @@ describe("Anthropic proxy route", () => {
       error: null,
       key: { userId: "user-123" } as any,
     });
-    getUserCreditBalanceMock.mockResolvedValue({
-      totalCreditsCents: 1_000,
-      totalUsageCents: 0,
+    checkProxyCreditsMock.mockResolvedValue({
+      allowed: true,
+      userId: "user-123",
       balanceCents: 1_000,
     });
     logUsageMock.mockReset();
@@ -180,11 +176,10 @@ describe("Anthropic proxy route", () => {
     expect(fetchHeaders.get("Authorization")).toBeNull();
   });
 
-  it("rejects requests when user has no remaining credits", async () => {
-    getUserCreditBalanceMock.mockResolvedValueOnce({
-      totalCreditsCents: 0,
-      totalUsageCents: 0,
-      balanceCents: 0,
+  it("rejects requests when user has no remaining credits and no subscription", async () => {
+    checkProxyCreditsMock.mockResolvedValueOnce({
+      allowed: false,
+      response: new Response("Insufficient credits", { status: 402 }),
     });
 
     const fetchMock = vi.fn();
@@ -196,6 +191,39 @@ describe("Anthropic proxy route", () => {
     expect(response.status).toBe(402);
     expect(await response.text()).toBe("Insufficient credits");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows requests when user has active subscription even with zero credits", async () => {
+    // User has subscription so they're allowed even with 0 credits
+    checkProxyCreditsMock.mockResolvedValueOnce({
+      allowed: true,
+      userId: "user-123",
+      balanceCents: 0,
+    });
+
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = createRequest({
+      body: { model: VALID_MODEL, messages: [] },
+    });
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("logs usage for message_delta events in event streams", async () => {
@@ -306,5 +334,262 @@ describe("Anthropic proxy route", () => {
       "Model must be specified in request body",
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("transforms image_url attachments to Anthropic source format for R2 URLs", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: "https://r2.example.com/image-123.png",
+                mime_type: "image/png",
+              },
+              {
+                type: "text",
+                text: "What's in this image?",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the image was transformed to Anthropic format
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "url",
+        url: "https://r2.example.com/image-123.png",
+      },
+    });
+
+    // Verify text part is unchanged
+    expect(parsedBody.messages[0].content[1]).toEqual({
+      type: "text",
+      text: "What's in this image?",
+    });
+  });
+
+  it("transforms base64 image_url attachments to Anthropic source format", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const base64Data =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: `data:image/png;base64,${base64Data}`,
+                mime_type: "image/png",
+              },
+              {
+                type: "text",
+                text: "Analyze this image",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the base64 image was transformed to Anthropic format
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/png",
+        data: base64Data,
+      },
+    });
+  });
+
+  it("transforms base64 image_url with charset parameter to Anthropic source format", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const base64Data =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: `data:image/png;charset=utf-8;base64,${base64Data}`,
+                mime_type: "image/png",
+              },
+              {
+                type: "text",
+                text: "Analyze this image",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the base64 image was transformed to Anthropic format
+    // The charset parameter should be stripped, only media_type should remain
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/png",
+        data: base64Data,
+      },
+    });
+  });
+
+  it("transforms base64 image_url with name parameter to Anthropic source format", async () => {
+    const responsePayload = {
+      id: "msg_test",
+      type: "message",
+      role: "assistant",
+      model: "claude-3-5-sonnet-20241022",
+      usage: { input_tokens: 10, output_tokens: 5 },
+      content: [],
+    };
+
+    const fetchResponse = new Response(JSON.stringify(responsePayload), {
+      headers: { "content-type": "application/json" },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue(fetchResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const base64Data =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const request = createRequest({
+      body: {
+        model: VALID_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image_url: `data:image/jpeg;name=photo.jpg;base64,${base64Data}`,
+                mime_type: "image/jpeg",
+              },
+              {
+                type: "text",
+                text: "Analyze this image",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const response = await POST(request, { params: {} });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const fetchArgs = fetchMock.mock.calls[0]!;
+    const requestBody = new TextDecoder().decode(
+      fetchArgs[1]!.body as Uint8Array,
+    );
+    const parsedBody = JSON.parse(requestBody);
+
+    // Verify the base64 image was transformed to Anthropic format
+    // The name parameter should be stripped, only media_type should remain
+    expect(parsedBody.messages[0].content[0]).toEqual({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: "image/jpeg",
+        data: base64Data,
+      },
+    });
   });
 });

@@ -16,6 +16,8 @@ export default defineConfig({
   },
   test: {
     silent: "passed-only",
+    // Exclude Playwright E2E tests from Vitest - they run separately via Playwright
+    exclude: ["**/node_modules/**", "**/e2e/**"],
     env: {
       GITHUB_CLIENT_ID: "GITHUB_CLIENT_ID_TEST",
       GITHUB_CLIENT_SECRET: "GITHUB_CLIENT_SECRET_TEST",

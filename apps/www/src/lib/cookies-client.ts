@@ -18,7 +18,9 @@ export function getCookieOrNull(name: string) {
         try {
           return JSON.parse(value);
         } catch (parseError) {
-          console.error("Failed to parse cookie item:", parseError);
+          // Silently return null for non-JSON cookie values
+          // This handles legacy cookies or manually set cookies
+          return null;
         }
       }
     }

@@ -18,10 +18,11 @@ export function accessQueryOptions() {
 }
 
 export function useAccessInfo() {
-  const { data } = useQuery(accessQueryOptions());
+  const { data, isLoading } = useQuery(accessQueryOptions());
   const tier = data?.tier ?? "none";
   return {
     isActive: tier !== "none",
     tier,
+    isLoading,
   };
 }

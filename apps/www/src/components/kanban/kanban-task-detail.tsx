@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useCallback, useState } from "react";
 import { getThreadTitle } from "@/agent/thread-utils";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -24,9 +24,18 @@ import {
   Calendar,
   Clock,
   Archive,
+  Play,
+  LoaderCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { KanbanColumn, KANBAN_COLUMNS, getKanbanColumn } from "./types";
+import {
+  KanbanColumn,
+  KANBAN_COLUMNS,
+  getKanbanColumn,
+  isDraftThread,
+} from "./types";
+import { useSubmitDraftThreadMutation } from "@/queries/thread-mutations";
+import { toast } from "sonner";
 
 export const KanbanTaskDetail = memo(function KanbanTaskDetail({
   thread,
@@ -55,6 +64,9 @@ const TaskDetailContent = memo(function TaskDetailContent({
 }: {
   thread: ThreadInfo;
 }) {
+  const [isStarting, setIsStarting] = useState(false);
+  const submitDraftMutation = useSubmitDraftThreadMutation();
+
   const title = useMemo(() => getThreadTitle(thread), [thread]);
   const createdTime = useMemo(
     () => formatRelativeTime(thread.createdAt),
@@ -66,6 +78,29 @@ const TaskDetailContent = memo(function TaskDetailContent({
   );
   const kanbanColumn = getKanbanColumn(thread);
   const columnConfig = KANBAN_COLUMNS.find((c) => c.id === kanbanColumn);
+  const isDraft = useMemo(() => isDraftThread(thread), [thread]);
+
+  const handleStartTask = useCallback(async () => {
+    if (!thread.draftMessage) {
+      toast.error("No draft message found");
+      return;
+    }
+
+    setIsStarting(true);
+    try {
+      await submitDraftMutation.mutateAsync({
+        threadId: thread.id,
+        userMessage: thread.draftMessage,
+        selectedModels: {},
+      });
+      toast.success("Task started");
+    } catch (error) {
+      console.error("Failed to start task:", error);
+      toast.error("Failed to start task");
+    } finally {
+      setIsStarting(false);
+    }
+  }, [thread, submitDraftMutation]);
 
   const getColumnBadgeColor = (columnId: KanbanColumn) => {
     switch (columnId) {
@@ -77,8 +112,6 @@ const TaskDetailContent = memo(function TaskDetailContent({
         return "bg-accent/10 text-accent-foreground border border-accent/20";
       case "done":
         return "bg-primary/10 text-primary border border-primary/20";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive border border-destructive/20";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -221,10 +254,30 @@ const TaskDetailContent = memo(function TaskDetailContent({
         </div>
       </ScrollArea>
 
-      {/* Footer with action button */}
-      <div className="px-6 py-4 border-t bg-muted/30">
+      {/* Footer with action buttons */}
+      <div className="px-6 py-4 border-t bg-muted/30 space-y-2">
+        {isDraft && (
+          <Button
+            className="w-full"
+            variant="default"
+            onClick={handleStartTask}
+            disabled={isStarting}
+          >
+            {isStarting ? (
+              <>
+                <LoaderCircle className="size-4 mr-2 animate-spin" />
+                Starting...
+              </>
+            ) : (
+              <>
+                <Play className="size-4 mr-2" />
+                Start Task
+              </>
+            )}
+          </Button>
+        )}
         <Link href={`/task/${thread.id}`} className="block w-full">
-          <Button className="w-full" variant="default">
+          <Button className="w-full" variant={isDraft ? "outline" : "default"}>
             <ExternalLink className="size-4 mr-2" />
             Open Task
           </Button>

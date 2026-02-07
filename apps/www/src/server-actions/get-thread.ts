@@ -20,13 +20,13 @@ export const getThreadAction = cache(
         userId,
         allowAdmin: false,
         getHasRepoPermissions: async (repoFullName) => {
-          const octokit = await getOctokitForUser({ userId });
-          if (!octokit) {
+          const octokitResult = await getOctokitForUser({ userId });
+          if (!octokitResult.success) {
             return false;
           }
           try {
             const [owner, repo] = parseRepoFullName(repoFullName);
-            const repoInfo = await octokit.rest.repos.get({
+            const repoInfo = await octokitResult.octokit.rest.repos.get({
               owner,
               repo,
             });

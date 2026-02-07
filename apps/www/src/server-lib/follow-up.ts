@@ -20,6 +20,7 @@ import { getDefaultModelForAgent, modelToAgent } from "@terragon/agent/utils";
 import { uploadUserMessageImages } from "@/lib/r2-file-upload-server";
 import { getAccessInfoForUser } from "@/lib/subscription";
 import { SUBSCRIPTION_MESSAGES } from "@/lib/subscription-msgs";
+import { resetAutoFixIterationCount } from "./auto-fix-feedback";
 
 export async function followUpInternal({
   userId,
@@ -47,18 +48,37 @@ export async function followUpInternal({
   if (!threadChat) {
     throw new Error("Thread chat not found");
   }
+
+  // Calculate the model early so we can include it in the status transition update
+  const messageWithModel = {
+    ...message,
+    model:
+      message.model ||
+      getLastUserMessageModel(threadChat.messages ?? []) ||
+      getDefaultModelForAgent({
+        agent: threadChat.agent,
+        agentVersion: threadChat.agentVersion,
+      }),
+  };
+
   getPostHogServer().capture({
     distinctId: userId,
     event: "follow_up",
     properties: {
       threadId,
-      model: message.model,
-      agentType: modelToAgent(message.model),
+      model: messageWithModel.model,
+      agentType: modelToAgent(messageWithModel.model),
       imageCount: imageCount(message),
       promptTextSize: estimateMessageSize(message),
       source,
     },
   });
+
+  // Reset auto-fix iteration count when user manually sends a follow-up
+  // This gives them a fresh budget of auto-fix iterations
+  if (source === "www") {
+    waitUntil(resetAutoFixIterationCount({ threadId, userId }));
+  }
   const { didUpdateStatus, updatedStatus } =
     await updateThreadChatWithTransition({
       userId,
@@ -69,6 +89,7 @@ export async function followUpInternal({
         errorMessage: null,
         errorMessageInfo: null,
         permissionMode: message.permissionMode || "allowAll",
+        lastUsedModel: messageWithModel.model,
       },
     });
   if (!didUpdateStatus) {
@@ -86,16 +107,7 @@ export async function followUpInternal({
     });
     return;
   }
-  const messageWithModel = {
-    ...message,
-    model:
-      message.model ||
-      getLastUserMessageModel(threadChat.messages ?? []) ||
-      getDefaultModelForAgent({
-        agent: threadChat.agent,
-        agentVersion: threadChat.agentVersion,
-      }),
-  };
+
   const thread = await getThreadMinimal({ db, threadId, userId });
   waitUntil(
     startAgentMessage({

@@ -49,7 +49,8 @@ export type DBSystemMessage = {
     | "generic-retry"
     | "invalid-token-retry"
     | "clear-context"
-    | "compact-result";
+    | "compact-result"
+    | "unknown-slash-command";
   parts: DBTextPart[];
   timestamp?: string;
   model?: AIModel | null;

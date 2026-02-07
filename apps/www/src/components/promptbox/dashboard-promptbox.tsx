@@ -15,7 +15,7 @@ import {
   useSelectedRepo,
   useSelectedBranch,
 } from "@/hooks/useSelectedRepoAndBranch";
-import { RepoBranchSelector } from "../repo-branch-selector";
+import { RepoBranchHeader } from "../repo-branch-header";
 import { CredentialsWarning } from "./credentials-warning";
 import { useCredentialInfoForAgent } from "@/atoms/user-credentials";
 import {
@@ -24,12 +24,15 @@ import {
 } from "./prompt-box-tool-belt";
 import { useAccessInfo } from "@/queries/subscription";
 import { modelToAgent } from "@terragon/agent/utils";
+import { SmartContextSection } from "@/components/environments/smart-context-section";
 
 export type DashboardPromptBoxHandleSubmit = (
   args: UsePromptBoxHandleSubmitArgs & {
     disableGitCheckpointing: boolean;
     skipSetup: boolean;
     createNewBranch: boolean;
+    autoFixFeedback: boolean;
+    autoMergePR: boolean;
   },
 ) => Promise<void>;
 
@@ -64,9 +67,13 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
     skipSetup,
     disableGitCheckpointing,
     createNewBranch,
+    autoFixFeedback,
+    autoMergePR,
     setSkipSetup,
     setDisableGitCheckpointing,
     setCreateNewBranch,
+    setAutoFixFeedback,
+    setAutoMergePR,
   } = usePromptBoxToolBeltOptions({
     branchName,
     shouldUseCookieValues: true,
@@ -100,9 +107,18 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
         disableGitCheckpointing,
         skipSetup,
         createNewBranch,
+        autoFixFeedback,
+        autoMergePR,
       });
     },
-    [props, disableGitCheckpointing, skipSetup, createNewBranch],
+    [
+      props,
+      disableGitCheckpointing,
+      skipSetup,
+      createNewBranch,
+      autoFixFeedback,
+      autoMergePR,
+    ],
   );
 
   const {
@@ -113,8 +129,8 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
     handleFilesAttached,
     removeFile,
     submitForm,
-    permissionMode,
-    setPermissionMode,
+    taskMode,
+    setTaskMode,
     selectedModel,
     selectedModels,
     setSelectedModel,
@@ -157,6 +173,12 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
 
   return (
     <div className="flex flex-col gap-2">
+      <RepoBranchHeader
+        selectedRepoFullName={repoFullName || null}
+        selectedBranch={branchName || null}
+        onChange={onRepoBranchChange}
+        className="self-start -mb-1"
+      />
       <SimplePromptBox
         forcedAgent={null}
         forcedAgentVersion={null}
@@ -181,17 +203,19 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
         typeahead={repositoryCache}
         supportSaveAsDraft={true}
         supportSchedule={true}
-        permissionMode={permissionMode}
-        onPermissionModeChange={setPermissionMode}
+        taskMode={taskMode}
+        onTaskModeChange={setTaskMode}
+        showAutoFixFeedback={true}
+        autoFixFeedbackValue={autoFixFeedback}
+        onAutoFixFeedbackChange={setAutoFixFeedback}
+        autoFixFeedbackDisabled={!repoFullName}
+        showAutoMergePR={true}
+        autoMergePRValue={autoMergePR}
+        onAutoMergePRChange={setAutoMergePR}
+        autoMergePRDisabled={!repoFullName}
       />
       <CredentialsWarning selectedModel={selectedModel} />
-      <div className="flex items-center justify-between w-full">
-        <RepoBranchSelector
-          selectedRepoFullName={repoFullName || null}
-          selectedBranch={branchName || null}
-          onChange={onRepoBranchChange}
-        />
-
+      <div className="flex items-center justify-end w-full">
         <PromptBoxToolBelt
           showSkipSetup={true}
           skipSetupValue={skipSetup}
@@ -206,6 +230,10 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
           onCreateNewBranchChange={setCreateNewBranch}
           createNewBranchDisabled={!repoFullName}
         />
+      </div>
+      {/* Smart Context Section */}
+      <div className="border-t pt-3 mt-1">
+        <SmartContextSection repoFullName={repoFullName} />
       </div>
     </div>
   );

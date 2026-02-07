@@ -20,6 +20,7 @@ import {
   AIAgent,
   SelectedAIModels,
   AgentModelPreferences,
+  CodeRouterSettings,
 } from "@terragon/agent/types";
 import {
   GithubPRStatus,
@@ -44,8 +45,6 @@ import {
   AutomationTriggerType,
   AutomationTriggerConfig,
 } from "../automations";
-
-export type GatewayZTier = "free" | "pro" | "max";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -284,6 +283,10 @@ const threadChatShared = {
     .$type<"allowAll" | "plan" | "loop">()
     .default("allowAll"),
   loopConfig: jsonb("loop_config").$type<LoopConfig>(),
+  lastUsedModel: text("last_used_model").$type<AIModel>(),
+  codexTier: text("codex_tier")
+    .$type<"none" | "low" | "medium" | "high" | "xhigh">()
+    .default("medium"),
 };
 
 export const thread = pgTable(
@@ -312,6 +315,7 @@ export const thread = pgTable(
     gitDiff: text("git_diff"),
     gitDiffStats: jsonb("git_diff_stats").$type<GitDiffStats>(),
     archived: boolean("archived").notNull().default(false),
+    isBacklog: boolean("is_backlog").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
@@ -331,6 +335,15 @@ export const thread = pgTable(
       .notNull()
       .default(false),
     skipSetup: boolean("skip_setup").notNull().default(false),
+    autoFixFeedback: boolean("auto_fix_feedback").notNull().default(false),
+    autoMergePR: boolean("auto_merge_pr").notNull().default(false),
+    autoFixIterationCount: integer("auto_fix_iteration_count")
+      .notNull()
+      .default(0),
+    // Timestamp when PR feedback was last queued for addressing.
+    // Used to determine if unresolved comments should be marked as "in progress"
+    // (i.e., comments created before this timestamp are being addressed).
+    autoFixQueuedAt: timestamp("auto_fix_queued_at", { withTimezone: true }),
     sourceType: text("source_type").$type<ThreadSource>(),
     sourceMetadata: jsonb("source_metadata").$type<ThreadSourceMetadata>(),
     // Thread version:
@@ -345,6 +358,7 @@ export const thread = pgTable(
     index("user_id_updated_at_index").on(table.userId, table.updatedAt),
     index("user_id_status_index").on(table.userId, table.status),
     index("user_id_archived_index").on(table.userId, table.archived),
+    index("user_id_is_backlog_index").on(table.userId, table.isBacklog),
     index("parent_thread_id_index").on(table.parentThreadId),
     index("user_id_automation_id_index").on(table.userId, table.automationId),
     index("github_repo_full_name_github_pr_number_index").on(
@@ -360,6 +374,18 @@ export const thread = pgTable(
     index("sandbox_provider_and_id_index").on(
       table.sandboxProvider,
       table.codesandboxId,
+    ),
+    // Covering indexes for common list queries (active tasks, archived, backlog)
+    // These indexes include updatedAt for efficient ORDER BY DESC
+    index("user_id_archived_updated_at_index").on(
+      table.userId,
+      table.archived,
+      table.updatedAt,
+    ),
+    index("user_id_is_backlog_updated_at_index").on(
+      table.userId,
+      table.isBacklog,
+      table.updatedAt,
     ),
   ],
 );
@@ -389,6 +415,8 @@ export const threadChat = pgTable(
       table.userId,
       table.threadId,
     ),
+    // Index for efficient batch lookups by threadId (used in thread list queries)
+    index("thread_chat_thread_id_index").on(table.threadId),
   ],
 );
 
@@ -530,6 +558,10 @@ export const userSettings = pgTable(
     agentModelPreferences: jsonb(
       "agent_model_preferences",
     ).$type<AgentModelPreferences>(),
+    // Code Router settings for Gatewayz integration
+    codeRouterSettings: jsonb(
+      "code_router_settings",
+    ).$type<CodeRouterSettings>(),
   },
   (table) => [uniqueIndex("user_id_unique").on(table.userId)],
 );
@@ -551,6 +583,8 @@ export const environment = pgTable(
       .default([]),
     mcpConfigEncrypted: text("mcp_config_encrypted"),
     setupScript: text("setup_script"),
+    smartContextEncrypted: text("smart_context_encrypted"),
+    smartContextGeneratedAt: timestamp("smart_context_generated_at"),
     DEPRECATED_disableGitCheckpointing: boolean("disable_git_checkpointing")
       .notNull()
       .default(false),
@@ -761,6 +795,11 @@ export const threadReadStatus = pgTable(
   },
   (table) => [
     uniqueIndex("user_thread_unique").on(table.threadId, table.userId),
+    // Index for efficient batch lookups by userId (used in thread list queries)
+    index("thread_read_status_user_id_thread_id_index").on(
+      table.userId,
+      table.threadId,
+    ),
   ],
 );
 
@@ -809,6 +848,7 @@ export const feedback = pgTable(
     type: text("type").$type<"bug" | "feature" | "feedback">().notNull(),
     message: text("message").notNull(),
     currentPage: text("current_page").notNull(),
+    sessionReplayUrl: text("session_replay_url"),
     resolved: boolean("resolved").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
@@ -850,6 +890,13 @@ export const userFlags = pgTable(
     // Feature upsell toast last seen version. Increment FEATURE_UPSELL_VERSION
     // in apps/www/src/lib/constants.ts to show the upsell again.
     lastSeenFeatureUpsellVersion: integer("last_seen_feature_upsell_version"),
+    // Track recently used repos (max 5, FIFO)
+    recentRepos: jsonb("recent_repos").$type<string[]>(),
+    // Track if user has ever used Kanban view (for promotion dismissal)
+    hasUsedKanbanView: boolean("has_used_kanban_view").default(false),
+    // Track repo creation count for rate limiting (resets daily)
+    repoCreationCount: integer("repo_creation_count").default(0),
+    repoCreationResetDate: timestamp("repo_creation_reset_date"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
@@ -1186,6 +1233,40 @@ export const agentProviderCredentials = pgTable(
     index("agent_provider_credentials_user_agent_index").on(
       table.userId,
       table.agent,
+    ),
+  ],
+);
+
+/**
+ * Gatewayz usage events table for tracking API usage through the Gatewayz proxy.
+ * This data is used for:
+ * 1. Displaying usage to users in the UI
+ * 2. Cross-referencing with Gatewayz billing data for reconciliation
+ * 3. Analytics and monitoring
+ */
+export const gatewayZUsageEvents = pgTable(
+  "gatewayz_usage_events",
+  {
+    id: text("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gwRequestId: text("gw_request_id"), // Gatewayz request ID for correlation
+    provider: text("provider").notNull(), // 'anthropic' | 'google' | 'openai' | 'zai' | 'other'
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    costUsd: numeric("cost_usd"), // Cost in USD (populated during reconciliation with Gatewayz)
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("gatewayz_usage_events_user_id_idx").on(table.userId),
+    index("gatewayz_usage_events_created_at_idx").on(table.createdAt),
+    index("gatewayz_usage_events_user_provider_idx").on(
+      table.userId,
+      table.provider,
     ),
   ],
 );

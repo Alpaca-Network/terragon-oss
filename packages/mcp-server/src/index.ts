@@ -5,6 +5,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import {
+  parseSkillContent,
+  processSkillArguments,
+} from "@terragon/agent/skill-frontmatter";
 
 const server = new Server(
   {
@@ -19,7 +25,7 @@ const server = new Server(
 );
 
 const followupTaskDescription = `
-Suggest a follow-up task to the user. The user will have the option to spin up another copy of Terry to run and process this task. 
+Suggest a follow-up task to the user. The user will have the option to spin up another copy of Terry to run and process this task.
 Give all of the context required to do this task effectively. Use this tool anytime you think there are tasks the user should do but
 don't make sense to do in the current thread. Examples of these include:
 
@@ -29,7 +35,137 @@ don't make sense to do in the current thread. Examples of these include:
 - If the user asks for a task suggestion.
 `;
 
+const skillDescription = `
+Execute a skill within the main conversation
+
+<skills_instructions>
+When users ask you to perform tasks, check if any of the available skills below can help complete the task more effectively. Skills provide specialized capabilities and domain knowledge.
+
+How to invoke:
+- Use this tool with the skill name only (no arguments)
+- Examples:
+  - \`skill: "pdf"\` - invoke the pdf skill
+  - \`skill: "xlsx"\` - invoke the xlsx skill
+  - \`skill: "ms-office-suite:pdf"\` - invoke using fully qualified name
+
+Important:
+- When a skill is relevant, you must invoke this tool IMMEDIATELY as your first action
+- NEVER just announce or mention a skill in your text response without actually calling this tool
+- This is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task
+- Only use skills listed in <available_skills> below
+- Do not invoke a skill that is already running
+- Do not use this tool for built-in CLI commands (like /help, /clear, etc.)
+</skills_instructions>
+
+<available_skills>
+{SKILLS_PLACEHOLDER}
+</available_skills>
+`;
+
+/**
+ * Load skill descriptions from .claude/skills/ directory.
+ * Returns a formatted string of available skills.
+ */
+function loadAvailableSkills(): string {
+  const skillsDir = path.join(process.cwd(), ".claude", "skills");
+
+  if (!fs.existsSync(skillsDir)) {
+    return "";
+  }
+
+  const skillDirs = fs.readdirSync(skillsDir, { withFileTypes: true });
+  const skills: { name: string; description: string }[] = [];
+
+  for (const dir of skillDirs) {
+    if (!dir.isDirectory()) continue;
+
+    const skillMdPath = path.join(skillsDir, dir.name, "SKILL.md");
+    if (!fs.existsSync(skillMdPath)) continue;
+
+    try {
+      const content = fs.readFileSync(skillMdPath, "utf-8");
+      const { frontmatter } = parseSkillContent(content);
+
+      // Skip skills with disable-model-invocation: true
+      if (frontmatter.disableModelInvocation) continue;
+
+      skills.push({
+        name: frontmatter.name || dir.name,
+        description: frontmatter.description || "Custom skill",
+      });
+    } catch (e) {
+      console.error(`Failed to parse skill ${dir.name}:`, e);
+    }
+  }
+
+  if (skills.length === 0) {
+    return "";
+  }
+
+  return skills
+    .map((skill) => `- ${skill.name}: ${skill.description}`)
+    .join("\n");
+}
+
+/**
+ * Validate skill name to prevent path traversal attacks.
+ * Only allows alphanumeric characters, underscores, and hyphens.
+ */
+function isValidSkillName(skillName: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(skillName);
+}
+
+/**
+ * Load skill content by name.
+ */
+function loadSkillContent(skillName: string): {
+  content: string;
+  name: string;
+  description: string;
+} | null {
+  // Validate skill name to prevent path traversal attacks
+  if (!isValidSkillName(skillName)) {
+    console.error(
+      `Invalid skill name "${skillName}": contains invalid characters`,
+    );
+    return null;
+  }
+
+  const skillPath = path.join(
+    process.cwd(),
+    ".claude",
+    "skills",
+    skillName,
+    "SKILL.md",
+  );
+
+  if (!fs.existsSync(skillPath)) {
+    return null;
+  }
+
+  try {
+    const rawContent = fs.readFileSync(skillPath, "utf-8");
+    const { frontmatter, body } = parseSkillContent(rawContent);
+
+    return {
+      content: body,
+      name: frontmatter.name || skillName,
+      description: frontmatter.description || "Custom skill",
+    };
+  } catch (e) {
+    console.error(`Failed to load skill ${skillName}:`, e);
+    return null;
+  }
+}
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  // Load available skills to include in the Skill tool description
+  const availableSkills = loadAvailableSkills();
+  const skillToolDescription = skillDescription.replace(
+    "{SKILLS_PLACEHOLDER}",
+    availableSkills || "(no skills available)",
+  );
+
   return {
     tools: [
       {
@@ -63,6 +199,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["tool_name"],
+        },
+      },
+      {
+        name: "Skill",
+        description: skillToolDescription,
+        inputSchema: {
+          type: "object",
+          properties: {
+            skill: {
+              type: "string",
+              description:
+                'The skill name (no arguments). E.g., "pdf" or "xlsx"',
+            },
+          },
+          required: ["skill"],
         },
       },
     ],
@@ -111,6 +262,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               behavior: "deny",
               message: `Unexpected tool "${tool_name}" requested permission. Only ExitPlanMode is supported.\n\n${JSON.stringify(request.params.arguments)}`,
             }),
+          },
+        ],
+      };
+    }
+    case "Skill": {
+      const { skill: skillName } = request.params.arguments as {
+        skill: string;
+      };
+
+      console.error(`Skill invoked: "${skillName}"`);
+
+      // Load the skill content
+      const skillData = loadSkillContent(skillName);
+
+      if (!skillData) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Skill "${skillName}" not found. Make sure it exists in .claude/skills/${skillName}/SKILL.md`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Process the skill content (no arguments for model invocation)
+      const processedContent = processSkillArguments(
+        skillData.content,
+        "",
+        undefined,
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `# Skill: ${skillData.name}
+
+${skillData.description}
+
+---
+
+${processedContent}`,
           },
         ],
       };

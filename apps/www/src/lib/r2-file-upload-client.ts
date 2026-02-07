@@ -26,12 +26,20 @@ export async function uploadFileToR2({
     }),
   );
   // Upload directly to R2
+  // Convert File to ArrayBuffer for more reliable uploads with presigned URLs
+  // Note: Content-Length is a forbidden header in browsers and is auto-computed
+  const buffer = await file.arrayBuffer();
   const uploadResponse = await fetch(presignedUrl, {
     method: "PUT",
     headers: {
       "Content-Type": file.type,
     },
-    body: file,
+    body: buffer,
+    // IMPORTANT: Presigned URLs contain authentication in the URL itself.
+    // We must explicitly omit credentials to prevent the browser from sending
+    // cookies or other auth headers, which would cause R2 to return
+    // "InvalidArgument: Authorization" error.
+    credentials: "omit",
   });
   if (!uploadResponse.ok) {
     throw new Error(`Upload failed: ${await uploadResponse.text()}`);

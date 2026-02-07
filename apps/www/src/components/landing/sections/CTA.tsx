@@ -30,7 +30,7 @@ export default function CTA() {
               className="text-sm sm:text-md p-4 sm:p-6 w-full sm:w-auto"
               variant="outline"
             >
-              <Link target="_blank" href={publicDocsUrl()}>
+              <Link target="_blank" href={`${publicDocsUrl()}/docs`}>
                 Learn more
               </Link>
             </Button>

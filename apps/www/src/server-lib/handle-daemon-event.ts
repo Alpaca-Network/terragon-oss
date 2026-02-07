@@ -37,6 +37,8 @@ import { getEligibleQueuedThreadChats } from "./process-queued-thread";
 import { trackUsageEvents } from "./usage-events";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
 import { compactThreadChat } from "./compact";
+import { maybeEnableAutoMerge } from "./auto-merge";
+import type { NotificationReason } from "@terragon/types/broadcast";
 
 export async function handleDaemonEvent({
   messages,
@@ -577,11 +579,23 @@ export async function handleDaemonEvent({
     shouldSkipCheckpoint = isStop || !!thread.disableGitCheckpointing;
   }
 
+  // Determine notification reason based on task completion state
+  // If task completed successfully and has a PR, it's ready for review
+  // Otherwise, it's just a task completion notification
+  let notificationReason: NotificationReason | undefined;
+  if (isDone && !isError) {
+    notificationReason =
+      thread.githubPRNumber !== null ? "ready-for-review" : "task-complete";
+  } else if (isError) {
+    notificationReason = "task-complete";
+  }
+
   const { didUpdateStatus } = await updateThreadChatWithTransition({
     userId,
     threadId,
     threadChatId: threadChat.id,
     markAsUnread: isDone || isError,
+    notificationReason,
     updates: { bootingSubstatus: null },
     chatUpdates: threadChatUpdates,
     eventType: isStop
@@ -608,6 +622,7 @@ export async function handleDaemonEvent({
         statusBeforeUpdate: threadChat.status,
         isRateLimited,
         shouldSkipCheckpoint,
+        isError,
       }),
     );
   }
@@ -638,6 +653,7 @@ async function handleThreadFinish({
   statusBeforeUpdate,
   isRateLimited,
   shouldSkipCheckpoint,
+  isError,
 }: {
   userId: string;
   threadId: string;
@@ -646,6 +662,7 @@ async function handleThreadFinish({
   statusBeforeUpdate: ThreadStatus;
   isRateLimited: boolean;
   shouldSkipCheckpoint: boolean;
+  isError: boolean;
 }) {
   let shouldProcessFollowUpQueue = !isRateLimited;
   if (shouldProcessFollowUpQueue) {
@@ -675,6 +692,20 @@ async function handleThreadFinish({
     waitUntil(
       setActiveThreadChat({ sandboxId, threadChatId, isActive: false }),
     );
+
+    // Enable auto-merge if the task completed successfully (not an error, not rate limited)
+    // and has no more queued messages
+    if (!isError && !isRateLimited) {
+      waitUntil(
+        maybeEnableAutoMerge({ threadId, userId }).catch((error) => {
+          console.error(
+            `[handle-daemon-event] Failed to enable auto-merge for thread ${threadId}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+        }),
+      );
+    }
+
     const queuedThreadChats = await getEligibleQueuedThreadChats({ userId });
     if (queuedThreadChats.length > 0) {
       waitUntil(internalPOST(`process-thread-queue/${userId}`));

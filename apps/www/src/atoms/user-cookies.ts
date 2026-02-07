@@ -4,20 +4,28 @@ import {
   UserCookies,
   CollapsedSections,
   ThreadListGroupBy,
+  SecondaryPanelView,
   DashboardViewMode,
+  CodexTierCookie,
   defaultCollapsedSections,
   defaultThreadListGroupBy,
   defaultDashboardViewMode,
   defaultTimeZone,
+  defaultSecondaryPanelView,
+  defaultCodexTier,
   timeZoneKey,
   threadListCollapsedSectionsKey,
   disableGitCheckpointingKey,
   skipSetupKey,
   createNewBranchKey,
+  autoFixFeedbackKey,
+  autoMergePRKey,
   threadListGroupByKey,
   threadListCollapsedKey,
   secondaryPaneClosedKey,
+  secondaryPanelViewKey,
   dashboardViewModeKey,
+  codexTierKey,
 } from "@/lib/cookies";
 import { getCookieOrNull, setCookie } from "@/lib/cookies-client";
 
@@ -56,6 +64,18 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
           }
           break;
         }
+        case autoFixFeedbackKey: {
+          if (typeof userCookies[key] === "boolean") {
+            set(autoFixFeedbackCookieAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
+        case autoMergePRKey: {
+          if (typeof userCookies[key] === "boolean") {
+            set(autoMergePRCookieAtom, userCookies[key] as boolean);
+          }
+          break;
+        }
         case threadListGroupByKey: {
           if (userCookies[key]) {
             set(threadListGroupByAtom, userCookies[key]);
@@ -74,9 +94,21 @@ export const userCookiesInitAtom = atom<null, [UserCookies], void>(
           }
           break;
         }
+        case secondaryPanelViewKey: {
+          if (userCookies[key]) {
+            set(secondaryPanelViewAtom, userCookies[key]);
+          }
+          break;
+        }
         case dashboardViewModeKey: {
           if (userCookies[key]) {
             set(dashboardViewModeAtom, userCookies[key]);
+          }
+          break;
+        }
+        case codexTierKey: {
+          if (userCookies[key]) {
+            set(codexTierCookieAtom, userCookies[key]);
           }
           break;
         }
@@ -173,7 +205,7 @@ const booleanCookieStorage = createJSONStorage<boolean>(() => ({
       const parsed = JSON.parse(value);
       setCookie({
         key,
-        value: String(parsed),
+        value: JSON.stringify(parsed),
         maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
       });
     } catch (e) {
@@ -191,6 +223,16 @@ const booleanCookieStorage = createJSONStorage<boolean>(() => ({
 
 export const dismissedRecommendedTasksAtom = atomWithStorage<boolean>(
   DISMISSED_RECOMMENDED_TASKS_KEY,
+  false,
+  booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Atom for dismissing Kanban promotion banner
+const DISMISSED_KANBAN_PROMOTION_KEY = "dismissed-kanban-promotion";
+
+export const dismissedKanbanPromotionAtom = atomWithStorage<boolean>(
+  DISMISSED_KANBAN_PROMOTION_KEY,
   false,
   booleanCookieStorage,
   { getOnInit: true },
@@ -220,6 +262,22 @@ export const createNewBranchCookieAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 );
 
+// Persist the last-selected value for auto-fix feedback when creating a thread
+export const autoFixFeedbackCookieAtom = atomWithStorage<boolean>(
+  autoFixFeedbackKey,
+  false,
+  booleanCookieStorage,
+  { getOnInit: true },
+);
+
+// Persist the last-selected value for auto-merge PR when creating a thread
+export const autoMergePRCookieAtom = atomWithStorage<boolean>(
+  autoMergePRKey,
+  false,
+  booleanCookieStorage,
+  { getOnInit: true },
+);
+
 // Persist the collapsed state of the thread list sidebar
 export const threadListCollapsedAtom = atomWithStorage<boolean>(
   threadListCollapsedKey,
@@ -236,40 +294,34 @@ export const secondaryPaneClosedAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 );
 
-// Create a string-based cookie storage for dashboard view mode
-const stringCookieStorage = createJSONStorage<string>(() => ({
-  getItem: (key: string) => {
-    const value = getCookieOrNull(key);
-    return value !== null ? JSON.stringify(value) : null;
-  },
-  setItem: (key: string, value: string) => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    try {
-      const parsed = JSON.parse(value);
-      setCookie({
-        key,
-        value: String(parsed),
-        maxAgeSecs: 365 * 24 * 60 * 60, // 1 year
-      });
-    } catch (e) {
-      console.error("Failed to set cookie:", e);
-    }
-  },
-  removeItem: (key: string) => {
-    setCookie({
-      key,
-      value: "",
-      maxAgeSecs: 0, // Expire immediately
-    });
-  },
-}));
+// Persist the active view in the secondary panel (files-changed or code-review)
+export const secondaryPanelViewAtom = atomWithStorage<SecondaryPanelView>(
+  secondaryPanelViewKey,
+  defaultSecondaryPanelView,
+  cookieStorage,
+  { getOnInit: true },
+);
 
 // Persist the dashboard view mode (list or kanban)
 export const dashboardViewModeAtom = atomWithStorage<DashboardViewMode>(
   dashboardViewModeKey,
   defaultDashboardViewMode,
-  stringCookieStorage as any,
+  cookieStorage,
+  { getOnInit: true },
+);
+
+// Atom for controlling the new task dialog from Kanban view
+// This is a simple in-memory atom (not persisted) for UI state
+export const kanbanNewTaskDialogOpenAtom = atom<boolean>(false);
+
+// Atom for controlling the quick add backlog dialog from Kanban view
+// This is a simple in-memory atom (not persisted) for UI state
+export const kanbanQuickAddBacklogOpenAtom = atom<boolean>(false);
+
+// Persist the last-selected value for codex tier (reasoning effort level)
+export const codexTierCookieAtom = atomWithStorage<CodexTierCookie>(
+  codexTierKey,
+  defaultCodexTier,
+  cookieStorage,
   { getOnInit: true },
 );

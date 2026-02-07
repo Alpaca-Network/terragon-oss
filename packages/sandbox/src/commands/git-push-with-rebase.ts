@@ -1,5 +1,6 @@
 import { ISandboxSession } from "../types";
 import { getGitDefaultBranch } from "./git-default-branch";
+import { updateSubmodules } from "./git-submodules";
 
 export interface GitPushWithRebaseArgs {
   branch?: string;
@@ -99,6 +100,9 @@ export async function gitPushWithRebase(
             await session.runCommand(`git rebase origin/${branch}`, {
               cwd: repoRoot,
             });
+
+            // Update submodules after rebase (auto-detects if repo has submodules)
+            await updateSubmodules({ session, repoRoot });
 
             // Try pushing again
             await session.runCommand(pushCmd, { cwd: repoRoot });

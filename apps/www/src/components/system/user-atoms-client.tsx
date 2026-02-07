@@ -27,6 +27,8 @@ import {
   userCredentialsAtom,
   userCredentialsRefetchAtom,
 } from "@/atoms/user-credentials";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export function UserAtomsHydrator({
   user,
@@ -74,6 +76,8 @@ export function UserAtomsHydrator({
   const refetchUserSettings = useSetAtom(userSettingsRefetchAtom);
   const refetchUserFlags = useSetAtom(userFlagsRefetchAtom);
   const refetchUserCredentials = useSetAtom(userCredentialsRefetchAtom);
+  const router = useRouter();
+
   useRealtimeUser({
     matches: (message) => !!message.data.userSettings,
     onMessage: () => refetchUserSettings(),
@@ -86,12 +90,59 @@ export function UserAtomsHydrator({
     matches: (message) => !!message.data.userCredentials,
     onMessage: () => refetchUserCredentials(),
   });
+
+  // Show toast notification when task is auto-archived
+  useRealtimeUser({
+    matches: (message) =>
+      message.data.notificationReason === "task-archived" &&
+      message.data.isThreadUnread === true &&
+      !!message.data.threadId,
+    onMessage: (message) => {
+      // Guard against undefined threadId (TypeScript doesn't narrow across callbacks)
+      const threadId = message.data.threadId;
+      if (!threadId) return;
+
+      const threadName = message.data.threadName || "Task";
+
+      // Use unique ID to prevent duplicate toasts for the same event
+      toast.success(`${threadName} completed and archived`, {
+        id: `task-archived-${threadId}`,
+        duration: 5000,
+        action: {
+          label: "View in archived",
+          onClick: () => router.push("/archived"),
+        },
+      });
+    },
+  });
+
   useEffect(() => {
     if (user) {
-      posthog.identify(user.id, {
-        name: user.name,
-        email: user.email,
-      });
+      // Defer analytics to not block Time to Interactive
+      const identify = () => {
+        posthog.identify(user.id, {
+          name: user.name,
+          email: user.email,
+        });
+      };
+
+      let idleCallbackId: number | undefined;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+      if ("requestIdleCallback" in window) {
+        idleCallbackId = requestIdleCallback(identify);
+      } else {
+        timeoutId = setTimeout(identify, 0);
+      }
+
+      return () => {
+        if (idleCallbackId !== undefined) {
+          cancelIdleCallback(idleCallbackId);
+        }
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+        }
+      };
     }
   }, [user]);
   return children;

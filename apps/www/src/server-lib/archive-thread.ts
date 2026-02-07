@@ -137,6 +137,7 @@ export async function archiveAndStopThread({
     threadId,
     updates: {
       archived: true,
+      isBacklog: false, // Clear backlog when archiving
       updatedAt: new Date(),
     },
   });

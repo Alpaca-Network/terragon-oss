@@ -5,30 +5,28 @@ import { UserAtomsHydratorServer } from "@/components/system/user-atoms-server";
 import { Cabin, Geist, Geist_Mono } from "next/font/google";
 import { ServerProviders } from "@/components/system/server-providers";
 import { KonamiVideo } from "@/components/konami-video";
-import { Suspense } from "react";
-import { GatewayZAutoAuth } from "@/components/system/gatewayz-auto-auth";
 
 export const metadata: Metadata = {
-  title: "Terragon",
+  title: "Gatewayz Code",
   description: "AI-powered coding assistant platform",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Terragon",
+    title: "Gatewayz Code",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "Terragon",
-    title: "Terragon",
+    siteName: "Gatewayz Code",
+    title: "Gatewayz Code",
     description: "AI-powered coding assistant platform",
   },
   twitter: {
     card: "summary",
-    title: "Terragon",
+    title: "Gatewayz Code",
     description: "AI-powered coding assistant platform",
   },
 };
@@ -64,13 +62,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {process.env.NODE_ENV === "development" ? (
-          <link rel="icon" href="/favicon-dev.png" />
-        ) : (
-          <link rel="icon" href="/favicon.png" />
-        )}
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Gatewayz Code" />
         <link
           rel="preconnect"
           href="https://fonts.googleapis.com"
@@ -107,10 +103,6 @@ export default function RootLayout({
             />
             {/* Persistent across routes */}
             <KonamiVideo startSeconds={155} />
-            {/* GatewayZ SSO - listens for auth from parent iframe */}
-            <Suspense fallback={null}>
-              <GatewayZAutoAuth />
-            </Suspense>
           </UserAtomsHydratorServer>
         </ServerProviders>
       </body>

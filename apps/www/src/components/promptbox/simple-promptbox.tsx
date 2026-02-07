@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AIAgent, AIModel, SelectedAIModels } from "@terragon/agent/types";
 import type { SetSelectedModel } from "@/hooks/use-selected-model";
@@ -24,7 +24,15 @@ import {
   ModeSelector,
   LoopConfigInput,
 } from "@/components/promptbox/mode-selector";
+import { CodexTierSelector } from "@/components/promptbox/codex-tier-selector";
 import { TSubmitForm } from "./send-button";
+import { BacklogTemplatePicker } from "@/components/kanban/backlog-templates";
+import { BacklogTemplate } from "@/lib/backlog-templates";
+import { buildTemplateDoc, type TaskMode } from "./task-mode";
+import type { CodexTier } from "@terragon/shared/db/types";
+import { useFeatureFlag } from "@/hooks/use-feature-flag";
+import { AutoFixFeedbackToggle } from "./auto-fix-feedback-toggle";
+import { AutoMergeToggle } from "./auto-merge-toggle";
 
 export function SimplePromptBox({
   editor,
@@ -51,8 +59,8 @@ export function SimplePromptBox({
   typeahead,
   supportSaveAsDraft,
   supportSchedule,
-  permissionMode,
-  onPermissionModeChange,
+  taskMode,
+  onTaskModeChange,
   loopConfig,
   onLoopConfigChange,
   hideModelSelector = false,
@@ -60,6 +68,17 @@ export function SimplePromptBox({
   hideAddContextButton = false,
   hideFileAttachmentButton = false,
   hideVoiceInput = false,
+  hideCodexTierSelector = false,
+  codexTier,
+  onCodexTierChange,
+  showAutoFixFeedback = false,
+  autoFixFeedbackValue = false,
+  onAutoFixFeedbackChange,
+  autoFixFeedbackDisabled = false,
+  showAutoMergePR = false,
+  autoMergePRValue = false,
+  onAutoMergePRChange,
+  autoMergePRDisabled = false,
 }: {
   forcedAgent: AIAgent | null;
   forcedAgentVersion: number | null;
@@ -85,8 +104,8 @@ export function SimplePromptBox({
   typeahead: Typeahead | null;
   supportSaveAsDraft?: boolean;
   supportSchedule?: boolean;
-  permissionMode: "allowAll" | "plan" | "loop";
-  onPermissionModeChange: (mode: "allowAll" | "plan" | "loop") => void;
+  taskMode: TaskMode;
+  onTaskModeChange: (mode: TaskMode) => void;
   loopConfig?: LoopConfigInput;
   onLoopConfigChange?: (config: LoopConfigInput) => void;
   hideModelSelector?: boolean;
@@ -94,7 +113,26 @@ export function SimplePromptBox({
   hideAddContextButton?: boolean;
   hideFileAttachmentButton?: boolean;
   hideVoiceInput?: boolean;
+  hideCodexTierSelector?: boolean;
+  codexTier?: CodexTier;
+  onCodexTierChange?: (tier: CodexTier) => void;
+  showAutoFixFeedback?: boolean;
+  autoFixFeedbackValue?: boolean;
+  onAutoFixFeedbackChange?: (value: boolean) => void;
+  autoFixFeedbackDisabled?: boolean;
+  showAutoMergePR?: boolean;
+  autoMergePRValue?: boolean;
+  onAutoMergePRChange?: (value: boolean) => void;
+  autoMergePRDisabled?: boolean;
 }) {
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<BacklogTemplate | null>(null);
+  const isCodexTierSelectorEnabled = useFeatureFlag("codexTierSelector");
+  const showCodexTierSelector =
+    isCodexTierSelectorEnabled &&
+    !hideCodexTierSelector &&
+    codexTier !== undefined &&
+    onCodexTierChange !== undefined;
   const showPlanModeSelector = useMemo(() => {
     if (isMultiAgentMode) {
       const selectedModelsArr = Object.keys(selectedModels) as AIModel[];
@@ -126,6 +164,18 @@ export function SimplePromptBox({
         text: transcript + " ",
       });
       editor.commands.focus();
+    },
+    [editor],
+  );
+
+  const handleTemplateSelect = useCallback(
+    (template: BacklogTemplate | null) => {
+      setSelectedTemplate(template);
+      if (!template || !editor) {
+        return;
+      }
+      editor.commands.setContent(buildTemplateDoc(template.prompt));
+      editor.commands.focus("end");
     },
     [editor],
   );
@@ -164,16 +214,38 @@ export function SimplePromptBox({
               }
             />
           )}
-          {!hideModeSelector &&
-            showPlanModeSelector &&
-            onPermissionModeChange && (
-              <ModeSelector
-                mode={permissionMode ?? "allowAll"}
-                onChange={onPermissionModeChange}
-                loopConfig={loopConfig}
-                onLoopConfigChange={onLoopConfigChange}
+          {!hideModeSelector && showPlanModeSelector && onTaskModeChange && (
+            <ModeSelector
+              mode={taskMode}
+              onChange={onTaskModeChange}
+              loopConfig={loopConfig}
+              onLoopConfigChange={onLoopConfigChange}
+            />
+          )}
+          {showCodexTierSelector &&
+            codexTier !== undefined &&
+            onCodexTierChange !== undefined && (
+              <CodexTierSelector
+                tier={codexTier}
+                onChange={onCodexTierChange}
               />
             )}
+          {showAutoFixFeedback && onAutoFixFeedbackChange && (
+            <AutoFixFeedbackToggle
+              disabled={autoFixFeedbackDisabled}
+              disableToast={false}
+              value={autoFixFeedbackValue}
+              onChange={onAutoFixFeedbackChange}
+            />
+          )}
+          {showAutoMergePR && onAutoMergePRChange && (
+            <AutoMergeToggle
+              disabled={autoMergePRDisabled}
+              disableToast={false}
+              value={autoMergePRValue}
+              onChange={onAutoMergePRChange}
+            />
+          )}
         </div>
         <div className="flex-shrink-0 flex flex-row items-center gap-1">
           {!hideAddContextButton && (
@@ -207,6 +279,15 @@ export function SimplePromptBox({
           />
         </div>
       </div>
+      {taskMode === "template" && showPlanModeSelector && !hideModeSelector && (
+        <div className="px-4 pb-3">
+          <BacklogTemplatePicker
+            onTemplateSelect={handleTemplateSelect}
+            selectedTemplateId={selectedTemplate?.id}
+            className="w-full sm:w-[260px]"
+          />
+        </div>
+      )}
     </DragDropWrapper>
   );
 }

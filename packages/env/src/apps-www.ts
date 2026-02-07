@@ -52,6 +52,13 @@ export const env = envsafe({
   OPENROUTER_API_KEY: str({ allowEmpty: true, default: "" }),
   GOOGLE_AI_STUDIO_API_KEY: str({ allowEmpty: true, default: "" }),
 
+  // Gatewayz - unified AI gateway provider (default for pro/max subscribers)
+  GATEWAYZ_API_KEY: str({ allowEmpty: true, default: "" }),
+
+  // Google OAuth (for Gemini subscription access)
+  GOOGLE_OAUTH_CLIENT_ID: str({ allowEmpty: true, default: "" }),
+  GOOGLE_OAUTH_CLIENT_SECRET: str({ allowEmpty: true, default: "" }),
+
   // Deprecated, use LOCALHOST_PUBLIC_DOMAIN instead
   NGROK_DOMAIN: str({ allowEmpty: true, default: "" }),
   LOCALHOST_PUBLIC_DOMAIN: str({ allowEmpty: true, default: "" }),
@@ -79,7 +86,7 @@ export const env = envsafe({
 
   // Posthog
   NEXT_PUBLIC_POSTHOG_KEY: str({
-    default: "phc_ITvLHD24gmXmQ4IbWa9DqWJyQZNJweLW8vOTpT9WkjS",
+    default: "phc_mE4aYwEQqIELY21HLvWesMpmcN3tzUrPTHhBEsV6wAF",
     allowEmpty: true,
   }),
   NEXT_PUBLIC_POSTHOG_HOST: str({
@@ -109,4 +116,12 @@ export const env = envsafe({
 
   // Loops (marketing email & events)
   LOOPS_API_KEY: str({ allowEmpty: true, default: "" }),
+
+  // Langfuse (LLM observability)
+  LANGFUSE_SECRET_KEY: str({ allowEmpty: true, default: "" }),
+  LANGFUSE_PUBLIC_KEY: str({ allowEmpty: true, default: "" }),
+  LANGFUSE_HOST: str({
+    allowEmpty: true,
+    default: "https://cloud.langfuse.com",
+  }),
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadInfo } from "@terragon/shared";
-import { useCallback, useMemo, memo } from "react";
+import { useCallback, useMemo, memo, useState } from "react";
 import {
   LoaderCircle,
   ChevronDown,
@@ -12,6 +12,14 @@ import {
   Archive,
   SlidersHorizontal,
   List,
+  Kanban,
+  Clock,
+  MessageSquare,
+  CheckCircle2,
+  Shield,
+  GitMerge,
+  Search,
+  X,
 } from "lucide-react";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { BroadcastUserMessage } from "@terragon/types/broadcast";
@@ -20,6 +28,7 @@ import { isToday, isYesterday, isThisWeek } from "date-fns";
 import { tz } from "@date-fns/tz";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { SheetOrMenu } from "@/components/ui/sheet-or-menu";
 import { RecommendedTasks } from "../recommended-tasks";
 import {
@@ -32,121 +41,252 @@ import {
   toggleThreadListCollapsedSectionAtom,
   timeZoneAtom,
   threadListGroupByAtom,
+  dashboardViewModeAtom,
 } from "@/atoms/user-cookies";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { cn } from "@/lib/utils";
 import { ThreadListGroupBy } from "@/lib/cookies";
 import { sortThreadsUpdatedAt } from "@/lib/thread-sorting";
 
+// Feedback filter types for PR-related filtering
+export type FeedbackFilter =
+  | "all"
+  | "comments"
+  | "checks"
+  | "coverage"
+  | "conflicts";
+
+export type ThreadViewFilter = "all" | "active" | "backlog" | "archived";
+
+// Feedback filter tab button component
+const FeedbackFilterTab = memo(function FeedbackFilterTab({
+  filter,
+  activeFilter,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  filter: FeedbackFilter;
+  activeFilter: FeedbackFilter;
+  onClick: (filter: FeedbackFilter) => void;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  const isActive = filter === activeFilter;
+  return (
+    <button
+      onClick={() => onClick(filter)}
+      className={cn(
+        "flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap",
+        isActive
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+      )}
+      title={label}
+    >
+      <Icon className="size-3" />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+});
+
+// Feedback filter tabs row
+export const FeedbackFilterTabs = memo(function FeedbackFilterTabs({
+  activeFilter,
+  onFilterChange,
+  className,
+}: {
+  activeFilter: FeedbackFilter;
+  onFilterChange: (filter: FeedbackFilter) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-1 overflow-x-auto", className)}>
+      <FeedbackFilterTab
+        filter="all"
+        activeFilter={activeFilter}
+        onClick={onFilterChange}
+        icon={List}
+        label="All"
+      />
+      <FeedbackFilterTab
+        filter="comments"
+        activeFilter={activeFilter}
+        onClick={onFilterChange}
+        icon={MessageSquare}
+        label="Comments"
+      />
+      <FeedbackFilterTab
+        filter="checks"
+        activeFilter={activeFilter}
+        onClick={onFilterChange}
+        icon={CheckCircle2}
+        label="Checks"
+      />
+      <FeedbackFilterTab
+        filter="coverage"
+        activeFilter={activeFilter}
+        onClick={onFilterChange}
+        icon={Shield}
+        label="Coverage"
+      />
+      <FeedbackFilterTab
+        filter="conflicts"
+        activeFilter={activeFilter}
+        onClick={onFilterChange}
+        icon={GitMerge}
+        label="Conflicts"
+      />
+    </div>
+  );
+});
+
 export const ThreadListHeader = memo(function ThreadListHeader({
   className,
   viewFilter,
   setViewFilter,
   allowGroupBy,
+  showViewToggle = false,
+  feedbackFilter,
+  onFeedbackFilterChange,
+  showFeedbackFilters = false,
 }: {
   className?: string;
-  viewFilter: "all" | "active" | "archived";
-  setViewFilter: (viewFilter: "active" | "archived") => void;
+  viewFilter: ThreadViewFilter;
+  setViewFilter: (viewFilter: "active" | "backlog" | "archived") => void;
   allowGroupBy: boolean;
+  showViewToggle?: boolean;
+  feedbackFilter?: FeedbackFilter;
+  onFeedbackFilterChange?: (filter: FeedbackFilter) => void;
+  showFeedbackFilters?: boolean;
 }) {
   const [groupBy, setGroupBy] = useAtom(threadListGroupByAtom);
+  const setViewMode = useSetAtom(dashboardViewModeAtom);
   return (
-    <div
-      className={cn(
-        "px-4 flex items-center justify-between min-h-8",
-        className,
-      )}
-    >
-      <h2 className="font-semibold text-sm">Tasks</h2>
-      <div className="flex items-center gap-0.5">
-        {viewFilter !== "all" && (
-          <SheetOrMenu
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-fit px-1 hover:bg-sidebar-accent/50 group flex items-center gap-1"
-              >
-                {viewFilter === "active" ? (
-                  <Inbox className="h-3.5 w-3.5" />
-                ) : (
-                  <Archive className="h-3.5 w-3.5" />
-                )}
-                <ChevronDown className="size-3 opacity-50" />
-              </Button>
-            }
-            title="Tasks Filter"
-            collapseAsDrawer
-            getItems={() => [
-              {
-                type: "label",
-                label: "Filter By",
-              },
-              {
-                type: "checkbox",
-                label: "Inbox",
-                checked: viewFilter === "active",
-                onCheckedChange: (checked) => {
-                  setViewFilter("active");
+    <div className={cn("flex flex-col gap-2", className)}>
+      <div className="px-4 flex items-center justify-between min-h-8">
+        <h2 className="font-semibold text-sm">Tasks</h2>
+        <div className="flex items-center gap-0.5">
+          {showViewToggle && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-sidebar-accent/50"
+              onClick={() => setViewMode("kanban")}
+              title="Switch to Kanban view"
+              aria-label="Switch to Kanban view"
+            >
+              <Kanban className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {viewFilter !== "all" && (
+            <SheetOrMenu
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-fit px-1 hover:bg-sidebar-accent/50 group flex items-center gap-1"
+                >
+                  {viewFilter === "active" ? (
+                    <Inbox className="h-3.5 w-3.5" />
+                  ) : viewFilter === "backlog" ? (
+                    <Clock className="h-3.5 w-3.5" />
+                  ) : (
+                    <Archive className="h-3.5 w-3.5" />
+                  )}
+                  <ChevronDown className="size-3 opacity-50" />
+                </Button>
+              }
+              title="Tasks Filter"
+              collapseAsDrawer
+              getItems={() => [
+                {
+                  type: "label",
+                  label: "Filter By",
                 },
-              },
-              {
-                type: "checkbox",
-                label: "Archived",
-                checked: viewFilter === "archived",
-                onCheckedChange: (checked) => {
-                  setViewFilter("archived");
+                {
+                  type: "checkbox",
+                  label: "Inbox",
+                  checked: viewFilter === "active",
+                  onCheckedChange: () => {
+                    setViewFilter("active");
+                  },
                 },
-              },
-            ]}
-          />
-        )}
-        {allowGroupBy && (
-          <SheetOrMenu
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-fit px-1 hover:bg-sidebar-accent/50 group flex items-center gap-1"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-              </Button>
-            }
-            title="Group Tasks By"
-            collapseAsDrawer
-            getItems={() => [
-              {
-                type: "label",
-                label: "Group By",
-              },
-              {
-                type: "checkbox",
-                label: "Last Updated",
-                checked: groupBy === "lastUpdated",
-                onCheckedChange: (checked) => {
-                  setGroupBy("lastUpdated");
+                {
+                  type: "checkbox",
+                  label: "Backlog",
+                  checked: viewFilter === "backlog",
+                  onCheckedChange: () => {
+                    setViewFilter("backlog");
+                  },
                 },
-              },
-              {
-                type: "checkbox",
-                label: "Created At",
-                checked: groupBy === "createdAt",
-                onCheckedChange: (checked) => {
-                  setGroupBy("createdAt");
+                {
+                  type: "checkbox",
+                  label: "Archived",
+                  checked: viewFilter === "archived",
+                  onCheckedChange: () => {
+                    setViewFilter("archived");
+                  },
                 },
-              },
-              {
-                type: "checkbox",
-                label: "Repository",
-                checked: groupBy === "repository",
-                onCheckedChange: (checked) => {
-                  setGroupBy("repository");
+              ]}
+            />
+          )}
+          {allowGroupBy && (
+            <SheetOrMenu
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-fit px-1 hover:bg-sidebar-accent/50 group flex items-center gap-1"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              }
+              title="Group Tasks By"
+              collapseAsDrawer
+              getItems={() => [
+                {
+                  type: "label",
+                  label: "Group By",
                 },
-              },
-            ]}
-          />
-        )}
+                {
+                  type: "checkbox",
+                  label: "Last Updated",
+                  checked: groupBy === "lastUpdated",
+                  onCheckedChange: (checked) => {
+                    setGroupBy("lastUpdated");
+                  },
+                },
+                {
+                  type: "checkbox",
+                  label: "Created At",
+                  checked: groupBy === "createdAt",
+                  onCheckedChange: (checked) => {
+                    setGroupBy("createdAt");
+                  },
+                },
+                {
+                  type: "checkbox",
+                  label: "Repository",
+                  checked: groupBy === "repository",
+                  onCheckedChange: (checked) => {
+                    setGroupBy("repository");
+                  },
+                },
+              ]}
+            />
+          )}
+        </div>
       </div>
+      {showFeedbackFilters &&
+        feedbackFilter !== undefined &&
+        onFeedbackFilterChange && (
+          <FeedbackFilterTabs
+            activeFilter={feedbackFilter}
+            onFilterChange={onFeedbackFilterChange}
+            className="px-4 pb-2"
+          />
+        )}
     </div>
   );
 });
@@ -232,8 +372,10 @@ const CollapsableThreadSection = memo(function CollapsableThreadSection({
 
 function EmptyThreadList({
   queryFilters,
+  viewFilter,
 }: {
   queryFilters: ThreadListFilters;
+  viewFilter: ThreadViewFilter;
 }) {
   if (queryFilters.automationId) {
     return (
@@ -247,17 +389,33 @@ function EmptyThreadList({
       </div>
     );
   }
+
+  const getEmptyStateContent = () => {
+    if (viewFilter === "archived" || queryFilters.archived) {
+      return {
+        icon: <ArchiveX className="size-4 text-muted-foreground/70" />,
+        text: "No archived tasks",
+      };
+    }
+    if (viewFilter === "backlog" || queryFilters.isBacklog) {
+      return {
+        icon: <Clock className="size-4 text-muted-foreground/70" />,
+        text: "No tasks in backlog",
+      };
+    }
+    return {
+      icon: <List className="size-4 text-muted-foreground/70" />,
+      text: "No tasks",
+    };
+  };
+
+  const { icon, text } = getEmptyStateContent();
+
   return (
     <div className="bg-muted/20 rounded-md p-8 flex flex-col items-center justify-center gap-2">
       <div className="flex items-center gap-2">
-        {queryFilters.archived ? (
-          <ArchiveX className="size-4 text-muted-foreground/70" />
-        ) : (
-          <List className="size-4 text-muted-foreground/70" />
-        )}
-        <span className="text-sm text-muted-foreground/50">
-          {queryFilters.archived ? "No archived tasks" : "No tasks"}
-        </span>
+        {icon}
+        <span className="text-sm text-muted-foreground/50">{text}</span>
       </div>
     </div>
   );
@@ -275,10 +433,12 @@ function useThreadList({
   viewFilter,
   queryFilters,
   groupBy,
+  searchQuery,
 }: {
-  viewFilter: "all" | "active" | "archived";
+  viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   groupBy: ThreadListGroupBy;
+  searchQuery?: string;
 }) {
   const [timeZone] = useAtom(timeZoneAtom);
   const {
@@ -299,12 +459,30 @@ function useThreadList({
     threadIds: Set<string>;
   }>(() => {
     const seenThreadIds = new Set<string>();
+    const normalizedSearchQuery = searchQuery?.toLowerCase().trim() || "";
     const filteredThreads = threads.filter((thread) => {
-      if (viewFilter === "active" && thread.archived) {
+      // Active (Inbox): not archived and not in backlog
+      if (viewFilter === "active" && (thread.archived || thread.isBacklog)) {
         return false;
       }
+      // Backlog: in backlog and not archived
+      if (viewFilter === "backlog" && (!thread.isBacklog || thread.archived)) {
+        return false;
+      }
+      // Archived: archived (regardless of backlog state)
       if (viewFilter === "archived" && !thread.archived) {
         return false;
+      }
+      // Apply search filter if provided
+      if (normalizedSearchQuery) {
+        const threadName = thread.name?.toLowerCase() || "";
+        const repoName = thread.githubRepoFullName?.toLowerCase() || "";
+        if (
+          !threadName.includes(normalizedSearchQuery) &&
+          !repoName.includes(normalizedSearchQuery)
+        ) {
+          return false;
+        }
       }
       if (!seenThreadIds.has(thread.id)) {
         seenThreadIds.add(thread.id);
@@ -404,33 +582,103 @@ function useThreadList({
         };
       }
     }
-  }, [threads, viewFilter, timeZone, groupBy]);
+  }, [threads, viewFilter, timeZone, groupBy, searchQuery]);
 
   const showArchived = viewFilter === "archived";
   const automationId = queryFilters.automationId;
   const matchThread = useCallback(
     (threadId: string, data: BroadcastUserMessage["data"]) => {
-      if (threadIds.has(threadId)) {
+      // Check if this update is for a thread already in our visible list
+      const isThreadVisible = threadIds.has(threadId);
+
+      if (isThreadVisible) {
         // If messages were updated but the status didn't change, we don't need to refetch.
         if (data.messagesUpdated && !data.threadStatusUpdated) {
           return false;
         }
         return true;
       }
+
+      // For threads not in visible list, check if they should appear based on filters
+      // This handles the case where thread exists on page 2+ or was just created/updated
+
+      // Filter by automation if specified
       if (automationId && data.threadAutomationId !== automationId) {
         return false;
       }
+
+      // Check if archived status matches current view
       if (typeof data.isThreadArchived === "boolean") {
-        if (showArchived === data.isThreadArchived) {
+        // For archived view, only match if thread is archived
+        if (showArchived && data.isThreadArchived) {
+          return true;
+        }
+        // For archived view, reject non-archived threads
+        if (showArchived && !data.isThreadArchived) {
+          return false;
+        }
+        // For non-archived views, reject archived threads but trigger refetch to remove stale data
+        if (!showArchived && data.isThreadArchived) {
+          // Thread was archived - refetch to remove it from the non-archived view
+          return true;
+        }
+        // For non-archived views (active or backlog), thread is not archived
+        if (!showArchived && !data.isThreadArchived) {
+          // Check backlog status if we're filtering by it
+          if (typeof data.isThreadBacklog === "boolean") {
+            // For backlog view, only match if thread is in backlog
+            if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
+              return false;
+            }
+            // For active view (not backlog), only match if thread is not in backlog
+            if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+              return false;
+            }
+            // Backlog status matches or no filter applied - refetch to update
+            return true;
+          }
+          // Backlog status unknown but we have a filter - refetch to verify
+          // This is safe because the server will return correctly filtered data
+          if (queryFilters.isBacklog !== undefined) {
+            return true;
+          }
+          // No backlog filter and status unknown - refetch to update
           return true;
         }
       }
+
+      // Handle new thread creation
       if (data.isThreadCreated) {
+        // New threads shouldn't appear in archived view
+        if (showArchived) {
+          return false;
+        }
+        // Check if backlog status matches the current view filter
+        if (typeof data.isThreadBacklog === "boolean") {
+          // For backlog view, only match if thread is in backlog
+          if (queryFilters.isBacklog === true && !data.isThreadBacklog) {
+            return false;
+          }
+          // For active view (not backlog), only match if thread is not in backlog
+          if (queryFilters.isBacklog === false && data.isThreadBacklog) {
+            return false;
+          }
+          // Backlog status matches or no filter applied - refetch to show new thread
+          return true;
+        }
+        // Backlog status unknown - refetch to verify the new thread matches filters
+        // This is safe because the server will return correctly filtered data
         return true;
       }
+
+      // Handle thread status updates (could move thread between pages)
+      if (data.threadStatusUpdated) {
+        return true;
+      }
+
       return false;
     },
-    [threadIds, showArchived, automationId],
+    [threadIds, showArchived, automationId, queryFilters.isBacklog],
   );
   useRealtimeThreadMatch({
     matchThread,
@@ -457,13 +705,17 @@ export const ThreadListContents = memo(function ThreadListContents({
   setPromptText,
   allowGroupBy,
   isSidebar,
+  feedbackFilter = "all",
+  searchQuery,
 }: {
-  viewFilter: "all" | "active" | "archived";
+  viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   showSuggestedTasks: boolean;
   setPromptText: (promptText: string) => void;
   allowGroupBy: boolean;
   isSidebar: boolean;
+  feedbackFilter?: FeedbackFilter;
+  searchQuery?: string;
 }) {
   const pathname = usePathname();
   const collapsedSections = useAtomValue(threadListCollapsedSectionsAtom);
@@ -484,6 +736,7 @@ export const ThreadListContents = memo(function ThreadListContents({
     viewFilter,
     queryFilters,
     groupBy: allowGroupBy ? groupBy : "lastUpdated",
+    searchQuery,
   });
 
   if (isLoading) {
@@ -520,7 +773,10 @@ export const ThreadListContents = memo(function ThreadListContents({
           ))}
         </div>
         {threads.length === 0 && (
-          <EmptyThreadList queryFilters={queryFilters} />
+          <EmptyThreadList
+            queryFilters={queryFilters}
+            viewFilter={viewFilter}
+          />
         )}
         {hasNextPage && threads.length > 0 && (
           <div
@@ -563,22 +819,62 @@ export const ThreadListContents = memo(function ThreadListContents({
   );
 });
 
+// Reusable search bar component for thread lists
+export const ThreadListSearchBar = memo(function ThreadListSearchBar({
+  value,
+  onChange,
+  placeholder = "Search tasks...",
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      <Input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-8 pl-8 pr-8 text-xs"
+      />
+      {value && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onChange("")}
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+          aria-label="Clear search"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  );
+});
+
 export const ThreadListMain = memo(function ThreadListMain({
   viewFilter,
   queryFilters,
   allowGroupBy,
   showSuggestedTasks = true,
   setPromptText,
+  showViewToggle = false,
 }: {
-  viewFilter: "all" | "active" | "archived";
+  viewFilter: ThreadViewFilter;
   queryFilters: ThreadListFilters;
   allowGroupBy: boolean;
   showSuggestedTasks?: boolean;
   setPromptText: (promptText: string) => void;
+  showViewToggle?: boolean;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const [searchQuery, setSearchQuery] = useState("");
   return (
     <>
       <div className="flex-1 pb-4 flex flex-col">
@@ -588,13 +884,25 @@ export const ThreadListMain = memo(function ThreadListMain({
           setViewFilter={(value) => {
             const params = new URLSearchParams(searchParams.toString());
             params.delete("archived");
+            params.delete("backlog");
             if (value === "archived") {
               params.set("archived", "true");
+            } else if (value === "backlog") {
+              params.set("backlog", "true");
             }
             router.push(`${pathname}?${params.toString()}`);
           }}
           allowGroupBy={allowGroupBy}
+          showViewToggle={showViewToggle}
         />
+        {/* Search bar */}
+        <div className="px-4 py-2">
+          <ThreadListSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search tasks..."
+          />
+        </div>
         <ThreadListContents
           viewFilter={viewFilter}
           queryFilters={queryFilters}
@@ -602,6 +910,7 @@ export const ThreadListMain = memo(function ThreadListMain({
           setPromptText={setPromptText}
           allowGroupBy={allowGroupBy}
           isSidebar={false}
+          searchQuery={searchQuery}
         />
       </div>
     </>

@@ -3,6 +3,7 @@ type AttachmentBase = {
   mimeType: string;
   fileType: "image" | "pdf" | "text-file";
   fileName: string;
+  lineCount?: number; // Line count for text files (especially pasted content)
 };
 
 export type Attachment = AttachmentBase &

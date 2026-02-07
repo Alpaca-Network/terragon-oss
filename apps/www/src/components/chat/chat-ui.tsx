@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useLayoutEffect,
 } from "react";
 import {
   DBMessage,
@@ -65,13 +66,19 @@ import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { unwrapError } from "@/lib/server-actions";
 import { getPrimaryThreadChat } from "@terragon/shared/utils/thread-utils";
 import { usePlatform } from "@/hooks/use-platform";
+import { secondaryPanelViewAtom } from "@/atoms/user-cookies";
+import type { SecondaryPanelView } from "@/lib/cookies";
+import { useSetAtom } from "jotai";
 
 function ChatUI({
   threadId,
   isReadOnly,
+  initialPanel,
 }: {
   threadId: string;
   isReadOnly: boolean;
+  /** Initial secondary panel view to open (from URL query param) */
+  initialPanel?: string;
 }) {
   const queryClient = useQueryClient();
   const { messagesEndRef, isAtBottom, forceScrollToBottom } =
@@ -83,6 +90,33 @@ function ChatUI({
   const [showTerminal, setShowTerminal] = useState(false);
   const { shouldAutoOpenSecondaryPanel, setIsSecondaryPanelOpen } =
     useSecondaryPanel();
+  const setSecondaryPanelView = useSetAtom(secondaryPanelViewAtom);
+
+  // Handle initial panel from URL query parameter (e.g., ?panel=comments)
+  // This is used when clicking notifications to navigate directly to comments
+  // Track the last threadId we handled to reset on navigation between tasks
+  const lastHandledThreadIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    // Reset when navigating to a different thread
+    if (lastHandledThreadIdRef.current !== threadId) {
+      lastHandledThreadIdRef.current = threadId;
+      // Only handle initialPanel on fresh navigation to this thread
+      if (!initialPanel) {
+        return;
+      }
+      const validPanels: SecondaryPanelView[] = [
+        "files-changed",
+        "comments",
+        "checks",
+        "coverage",
+        "merge",
+      ];
+      if (validPanels.includes(initialPanel as SecondaryPanelView)) {
+        setSecondaryPanelView(initialPanel as SecondaryPanelView);
+        setIsSecondaryPanelOpen(true);
+      }
+    }
+  }, [threadId, initialPanel, setSecondaryPanelView, setIsSecondaryPanelOpen]);
 
   const promptBoxRef = useRef<{
     focus: () => void;
@@ -240,8 +274,14 @@ function ChatUI({
 
   if (isLoading || !thread || !threadChat) {
     return (
-      <div className="flex flex-col h-[100dvh] w-full items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="flex flex-col h-full w-full items-center justify-center gap-4 gradient-shift-bg">
+        <div className="relative">
+          <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+          <div className="size-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin relative z-10" />
+        </div>
+        <div className="text-sm text-muted-foreground animate-pulse">
+          Loading conversation...
+        </div>
       </div>
     );
   }
@@ -253,7 +293,7 @@ function ChatUI({
       promptBoxRef={promptBoxRef}
       isReadOnly={isReadOnly}
     >
-      <div className="flex flex-col h-[100dvh] w-full">
+      <div className="flex flex-col h-full w-full">
         <ChatHeader
           thread={thread}
           isReadOnly={isReadOnly}
@@ -377,8 +417,13 @@ function ChatPromptBox({
 
   const lastUsedModel = useMemo(() => {
     const dbMessages = (threadChat.messages as DBMessage[]) ?? [];
-    return getLastUserMessageModel(dbMessages);
-  }, [threadChat.messages]);
+    const messageModel = getLastUserMessageModel(dbMessages);
+
+    // Use message-derived model if available, as it's always the most recent.
+    // Fall back to lastUsedModel from DB for backwards compatibility with
+    // threads created before lastUsedModel was added, or when no messages exist yet.
+    return messageModel ?? threadChat.lastUsedModel ?? null;
+  }, [threadChat.lastUsedModel, threadChat.messages]);
 
   const updateThreadChat = useOptimisticUpdateThreadChat({
     threadId,
@@ -464,19 +509,25 @@ function ChatPromptBox({
   );
 
   return (
-    <div className="sticky bottom-0 z-10 bg-background chat-prompt-box px-6 max-w-[800px] w-full mx-auto">
+    <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-md chat-prompt-box px-6 max-w-[800px] w-full mx-auto border-t border-border/30">
       <div className="flex h-0 items-center justify-center">
         <button
           onClick={forceScrollToBottom}
           className={cn(
-            "z-20 -mt-20 flex size-8 items-center justify-center rounded-full bg-background/80 border border-foreground/20 backdrop-blur-md shadow-md transition-all duration-200 hover:bg-background/90 hover:border-foreground/30",
+            "z-20 -mt-20 flex size-9 items-center justify-center rounded-full",
+            "bg-background/90 backdrop-blur-md",
+            "border border-primary/20 shadow-lg",
+            "transition-all duration-300 ease-out",
+            "hover:bg-background hover:border-primary/40 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]",
+            "active:scale-95",
+            "tap-highlight",
             showScrollButton && !isAtBottom
               ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-2 pointer-events-none",
+              : "opacity-0 translate-y-4 pointer-events-none",
           )}
           aria-label="Scroll to bottom"
         >
-          <ArrowDown className="size-5" />
+          <ArrowDown className="size-5 text-primary" />
         </button>
       </div>
       {showContextUsageChip ? (

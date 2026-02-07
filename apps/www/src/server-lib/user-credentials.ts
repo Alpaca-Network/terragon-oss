@@ -1,23 +1,40 @@
 import { db } from "@/lib/db";
 import { getAllAgentProviderCredentialRecords } from "@terragon/shared/model/agent-provider-credentials";
-import { UserCredentials } from "@terragon/shared";
+import { UserCredentials, GatewayZTier } from "@terragon/shared";
+import * as schema from "@terragon/shared/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function getUserCredentials({
   userId,
 }: {
   userId: string;
 }): Promise<UserCredentials> {
-  const agentProviderCredentials = await getAllAgentProviderCredentialRecords({
-    db,
-    userId,
-    isActive: true,
-  });
+  // Fetch credentials and user's Gatewayz tier in parallel
+  const [agentProviderCredentials, userRecord] = await Promise.all([
+    getAllAgentProviderCredentialRecords({
+      db,
+      userId,
+      isActive: true,
+    }),
+    db
+      .select({ gwTier: schema.user.gwTier })
+      .from(schema.user)
+      .where(eq(schema.user.id, userId))
+      .limit(1),
+  ]);
+
+  const gwTier = (userRecord[0]?.gwTier as GatewayZTier) || "free";
+
   const result: UserCredentials = {
     hasClaude: false,
     hasAmp: false,
     hasOpenAI: false,
     hasOpenAIOAuthCredentials: false,
+    hasGemini: false,
+    gwTier,
+    hasGatewayz: gwTier === "pro" || gwTier === "max",
   };
+
   for (const credential of agentProviderCredentials) {
     switch (credential.agent) {
       case "claudeCode":
@@ -30,6 +47,9 @@ export async function getUserCredentials({
         break;
       case "amp":
         result.hasAmp = true;
+        break;
+      case "gemini":
+        result.hasGemini = true;
         break;
     }
   }

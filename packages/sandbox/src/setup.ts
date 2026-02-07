@@ -22,6 +22,7 @@ import {
 } from "./agents/opencode-config";
 import { getEnv } from "./env";
 import path from "path";
+import { initializeSubmodules } from "./commands/git-submodules";
 
 async function createNewBranch({
   session,
@@ -85,6 +86,10 @@ export async function setupSandboxOneTime(
   );
 
   await gitCloneRepo(session, options);
+
+  // Initialize submodules if repository has any (auto-detected)
+  await initializeSubmodules({ session, repoRoot: session.repoDir });
+
   await session.runCommand(
     [
       `git config user.name ${bashQuote(options.userName)}`,
@@ -153,8 +158,9 @@ export async function gitCloneRepo(
     sandboxStatus: "booting",
     bootingStatus: "cloning-repo",
   });
-  // Build clone command with blobless clone and branch specification
-  let cloneCommand = `git clone --filter=blob:none --no-recurse-submodules`;
+  // Build clone command with blobless clone
+  // Note: We no longer use --no-recurse-submodules to support repositories with submodules
+  let cloneCommand = `git clone --filter=blob:none`;
   // Add branch specification if provided
   if (options.repoBaseBranchName) {
     cloneCommand += ` --branch ${bashQuote(options.repoBaseBranchName)}`;
@@ -443,6 +449,13 @@ async function updateAgentFiles({
         ],
       });
       break;
+    }
+    case "gatewayz": {
+      // Gatewayz is a meta-agent that routes to underlying agents.
+      // The server should pass the underlying agent for file setup, not "gatewayz".
+      throw new Error(
+        "Gatewayz agent should not be passed directly to updateAgentFiles. Server should pass the underlying agent.",
+      );
     }
     default: {
       const _exhaustiveCheck: never = agent;

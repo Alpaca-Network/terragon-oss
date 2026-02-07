@@ -349,6 +349,13 @@ export class TerragonDaemon {
       case "opencode":
         await this.runOpencodeCommand(input);
         break;
+      case "gatewayz":
+        // Gatewayz is a meta-agent that routes to underlying agents.
+        // The server should pass the underlying agent to the daemon, not "gatewayz".
+        // If we receive "gatewayz" here, it's a server bug.
+        throw new Error(
+          "Gatewayz agent should not be sent directly to daemon. Server should pass the underlying agent.",
+        );
       default: {
         // This ensures we handle all model types exhaustively
         const _exhaustiveCheck: never = input.agent;
@@ -633,12 +640,22 @@ export class TerragonDaemon {
       env: {
         ANTHROPIC_API_KEY: getAnthropicApiKeyOrNull(this.runtime),
         BASH_MAX_TIMEOUT_MS: (60 * 1000).toString(),
-        ...(!!input.useCredits
+        // Enable Agent Teams if the feature flag is set
+        ...(this.getFeatureFlag("claudeCodeAgentTeams")
+          ? { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1" }
+          : {}),
+        // Gatewayz takes priority over built-in credits
+        ...(!!input.useGatewayz
           ? {
-              ANTHROPIC_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/anthropic`,
+              ANTHROPIC_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/gatewayz`,
               ANTHROPIC_AUTH_TOKEN: input.token,
             }
-          : {}),
+          : !!input.useCredits
+            ? {
+                ANTHROPIC_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/anthropic`,
+                ANTHROPIC_AUTH_TOKEN: input.token,
+              }
+            : {}),
       },
       onStdoutLine: (line) => {
         try {
@@ -780,6 +797,7 @@ export class TerragonDaemon {
         model: input.model,
         sessionId: input.sessionId,
         useCredits: !!input.useCredits,
+        useGatewayz: !!input.useGatewayz,
       }),
       getMockSuccessResult: () => "Codex successfully completed",
       onStdoutLine: (line) => {
@@ -826,6 +844,22 @@ export class TerragonDaemon {
   private async runGeminiCommand(input: DaemonMessageClaude): Promise<void> {
     // Create parser state for accumulating deltas
     const parserState = createGeminiParserState();
+    const useGatewayz = !!input.useGatewayz;
+    const useCredits = !!input.useCredits;
+
+    const geminiEnv: Record<string, string | undefined> = {};
+
+    // Route through our proxies only when using Gatewayz or built-in credits.
+    // When the user has their own Gemini API key we leave the base URL and
+    // GEMINI_API_KEY untouched so the CLI can talk directly to Google.
+    if (useGatewayz) {
+      geminiEnv.GOOGLE_GEMINI_BASE_URL = `${this.runtime.normalizedUrl}/api/proxy/gatewayz`;
+      geminiEnv.GEMINI_API_KEY = input.token;
+    } else if (useCredits) {
+      geminiEnv.GOOGLE_GEMINI_BASE_URL = `${this.runtime.normalizedUrl}/api/proxy/google`;
+      geminiEnv.GEMINI_API_KEY = input.token;
+    }
+
     return this.spawnAgentProcess({
       agentName: "Gemini",
       command: geminiCommand({
@@ -834,10 +868,7 @@ export class TerragonDaemon {
         model: input.model,
         sessionId: input.sessionId,
       }),
-      env: {
-        GOOGLE_GEMINI_BASE_URL: `${this.runtime.normalizedUrl}/api/proxy/google`,
-        GEMINI_API_KEY: input.token,
-      },
+      env: geminiEnv,
       input,
       onStdoutLine: (line) => {
         // Parse the line into ClaudeMessage format

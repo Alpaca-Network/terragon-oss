@@ -6,18 +6,17 @@ import {
   updateThread,
   getThreadChat,
 } from "@terragon/shared/model/threads";
-import {
-  getGitHubUserAccessTokenOrThrow,
-  getUser,
-  getUserSettings,
-} from "@terragon/shared/model/user";
+import { getUser, getUserSettings } from "@terragon/shared/model/user";
+import { getGitHubUserAccessTokenWithRefresh } from "@/lib/github-oauth";
 import { getFeatureFlagsForUser } from "@terragon/shared/model/feature-flags";
 import {
   getOrCreateEnvironment,
   getDecryptedEnvironmentVariables,
   getDecryptedMcpConfig,
   getDecryptedGlobalEnvironmentVariables,
+  getDecryptedSmartContext,
 } from "@terragon/shared/model/environments";
+import { mergeContextContent } from "@terragon/sandbox";
 import { env } from "@terragon/env/apps-www";
 import type {
   CreateSandboxOptions,
@@ -38,7 +37,11 @@ import { sandboxTimeoutMs } from "@terragon/sandbox/constants";
 import { getAndVerifyCredentials } from "./credentials";
 import { DEFAULT_SANDBOX_SIZE } from "@/lib/subscription-tiers";
 import type { UserSettings } from "@terragon/shared";
-import { ensureAgent } from "@terragon/agent/utils";
+import {
+  ensureAgent,
+  isGatewayzModel,
+  getUnderlyingAgentForGatewayzModel,
+} from "@terragon/agent/utils";
 import { getLastUserMessageModel } from "@/lib/db-message-helpers";
 
 async function getOrCreateSandboxWithTimeout(
@@ -150,8 +153,20 @@ async function getOrCreateSandboxForThread({
       userId,
     });
     if (threadChat) {
-      agentOrNull = ensureAgent(threadChat.agent);
       modelOrNull = getLastUserMessageModel(threadChat.messages ?? []);
+      // For Gatewayz models, use the underlying agent for sandbox setup
+      // e.g., "gatewayz/opencode/glm-4.7" -> "opencode"
+      if (isGatewayzModel(modelOrNull)) {
+        const underlyingAgent = getUnderlyingAgentForGatewayzModel(
+          modelOrNull!,
+        );
+        // If we can't determine the underlying agent, fallback to claudeCode
+        agentOrNull = underlyingAgent
+          ? ensureAgent(underlyingAgent)
+          : "claudeCode";
+      } else {
+        agentOrNull = ensureAgent(threadChat.agent);
+      }
     }
   }
   const [
@@ -182,6 +197,7 @@ async function getOrCreateSandboxForThread({
     repositoryEnvironmentVariables,
     globalEnvironmentVariables,
     mcpConfig,
+    smartContext,
     githubAccessToken,
   ] = await Promise.all([
     getDecryptedEnvironmentVariables({
@@ -201,10 +217,18 @@ async function getOrCreateSandboxForThread({
       environmentId: repositoryEnvironment.id,
       encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
     }),
-    getGitHubUserAccessTokenOrThrow({
+    getDecryptedSmartContext({
+      db,
+      userId,
+      environmentId: repositoryEnvironment.id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+    getGitHubUserAccessTokenWithRefresh({
       db,
       userId,
       encryptionKey: env.ENCRYPTION_MASTER_KEY,
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
     }),
   ]);
 
@@ -245,7 +269,10 @@ async function getOrCreateSandboxForThread({
     branchName,
     mcpConfig: mcpConfig || undefined,
     autoUpdateDaemon: !!userFeatureFlags.autoUpdateDaemon,
-    customSystemPrompt: userSettings.customSystemPrompt,
+    customSystemPrompt: mergeContextContent({
+      customSystemPrompt: userSettings.customSystemPrompt,
+      smartContext: smartContext.content,
+    }),
     setupScript: repositoryEnvironment.setupScript,
     skipSetupScript: thread.skipSetup,
     fastResume: fastResume && !!thread.codesandboxId,

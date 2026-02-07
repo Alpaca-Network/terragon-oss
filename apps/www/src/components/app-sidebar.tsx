@@ -181,7 +181,7 @@ export function AppSidebar() {
                 <AppMenuItem>
                   <SidebarMenuButton asChild tooltip="Documentation">
                     <a
-                      href={publicDocsUrl()}
+                      href={`${publicDocsUrl()}/docs`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -382,7 +382,7 @@ function ViewModeToggle() {
     }
   }, [viewMode, setViewMode, router, pathname, isMobile, setOpenMobile]);
 
-  const nextMode = viewMode === "list" ? "Kanban" : "List";
+  const nextMode = viewMode === "list" ? "Kanban" : "Inbox";
 
   return (
     <AppMenuItem>

@@ -5,6 +5,8 @@ import {
   AgentModelPreferences,
   AIModelSchema,
   AIModelExternal,
+  CodeRouterMode,
+  CodeRouterSettings,
 } from "./types";
 
 const defaultAgent: AIAgent = "claudeCode";
@@ -12,6 +14,7 @@ const defaultAgent: AIAgent = "claudeCode";
 export function ensureAgent(agent: AIAgent | null | undefined): AIAgent {
   if (agent) {
     switch (agent) {
+      case "gatewayz":
       case "claudeCode":
       case "gemini":
       case "amp":
@@ -29,6 +32,115 @@ export function ensureAgent(agent: AIAgent | null | undefined): AIAgent {
 }
 
 /**
+ * Checks if a model is a Gatewayz Router model
+ */
+export function isGatewayzModel(model: AIModel | null): boolean {
+  return !!model && model.startsWith("gatewayz/");
+}
+
+/**
+ * Checks if a model is a Gatewayz Code Router model
+ */
+export function isCodeRouterModel(model: AIModel | null): boolean {
+  return !!model && model.startsWith("gatewayz:code:");
+}
+
+/**
+ * Gets the Code Router optimization mode from a model string
+ */
+export function getCodeRouterMode(model: AIModel | null): CodeRouterMode {
+  if (!model || !isCodeRouterModel(model)) {
+    return "balanced";
+  }
+  if (model === "gatewayz:code:price") {
+    return "price";
+  }
+  if (model === "gatewayz:code:performance") {
+    return "quality";
+  }
+  return "balanced";
+}
+
+/**
+ * Gets the Code Router model string for a given mode
+ */
+export function getCodeRouterModelForMode(mode: CodeRouterMode): AIModel {
+  switch (mode) {
+    case "price":
+      return "gatewayz:code:price";
+    case "quality":
+      return "gatewayz:code:performance";
+    case "balanced":
+    default:
+      return "gatewayz:code:balanced";
+  }
+}
+
+/**
+ * Gets the default Code Router settings
+ */
+export function getDefaultCodeRouterSettings(): CodeRouterSettings {
+  return {
+    enabled: false,
+    mode: "balanced",
+  };
+}
+
+/**
+ * Gets the underlying agent for a Gatewayz model
+ * e.g., "gatewayz/claude-code/sonnet" -> "claudeCode"
+ */
+export function getUnderlyingAgentForGatewayzModel(
+  model: AIModel,
+): AIAgent | null {
+  if (!model.startsWith("gatewayz/")) return null;
+  const parts = model.split("/");
+  if (parts.length < 3) return null;
+  const agentPart = parts[1];
+  switch (agentPart) {
+    case "claude-code":
+      return "claudeCode";
+    case "codex":
+      return "codex";
+    case "gemini":
+      return "gemini";
+    case "opencode":
+      return "opencode";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Gets the underlying model name for a Gatewayz model
+ * e.g., "gatewayz/claude-code/sonnet" -> "sonnet"
+ * e.g., "gatewayz/opencode/glm-4.7" -> "opencode/glm-4.7"
+ * For non-Gatewayz models, returns the original model
+ */
+export function getUnderlyingModelForGatewayz(model: AIModel): AIModel {
+  if (!model.startsWith("gatewayz/")) return model;
+  const parts = model.split("/");
+  if (parts.length < 3) return model;
+  const agentPart = parts[1];
+  const modelPart = parts.slice(2).join("/");
+
+  // For opencode, the underlying model has the "opencode/" prefix
+  if (agentPart === "opencode") {
+    const fullModel = `opencode/${modelPart}`;
+    if (AIModelSchema.safeParse(fullModel).success) {
+      return fullModel as AIModel;
+    }
+  }
+
+  // For other agents, the underlying model is just the model part
+  if (AIModelSchema.safeParse(modelPart).success) {
+    return modelPart as AIModel;
+  }
+
+  return model;
+}
+
+/**
  * Maps an AI model to its corresponding agent type
  */
 export function modelToAgent(model: AIModel | null): AIAgent {
@@ -36,6 +148,25 @@ export function modelToAgent(model: AIModel | null): AIAgent {
     return defaultAgent;
   }
   switch (model) {
+    // Gatewayz Code Router models
+    case "gatewayz:code:balanced":
+    case "gatewayz:code:price":
+    case "gatewayz:code:performance":
+    // Gatewayz Router models
+    case "gatewayz/claude-code/opus":
+    case "gatewayz/claude-code/sonnet":
+    case "gatewayz/claude-code/haiku":
+    case "gatewayz/codex/gpt-5.2-codex-high":
+    case "gatewayz/codex/gpt-5.2-codex-medium":
+    case "gatewayz/codex/gpt-5.1-codex-max":
+    case "gatewayz/codex/gpt-5.1-codex-high":
+    case "gatewayz/gemini/gemini-3-pro":
+    case "gatewayz/gemini/gemini-2.5-pro":
+    case "gatewayz/opencode/glm-4.7":
+    case "gatewayz/opencode/glm-4.6":
+    case "gatewayz/opencode/kimi-k2": {
+      return "gatewayz";
+    }
     case "gemini-2.5-pro":
     case "gemini-3-pro": {
       return "gemini";
@@ -78,6 +209,9 @@ export function modelToAgent(model: AIModel | null): AIAgent {
     case "opencode/qwen3-coder":
     case "opencode/kimi-k2":
     case "opencode/glm-4.6":
+    case "opencode/glm-4.7":
+    case "opencode/glm-4.7-flash":
+    case "opencode/glm-4.7-lite":
     case "opencode/gemini-2.5-pro":
     case "opencode/gemini-3-pro":
     case "opencode-oai/gpt-5":
@@ -102,10 +236,36 @@ export function agentToModels(
     agentVersion: number | "latest";
     enableOpenRouterOpenAIAnthropicModel: boolean;
     enableOpencodeGemini3ProModelOption: boolean;
+    codeRouterSettings?: CodeRouterSettings;
   },
 ): AIModel[] {
   agent = agent ?? defaultAgent;
   switch (agent) {
+    case "gatewayz": {
+      // If Code Router is enabled, only show Code Router models
+      if (options.codeRouterSettings?.enabled) {
+        return [
+          "gatewayz:code:balanced",
+          "gatewayz:code:price",
+          "gatewayz:code:performance",
+        ];
+      }
+      // Otherwise show individual models (without Code Router options)
+      return [
+        // Claude Code models via Gatewayz
+        "gatewayz/claude-code/sonnet",
+        "gatewayz/claude-code/opus",
+        "gatewayz/claude-code/haiku",
+        // Codex models via Gatewayz
+        "gatewayz/codex/gpt-5.2-codex-high",
+        "gatewayz/codex/gpt-5.2-codex-medium",
+        "gatewayz/codex/gpt-5.1-codex-max",
+        "gatewayz/codex/gpt-5.1-codex-high",
+        // Gemini models via Gatewayz
+        "gatewayz/gemini/gemini-3-pro",
+        "gatewayz/gemini/gemini-2.5-pro",
+      ];
+    }
     case "gemini": {
       return ["gemini-3-pro", "gemini-2.5-pro"];
     }
@@ -154,6 +314,9 @@ export function agentToModels(
     }
     case "opencode": {
       const models: AIModel[] = [
+        "opencode/glm-4.7",
+        "opencode/glm-4.7-flash",
+        "opencode/glm-4.7-lite",
         "opencode/glm-4.6",
         "opencode/kimi-k2",
         "opencode/grok-code",
@@ -183,11 +346,19 @@ export function agentToModels(
 export function getDefaultModelForAgent({
   agent,
   agentVersion,
+  codeRouterSettings,
 }: {
   agent: AIAgent;
   agentVersion: number | "latest";
+  codeRouterSettings?: CodeRouterSettings;
 }): AIModel {
   switch (agent) {
+    case "gatewayz":
+      // If Code Router is enabled, use the Code Router model based on mode
+      if (codeRouterSettings?.enabled) {
+        return getCodeRouterModelForMode(codeRouterSettings.mode);
+      }
+      return "gatewayz/claude-code/sonnet";
     case "claudeCode":
       return "sonnet";
     case "codex":
@@ -209,8 +380,27 @@ export function getDefaultModelForAgent({
 }
 
 export function isImageUploadSupported(model: AIModel | null): boolean {
+  // Code Router models support image upload (routing may select a model that supports it)
+  if (isCodeRouterModel(model)) {
+    return true;
+  }
+  // For Gatewayz models, check the underlying agent's support
+  if (isGatewayzModel(model)) {
+    const underlyingAgent = getUnderlyingAgentForGatewayzModel(model!);
+    if (underlyingAgent) {
+      return isImageUploadSupportedForAgent(underlyingAgent);
+    }
+    return false;
+  }
   const agent = modelToAgent(model);
+  return isImageUploadSupportedForAgent(agent);
+}
+
+function isImageUploadSupportedForAgent(agent: AIAgent): boolean {
   switch (agent) {
+    case "gatewayz":
+      // Gatewayz itself doesn't define support - check underlying agent
+      return false;
     case "amp":
     case "claudeCode":
     case "codex":
@@ -226,8 +416,20 @@ export function isImageUploadSupported(model: AIModel | null): boolean {
 }
 
 export function isPlanModeSupported(model: AIModel | null): boolean {
+  // Code Router models support plan mode (routing may select Claude)
+  if (isCodeRouterModel(model)) {
+    return true;
+  }
+  // For Gatewayz models, check if the underlying agent supports plan mode
+  if (isGatewayzModel(model)) {
+    const underlyingAgent = getUnderlyingAgentForGatewayzModel(model!);
+    return underlyingAgent === "claudeCode";
+  }
   const agent = modelToAgent(model);
   switch (agent) {
+    case "gatewayz":
+      // Gatewayz itself doesn't define support - check underlying agent
+      return false;
     case "claudeCode":
       return true;
     case "opencode":
@@ -244,11 +446,13 @@ export function isPlanModeSupported(model: AIModel | null): boolean {
 
 export function isConnectedCredentialsSupported(agent: AIAgent): boolean {
   switch (agent) {
+    case "gatewayz":
+      return false; // Gatewayz uses its own subscription model
     case "claudeCode":
     case "codex":
     case "amp":
-      return true;
     case "gemini":
+      return true;
     case "opencode":
       return false;
     default:
@@ -260,6 +464,8 @@ export function isConnectedCredentialsSupported(agent: AIAgent): boolean {
 
 export function isAgentSupportedForCredits(agent: AIAgent): boolean {
   switch (agent) {
+    case "gatewayz":
+      return false; // Gatewayz uses its own subscription model, not credits
     case "claudeCode":
     case "codex":
     case "opencode":
@@ -275,6 +481,7 @@ export function isAgentSupportedForCredits(agent: AIAgent): boolean {
 }
 
 const agentDisplayNameMap: Record<AIAgent, string> = {
+  gatewayz: "Gatewayz Router",
   claudeCode: "Claude Code",
   codex: "OpenAI Codex",
   gemini: "Gemini",
@@ -294,6 +501,8 @@ export function getAgentDisplayName(agent: AIAgent): string {
 
 export function getAgentProviderDisplayName(agent: AIAgent): string {
   switch (agent) {
+    case "gatewayz":
+      return "Gatewayz";
     case "claudeCode":
       return "Claude";
     case "codex":
@@ -319,11 +528,106 @@ type ModelDisplayName = {
 
 export function getModelDisplayName(model: AIModel): ModelDisplayName {
   switch (model) {
+    // Gatewayz Code Router models
+    case "gatewayz:code:balanced":
+      return {
+        fullName: "Gatewayz Optimizer (Balanced)",
+        mainName: "Gatewayz Optimizer",
+        subName: "Balanced",
+      };
+    case "gatewayz:code:price":
+      return {
+        fullName: "Gatewayz Optimizer (Price)",
+        mainName: "Gatewayz Optimizer",
+        subName: "Optimize Price",
+      };
+    case "gatewayz:code:performance":
+      return {
+        fullName: "Gatewayz Optimizer (Performance)",
+        mainName: "Gatewayz Optimizer",
+        subName: "Optimize Performance",
+      };
+    // Gatewayz Router - Claude Code models
+    case "gatewayz/claude-code/opus":
+      return {
+        fullName: "Opus 4.6",
+        mainName: "Opus",
+        subName: "4.6",
+      };
+    case "gatewayz/claude-code/sonnet":
+      return {
+        fullName: "Sonnet 4.5",
+        mainName: "Sonnet",
+        subName: "4.5",
+      };
+    case "gatewayz/claude-code/haiku":
+      return {
+        fullName: "Haiku 4.5",
+        mainName: "Haiku",
+        subName: "4.5",
+      };
+    // Gatewayz Router - Codex models
+    case "gatewayz/codex/gpt-5.2-codex-high":
+      return {
+        fullName: "GPT-5.2 Codex High",
+        mainName: "GPT-5.2 Codex",
+        subName: "High",
+      };
+    case "gatewayz/codex/gpt-5.2-codex-medium":
+      return {
+        fullName: "GPT-5.2 Codex Medium",
+        mainName: "GPT-5.2 Codex",
+        subName: "Medium",
+      };
+    case "gatewayz/codex/gpt-5.1-codex-max":
+      return {
+        fullName: "GPT-5.1 Codex Max",
+        mainName: "GPT-5.1 Codex Max",
+        subName: null,
+      };
+    case "gatewayz/codex/gpt-5.1-codex-high":
+      return {
+        fullName: "GPT-5.1 Codex High",
+        mainName: "GPT-5.1 Codex",
+        subName: "High",
+      };
+    // Gatewayz Router - Gemini models
+    case "gatewayz/gemini/gemini-3-pro":
+      return {
+        fullName: "Gemini 3 Pro",
+        mainName: "Gemini",
+        subName: "3 Pro",
+      };
+    case "gatewayz/gemini/gemini-2.5-pro":
+      return {
+        fullName: "Gemini 2.5 Pro",
+        mainName: "Gemini",
+        subName: "2.5 Pro",
+      };
+    // Gatewayz Router - OpenCode models
+    case "gatewayz/opencode/glm-4.7":
+      return {
+        fullName: "GLM 4.7",
+        mainName: "GLM",
+        subName: "4.7",
+      };
+    case "gatewayz/opencode/glm-4.6":
+      return {
+        fullName: "GLM 4.6",
+        mainName: "GLM",
+        subName: "4.6",
+      };
+    case "gatewayz/opencode/kimi-k2":
+      return {
+        fullName: "Kimi K2",
+        mainName: "Kimi K2",
+        subName: null,
+      };
     case "opus":
       return {
-        fullName: "Opus 4.5",
+        fullName: "Opus 4.6",
         mainName: "Opus",
-        subName: "4.5",
+        subName: "4.6",
       };
     case "sonnet":
       return {
@@ -523,6 +827,24 @@ export function getModelDisplayName(model: AIModel): ModelDisplayName {
         mainName: "GLM",
         subName: "4.6",
       };
+    case "opencode/glm-4.7":
+      return {
+        fullName: "GLM 4.7",
+        mainName: "GLM",
+        subName: "4.7",
+      };
+    case "opencode/glm-4.7-flash":
+      return {
+        fullName: "GLM 4.7 Flash",
+        mainName: "GLM",
+        subName: "4.7 Flash",
+      };
+    case "opencode/glm-4.7-lite":
+      return {
+        fullName: "GLM 4.7 Lite",
+        mainName: "GLM",
+        subName: "4.7 Lite",
+      };
     case "opencode/gemini-2.5-pro":
       return {
         fullName: "Gemini 2.5 Pro",
@@ -583,6 +905,7 @@ export function getAgentModelGroups({
     agentVersion: number;
     enableOpenRouterOpenAIAnthropicModel: boolean;
     enableOpencodeGemini3ProModelOption: boolean;
+    codeRouterSettings?: CodeRouterSettings;
   };
 }): AgentModelGroup {
   return {
@@ -619,6 +942,23 @@ const UNIVERSAL_SLASH_COMMANDS: AIAgentSlashCommand[] = [
 export function getAgentSlashCommands(agent: AIAgent): AIAgentSlashCommand[] {
   const cmds: AIAgentSlashCommand[] = [...UNIVERSAL_SLASH_COMMANDS];
   switch (agent) {
+    case "gatewayz":
+      // Gatewayz supports Claude Code commands when using Claude Code models
+      cmds.push(
+        {
+          name: "init",
+          description: "Initialize project with CLAUDE.md guide",
+        },
+        {
+          name: "pr-comments",
+          description: "View pull request comments",
+        },
+        {
+          name: "review",
+          description: "Request code review",
+        },
+      );
+      break;
     case "claudeCode":
       cmds.push(
         {
@@ -642,6 +982,7 @@ export function getAgentSlashCommands(agent: AIAgent): AIAgentSlashCommand[] {
 }
 
 const agentSortOrder: Record<AIAgent, number> = {
+  gatewayz: -1, // Gatewayz Router at the top
   claudeCode: 0,
   codex: 1,
   gemini: 2,
@@ -657,6 +998,7 @@ export function sortByAgents(a: AIAgent, b: AIAgent): number {
 
 export function isAgentEnabledByDefault(agent: AIAgent): boolean {
   switch (agent) {
+    case "gatewayz":
     case "claudeCode":
     case "codex":
     case "opencode":
@@ -679,6 +1021,24 @@ export function isModelEnabledByDefault({
   agentVersion: number | "latest";
 }): boolean {
   switch (model) {
+    // Gatewayz Code Router models - all enabled by default
+    case "gatewayz:code:balanced":
+    case "gatewayz:code:price":
+    case "gatewayz:code:performance":
+    // Gatewayz Router models - all enabled by default
+    case "gatewayz/claude-code/opus":
+    case "gatewayz/claude-code/sonnet":
+    case "gatewayz/claude-code/haiku":
+    case "gatewayz/codex/gpt-5.2-codex-high":
+    case "gatewayz/codex/gpt-5.2-codex-medium":
+    case "gatewayz/codex/gpt-5.1-codex-max":
+    case "gatewayz/codex/gpt-5.1-codex-high":
+    case "gatewayz/gemini/gemini-3-pro":
+    case "gatewayz/gemini/gemini-2.5-pro":
+    case "gatewayz/opencode/glm-4.7":
+    case "gatewayz/opencode/glm-4.6":
+    case "gatewayz/opencode/kimi-k2":
+      return true;
     // Deprecate the non-codex models
     case "gpt-5":
     case "gpt-5-low":
@@ -728,6 +1088,9 @@ export function isModelEnabledByDefault({
       return true;
     case "opencode/kimi-k2":
     case "opencode/glm-4.6":
+    case "opencode/glm-4.7":
+    case "opencode/glm-4.7-flash":
+    case "opencode/glm-4.7-lite":
       return true;
     default:
       const _exhaustiveCheck: never = model;
@@ -738,6 +1101,8 @@ export function isModelEnabledByDefault({
 
 export function getAgentInfo(agent: AIAgent): string {
   switch (agent) {
+    case "gatewayz":
+      return "Gatewayz Router provides unified access to multiple AI providers through a single subscription.";
     case "claudeCode":
       return "";
     case "codex":
@@ -759,6 +1124,12 @@ export function getModelInfo(model: AIModel): string {
   switch (model) {
     case "sonnet":
       return "Recommended for most tasks";
+    case "gatewayz:code:balanced":
+      return "Improves code gen tasks while cutting the cost of inference by 35% to 71%";
+    case "gatewayz:code:price":
+      return "Maximize cost savings with intelligent model routing";
+    case "gatewayz:code:performance":
+      return "Maximize performance with intelligent model routing";
   }
   return "";
 }
@@ -806,12 +1177,25 @@ export function parseModelOrNull({
       return "opencode/kimi-k2";
     case "glm-4.6":
       return "opencode/glm-4.6";
+    case "glm-4.7":
+      return "opencode/glm-4.7";
+    case "glm-4.7-flash":
+      return "opencode/glm-4.7-flash";
+    case "glm-4.7-lite":
+      return "opencode/glm-4.7-lite";
     case "opencode/gpt-5":
       return "opencode-oai/gpt-5";
     case "opencode/gpt-5-codex":
       return "opencode-oai/gpt-5-codex";
     case "opencode/sonnet":
       return "opencode-ant/sonnet";
+    // Legacy gatewayz code router model names (for backward compatibility)
+    case "gatewayz/code-router":
+      return "gatewayz:code:balanced";
+    case "gatewayz/code-router/price":
+      return "gatewayz:code:price";
+    case "gatewayz/code-router/quality":
+      return "gatewayz:code:performance";
     default:
       const _exhaustiveCheck: never = modelAsExternal;
       console.warn("Unknown model name", _exhaustiveCheck);
@@ -820,6 +1204,13 @@ export function parseModelOrNull({
 }
 
 export function normalizedModelForDaemon(model: AIModel): string {
+  // Handle Gatewayz models - extract the underlying model and normalize it
+  // The daemon will use the Gatewayz proxy based on the useGatewayz flag
+  if (model.startsWith("gatewayz/")) {
+    const underlyingModel = getUnderlyingModelForGatewayz(model);
+    // Recursively normalize the underlying model
+    return normalizedModelForDaemon(underlyingModel);
+  }
   // Switch to using the google proxy
   // For now, just switch gemini-3-pro to the google proxy
   if (model === "opencode/gemini-3-pro") {

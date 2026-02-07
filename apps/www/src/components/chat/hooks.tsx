@@ -44,39 +44,22 @@ export function useMarkChatAsRead({
 export function useThreadDocumentTitleAndFavicon({
   name,
   isThreadUnread,
-  isReadOnly,
 }: {
   name: string;
   isThreadUnread: boolean;
   isReadOnly: boolean;
 }) {
-  // Update document title and favicon based on unread messages
+  // Update document title based on unread messages
   const documentTitle = name
     ? getThreadDocumentTitle({ name, isUnread: isThreadUnread })
-    : "Terragon";
+    : "Gatewayz Code";
   useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
     document.title = documentTitle;
-    // Update favicon
-    const favicon = document.querySelector(
-      "link[rel*='icon']",
-    ) as HTMLLinkElement;
-    if (favicon) {
-      if (process.env.NODE_ENV === "development") {
-        favicon.href =
-          isThreadUnread && !isReadOnly
-            ? "/favicon-dev-badged.png"
-            : "/favicon-dev.png";
-      } else {
-        favicon.href =
-          isThreadUnread && !isReadOnly
-            ? "/favicon-badged.png"
-            : "/favicon.png";
-      }
-    }
-  }, [documentTitle, isThreadUnread, isReadOnly]);
+    // Favicon is always Gatewayz logo (set in layout.tsx)
+  }, [documentTitle]);
 }
 
 const secondaryPanelIsOpenLocalAtom = atom<boolean>(false);

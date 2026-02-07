@@ -22,8 +22,8 @@ function SimplePromptBoxDemo() {
     removeFile,
     submitForm,
     stopThread,
-    permissionMode,
-    setPermissionMode,
+    taskMode,
+    setTaskMode,
   } = usePromptBox({
     threadId: "demo-thread",
     placeholderText:
@@ -104,8 +104,8 @@ function SimplePromptBoxDemo() {
         hideSubmitButton={false}
         typeahead={null}
         className="min-h-[60px]"
-        permissionMode={permissionMode}
-        onPermissionModeChange={setPermissionMode}
+        taskMode={taskMode}
+        onTaskModeChange={setTaskMode}
       />
     </>
   );

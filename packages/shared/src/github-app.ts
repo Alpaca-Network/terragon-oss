@@ -1,6 +1,61 @@
 import { App } from "@octokit/app";
+import { z } from "zod";
 
 let appInstance: App | null = null;
+
+// Default timeout for GitHub API calls (10 seconds), configurable via environment variable
+const GITHUB_API_TIMEOUT_MS = z.coerce
+  .number()
+  .int()
+  .positive()
+  .catch(10000)
+  .parse(process.env.GITHUB_API_TIMEOUT_MS);
+
+/**
+ * Wraps a promise with a timeout
+ * @param promise The promise to wrap
+ * @param timeoutMs Timeout in milliseconds
+ * @param errorMessage Error message to use when timeout occurs
+ * @returns The result of the promise or throws a timeout error
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+
+  const timeoutPromise = new Promise<"timeout">((resolve) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      resolve("timeout");
+    }, timeoutMs);
+  });
+
+  // Attach a catch handler to prevent unhandled rejection if the original promise
+  // rejects after the timeout - only log if actually timed out
+  promise.catch((err) => {
+    if (timedOut) {
+      console.debug("Promise rejected after timeout:", err);
+    }
+  });
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+
+    if (result === "timeout") {
+      throw new Error(errorMessage);
+    }
+
+    return result as T;
+  } finally {
+    // Clear the timeout to prevent keeping the event loop busy
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 // Export for testing purposes only
 export function resetAppInstance() {
@@ -46,12 +101,13 @@ export async function getInstallationToken(
 
   try {
     // Get the installation for this repository
-    const { data: installation } = await app.octokit.request(
-      "GET /repos/{owner}/{repo}/installation",
-      {
+    const { data: installation } = await withTimeout(
+      app.octokit.request("GET /repos/{owner}/{repo}/installation", {
         owner,
         repo,
-      },
+      }),
+      GITHUB_API_TIMEOUT_MS,
+      `GitHub API timeout while getting installation for ${owner}/${repo}`,
     );
 
     // Get an authenticated Octokit instance for this installation
@@ -61,13 +117,17 @@ export async function getInstallationToken(
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 30);
 
-    const { data: tokenData } = await app.octokit.request(
-      "POST /app/installations/{installation_id}/access_tokens",
-      {
-        installation_id: installation.id,
-        repositories: [repo],
-        expires_at: expirationDate.toISOString(),
-      },
+    const { data: tokenData } = await withTimeout(
+      app.octokit.request(
+        "POST /app/installations/{installation_id}/access_tokens",
+        {
+          installation_id: installation.id,
+          repositories: [repo],
+          expires_at: expirationDate.toISOString(),
+        },
+      ),
+      GITHUB_API_TIMEOUT_MS,
+      `GitHub API timeout while creating access token for ${owner}/${repo}`,
     );
 
     return tokenData.token;
@@ -100,10 +160,14 @@ export async function isAppInstalledOnRepo(
   const app = getGitHubApp();
 
   try {
-    await app.octokit.request("GET /repos/{owner}/{repo}/installation", {
-      owner,
-      repo,
-    });
+    await withTimeout(
+      app.octokit.request("GET /repos/{owner}/{repo}/installation", {
+        owner,
+        repo,
+      }),
+      GITHUB_API_TIMEOUT_MS,
+      `GitHub API timeout while checking installation status for ${owner}/${repo}`,
+    );
     return true;
   } catch (error: any) {
     if (error.status === 404) {

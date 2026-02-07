@@ -12,6 +12,7 @@ import { memo } from "react";
 import {
   NotebookPen,
   FileCode,
+  FileText,
   Check,
   RefreshCw,
   ChevronDown,
@@ -30,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-export type PermissionMode = "allowAll" | "plan" | "loop";
+import type { TaskMode } from "./task-mode";
 
 export type LoopConfigInput = {
   maxIterations: number;
@@ -40,15 +41,15 @@ export type LoopConfigInput = {
 };
 
 interface ModeSelectorProps {
-  mode: PermissionMode;
-  onChange: (mode: PermissionMode) => void;
+  mode: TaskMode;
+  onChange: (mode: TaskMode) => void;
   loopConfig?: LoopConfigInput;
   onLoopConfigChange?: (config: LoopConfigInput) => void;
   className?: string;
 }
 
 const modeConfig = {
-  allowAll: {
+  execute: {
     icon: FileCode,
     label: "Execute",
     description: "Implement immediately",
@@ -63,10 +64,15 @@ const modeConfig = {
     label: "Loop",
     description: "Iterate until completion",
   },
+  template: {
+    icon: FileText,
+    label: "Template",
+    description: "Start from a structured template",
+  },
 } as const;
 
 const defaultLoopConfig: LoopConfigInput = {
-  maxIterations: 10,
+  maxIterations: 3,
   completionPromise: "DONE",
   useRegex: false,
   requireApproval: false,
@@ -91,23 +97,55 @@ function LoopConfigPanel({
           >
             Max Iterations
           </Label>
-          <Input
-            id="maxIterations"
-            type="number"
-            min={1}
-            max={100}
-            value={config.maxIterations}
-            onChange={(e) =>
-              onChange({
-                ...config,
-                maxIterations: Math.max(
-                  1,
-                  Math.min(100, parseInt(e.target.value) || 10),
-                ),
-              })
-            }
-            className="h-7 text-xs mt-1"
-          />
+          <div className="flex items-center gap-1 mt-1">
+            <Input
+              id="maxIterations"
+              type="number"
+              min={1}
+              max={10}
+              value={config.maxIterations}
+              onChange={(e) =>
+                onChange({
+                  ...config,
+                  maxIterations: Math.max(
+                    1,
+                    Math.min(10, parseInt(e.target.value) || 3),
+                  ),
+                })
+              }
+              className="h-7 text-xs flex-1"
+            />
+            <div className="flex flex-col">
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    maxIterations: Math.min(10, config.maxIterations + 1),
+                  })
+                }
+                disabled={config.maxIterations >= 10}
+                className="h-3.5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Increase iterations"
+              >
+                <ChevronUp className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    maxIterations: Math.max(1, config.maxIterations - 1),
+                  })
+                }
+                disabled={config.maxIterations <= 1}
+                className="h-3.5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Decrease iterations"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
         </div>
         <div className="flex-1">
           <Label
@@ -219,8 +257,8 @@ function ModeSelectorInner({
           <div className="px-4 pb-6 space-y-1">
             {(
               Object.entries(modeConfig) as [
-                PermissionMode,
-                (typeof modeConfig)[PermissionMode],
+                TaskMode,
+                (typeof modeConfig)[TaskMode],
               ][]
             ).map(([modeKey, config]) => {
               const isSelected = mode === modeKey;
@@ -275,7 +313,7 @@ function ModeSelectorInner({
           <Select
             value={mode}
             onValueChange={(value) => {
-              onChange(value as PermissionMode);
+              onChange(value as TaskMode);
               if (value === "loop") {
                 setShowLoopConfig(true);
               }
@@ -292,7 +330,7 @@ function ModeSelectorInner({
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="w-fit">
-              <SelectItem value="allowAll">
+              <SelectItem value="execute">
                 <span className="flex flex-col items-start">
                   <span className="text-sm text-foreground/90 flex items-center gap-1">
                     <FileCode className="h-2.5 w-2.5 text-inherit" />
@@ -322,6 +360,17 @@ function ModeSelectorInner({
                   </span>
                   <span className="text-xs text-muted-foreground/60">
                     Iterate until completion
+                  </span>
+                </span>
+              </SelectItem>
+              <SelectItem value="template">
+                <span className="flex flex-col items-start">
+                  <span className="text-sm text-foreground/90 flex items-center gap-1">
+                    <FileText className="h-2.5 w-2.5 text-inherit" />
+                    Template
+                  </span>
+                  <span className="text-xs text-muted-foreground/60">
+                    Start from a structured template
                   </span>
                 </span>
               </SelectItem>

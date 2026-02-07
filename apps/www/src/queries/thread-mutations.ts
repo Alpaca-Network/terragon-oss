@@ -3,6 +3,10 @@ import {
   archiveThread,
   unarchiveThread,
 } from "@/server-actions/archive-thread";
+import {
+  sendToBacklog,
+  removeFromBacklog,
+} from "@/server-actions/backlog-thread";
 import { deleteThread } from "@/server-actions/delete-thread";
 import { readThread } from "@/server-actions/read-thread";
 import { unreadThread } from "@/server-actions/unread-thread";
@@ -112,8 +116,32 @@ export function useArchiveMutation() {
     updateThread: (thread, { archive }) => ({
       ...thread,
       archived: archive,
-      // When archiving, mark as read (server does this too)
+      // When archiving, mark as read and clear backlog (server does this too)
       isUnread: archive ? false : thread.isUnread,
+      isBacklog: archive ? false : thread.isBacklog,
+    }),
+  });
+}
+
+// Backlog mutation
+export function useBacklogMutation() {
+  return useThreadMutation({
+    mutationFn: async ({
+      threadId,
+      isBacklog,
+    }: {
+      threadId: string;
+      isBacklog: boolean;
+    }) => {
+      if (isBacklog) {
+        return sendToBacklog(threadId);
+      } else {
+        return removeFromBacklog(threadId);
+      }
+    },
+    updateThread: (thread, { isBacklog }) => ({
+      ...thread,
+      isBacklog,
     }),
   });
 }
@@ -193,11 +221,21 @@ export function useUpdateDraftThreadMutation() {
 export function useSubmitDraftThreadMutation() {
   return useThreadMutation({
     mutationFn: submitDraftThread,
-    updateThread: (thread, args) => ({
-      ...thread,
-      status: args.scheduleAt ? ("scheduled" as const) : ("queued" as const),
-      scheduleAt: args.scheduleAt ? new Date(args.scheduleAt) : null,
-      draftMessage: null,
-    }),
+    updateThread: (thread, args) => {
+      const newStatus = args.scheduleAt
+        ? ("scheduled" as const)
+        : ("queued" as const);
+      return {
+        ...thread,
+        status: newStatus,
+        scheduleAt: args.scheduleAt ? new Date(args.scheduleAt) : null,
+        draftMessage: null,
+        // Update threadChats status so isDraftThread() returns false
+        threadChats: thread.threadChats.map((chat) => ({
+          ...chat,
+          status: chat.status === "draft" ? newStatus : chat.status,
+        })),
+      };
+    },
   });
 }

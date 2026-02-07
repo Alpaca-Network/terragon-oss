@@ -12,6 +12,7 @@ import { unwrapResult } from "@/lib/server-actions";
 
 export type ThreadListFilters = {
   archived?: boolean;
+  isBacklog?: boolean;
   automationId?: string;
   limit?: number;
 };
@@ -24,6 +25,7 @@ export function isValidThreadListFilter(
     filter !== null &&
     typeof filter === "object" &&
     (filter.archived === undefined || typeof filter.archived === "boolean") &&
+    (filter.isBacklog === undefined || typeof filter.isBacklog === "boolean") &&
     (filter.automationId === undefined ||
       typeof filter.automationId === "string")
   );
@@ -34,6 +36,12 @@ export function isMatchingThreadForFilter(
   filters: ThreadListFilters,
 ): boolean {
   if (filters.archived !== undefined && filters.archived !== thread.archived) {
+    return false;
+  }
+  if (
+    filters.isBacklog !== undefined &&
+    filters.isBacklog !== thread.isBacklog
+  ) {
     return false;
   }
   if (
@@ -62,13 +70,25 @@ export function threadQueryOptions(threadId: string) {
     queryFn: async () => {
       return getThreadAction(threadId);
     },
+    // Cache thread data to improve mobile performance when opening task drawer
+    // Longer times because:
+    // 1. Mobile users frequently switch between tasks
+    // 2. Real-time updates come via WebSocket, so stale data is quickly refreshed
+    // 3. Reducing network requests improves battery life
+    staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh, no background refetch
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache for quick re-access
   });
 }
 
-const THREADS_PER_PAGE = 100;
+const THREADS_PER_PAGE = 25;
 
 export function threadListQueryOptions(filters: ThreadListFilters = {}) {
-  const { archived, automationId, limit = THREADS_PER_PAGE } = filters;
+  const {
+    archived,
+    isBacklog,
+    automationId,
+    limit = THREADS_PER_PAGE,
+  } = filters;
   const options: UseInfiniteQueryOptions<
     ThreadInfo[],
     unknown,
@@ -81,13 +101,23 @@ export function threadListQueryOptions(filters: ThreadListFilters = {}) {
     queryFn: async ({ pageParam }) => {
       const offset = pageParam * limit;
       return unwrapResult(
-        await getThreadsAction({ archived, automationId, limit, offset }),
+        await getThreadsAction({
+          archived,
+          isBacklog,
+          automationId,
+          limit,
+          offset,
+        }),
       );
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, pages) => {
       return lastPage.length === limit ? pages.length : undefined;
     },
+    // Cache thread list to improve performance and reduce redundant fetches
+    // WebSocket updates (via useRealtimeThreadMatch) will trigger refetch when threads change
+    staleTime: 30 * 1000, // 30 seconds - data considered fresh, prevents refetch on navigation
+    gcTime: 5 * 60 * 1000, // 5 minutes - keep in cache for quick re-access
   };
   return options;
 }

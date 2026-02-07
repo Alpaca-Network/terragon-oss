@@ -3,16 +3,31 @@ export const threadListCollapsedSectionsKey = "thread-list-collapsed-sections";
 export const disableGitCheckpointingKey = "disable-git-checkpointing";
 export const skipSetupKey = "skip-setup";
 export const createNewBranchKey = "create-new-branch";
+export const autoFixFeedbackKey = "auto-fix-feedback";
+export const autoMergePRKey = "auto-merge-pr";
 export const threadListGroupByKey = "thread-list-group-by";
 export const repositoryCollapsedSectionsKey = "repository-collapsed-sections";
 export const threadListCollapsedKey = "thread-list-collapsed";
 export const secondaryPaneClosedKey = "secondary-panel-closed";
+export const secondaryPanelViewKey = "secondary-panel-view";
 export const dashboardViewModeKey = "dashboard-view-mode";
+export const codexTierKey = "codex-tier";
 
 export type ThreadListGroupBy = "lastUpdated" | "repository" | "createdAt";
-export type DashboardViewMode = "list" | "kanban";
+export type DashboardViewMode = "list" | "kanban" | "new-project";
 
 export const defaultDashboardViewMode: DashboardViewMode = "list";
+
+export type SecondaryPanelView =
+  | "files-changed"
+  | "comments"
+  | "checks"
+  | "coverage"
+  | "merge";
+export const defaultSecondaryPanelView: SecondaryPanelView = "files-changed";
+
+export type CodexTierCookie = "none" | "low" | "medium" | "high" | "xhigh";
+export const defaultCodexTier: CodexTierCookie = "medium";
 
 export type CollapsedSections = {
   [key: string]: boolean;
@@ -30,9 +45,13 @@ export type UserCookies = {
   [disableGitCheckpointingKey]?: boolean;
   [skipSetupKey]?: boolean;
   [createNewBranchKey]?: boolean;
+  [autoFixFeedbackKey]?: boolean;
+  [autoMergePRKey]?: boolean;
   [threadListCollapsedKey]?: boolean;
   [secondaryPaneClosedKey]?: boolean;
+  [secondaryPanelViewKey]?: SecondaryPanelView;
   [dashboardViewModeKey]?: DashboardViewMode;
+  [codexTierKey]?: CodexTierCookie;
 };
 
 export const defaultTimeZone = "UTC";
@@ -44,10 +63,14 @@ export const getDefaultUserCookies = (): UserCookies => {
     [disableGitCheckpointingKey]: false,
     [skipSetupKey]: false,
     [createNewBranchKey]: true,
+    [autoFixFeedbackKey]: false,
+    [autoMergePRKey]: false,
     [threadListGroupByKey]: defaultThreadListGroupBy,
     [threadListCollapsedKey]: false,
     [secondaryPaneClosedKey]: false,
+    [secondaryPanelViewKey]: defaultSecondaryPanelView,
     [dashboardViewModeKey]: defaultDashboardViewMode,
+    [codexTierKey]: defaultCodexTier,
   };
 };
 

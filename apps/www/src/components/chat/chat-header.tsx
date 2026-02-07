@@ -252,12 +252,14 @@ export const ChatHeader = memo(function ChatHeader({
             </div>
           </div>
         </div>
-        <ChatHeaderButtons
-          thread={thread}
-          onRenameClick={() => setIsEditing(true)}
-          isReadOnly={isReadOnly}
-          onTerminalClick={onTerminalClick}
-        />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <ChatHeaderButtons
+            thread={thread}
+            onRenameClick={() => setIsEditing(true)}
+            isReadOnly={isReadOnly}
+            onTerminalClick={onTerminalClick}
+          />
+        </div>
       </div>
       {thread.sourceType === "www-fork" && (
         <div className="flex w-full items-center px-4 py-2 border-b bg-muted overflow-hidden">

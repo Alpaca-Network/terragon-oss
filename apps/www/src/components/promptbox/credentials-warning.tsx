@@ -46,6 +46,11 @@ export function CredentialsWarning({ selectedModel }: CredentialsWarningProps) {
           message: "No more credits available",
           linkText: null,
         };
+      case "gatewayz":
+        return {
+          message: "Gatewayz subscription required",
+          linkText: "Learn more about Gatewayz",
+        };
       default:
         const _exhaustiveCheck: never = selectedAgent;
         console.warn("Unknown agent", _exhaustiveCheck);

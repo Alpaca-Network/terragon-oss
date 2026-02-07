@@ -41,6 +41,8 @@ import {
   normalizedModelForDaemon,
   isConnectedCredentialsSupported,
   modelRequiresChatGptOAuth,
+  isGatewayzModel,
+  getUnderlyingAgentForGatewayzModel,
 } from "@terragon/agent/utils";
 import { handleSlashCommand } from "@/agent/slash-command-handler";
 import { tryAutoCompactThread } from "@/server-lib/compact";
@@ -95,8 +97,10 @@ export async function startAgentMessage({
 }) {
   console.log("Starting agent message", { threadId, threadChatId });
   const userCredentials = await getUserCredentials({ userId });
+  // Track the effective message to use (may be transformed by skill processing)
+  let effectiveMessage = message;
   if (message) {
-    // Check for slash commands
+    // Check for slash commands and skills
     const slashCommandResult = await handleSlashCommand({
       userId,
       threadId,
@@ -110,6 +114,11 @@ export async function startAgentMessage({
       });
       waitUntil(maybeProcessFollowUpQueue({ threadId, userId, threadChatId }));
       return;
+    }
+    // If a skill was processed, use the transformed message
+    if (slashCommandResult.transformedMessage) {
+      effectiveMessage = slashCommandResult.transformedMessage;
+      console.log(`Using skill-transformed message for thread ${threadId}`);
     }
   }
   await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -129,8 +138,8 @@ export async function startAgentMessage({
       }
       // Images should be uploaded from the client already but just in case we have old clients,
       // we see if we need to upload anything here.
-      const uploadedMessage = message
-        ? await uploadUserMessageImages({ userId, message })
+      const uploadedMessage = effectiveMessage
+        ? await uploadUserMessageImages({ userId, message: effectiveMessage })
         : null;
 
       // Only check rate limits if the thread doesn't have any active thread chats.
@@ -375,7 +384,7 @@ export async function startAgentMessage({
           }
           const userMessageToSend = getUserMessageToSend({
             messages: threadChat.messages ?? [],
-            currentMessage: message ?? null,
+            currentMessage: effectiveMessage ?? null,
           });
           if (!userMessageToSend) {
             throw new ThreadError("no-user-message", "", null);
@@ -451,7 +460,22 @@ export async function startAgentMessage({
             );
           }
 
-          const agentForModel = modelToAgent(model);
+          // Check if this is a Gatewayz model
+          const isGatewayzModelSelected = isGatewayzModel(model);
+
+          // If it's a Gatewayz model and user doesn't have Gatewayz subscription, error
+          if (isGatewayzModelSelected && !userCredentials.hasGatewayz) {
+            throw new ThreadError(
+              "gatewayz-subscription-required",
+              "A Gatewayz subscription is required to use Gatewayz Router models.",
+              null,
+            );
+          }
+
+          // For Gatewayz models, get the underlying agent for execution
+          const agentForModel = isGatewayzModelSelected
+            ? (getUnderlyingAgentForGatewayzModel(model) ?? modelToAgent(model))
+            : modelToAgent(model);
           const { prompt: finalPrompt } = await preparePromptForModel({
             model,
             agent: threadChat.agent,
@@ -479,20 +503,46 @@ export async function startAgentMessage({
             throw new ThreadError("no-user-message", "", null);
           }
 
+          // Determine if user has own credentials for this agent
+          const hasOwnCredentials =
+            (agentForModel === "codex" && userCredentials.hasOpenAI) ||
+            (agentForModel === "claudeCode" && userCredentials.hasClaude) ||
+            (agentForModel === "amp" && userCredentials.hasAmp) ||
+            (agentForModel === "gemini" && userCredentials.hasGemini);
+
+          // Gatewayz is used when:
+          // 1. User explicitly selected a Gatewayz model, OR
+          // 2. User has an active Gatewayz subscription (pro/max) AND doesn't have their own credentials
+          const shouldUseGatewayz =
+            isGatewayzModelSelected ||
+            (userCredentials.hasGatewayz && !hasOwnCredentials);
+
+          // Fall back to built-in credits only when:
+          // 1. Not using Gatewayz
+          // 2. User doesn't have their own credentials
+          // 3. Agent doesn't support connected credentials
           const shouldUseCredits =
-            (agentForModel === "codex" && !userCredentials.hasOpenAI) ||
-            (agentForModel === "claudeCode" && !userCredentials.hasClaude) ||
-            !isConnectedCredentialsSupported(agentForModel);
+            !shouldUseGatewayz &&
+            ((agentForModel === "codex" && !userCredentials.hasOpenAI) ||
+              (agentForModel === "claudeCode" && !userCredentials.hasClaude) ||
+              (agentForModel === "gemini" && !userCredentials.hasGemini) ||
+              !isConnectedCredentialsSupported(agentForModel));
+
+          // For Gatewayz models, use the underlying agent for daemon execution
+          const agentForDaemon = isGatewayzModelSelected
+            ? agentForModel
+            : threadChat.agent;
 
           await sendDaemonMessage({
             message: {
               type: "claude",
               model: normalizedModelForDaemon(model),
-              agent: threadChat.agent,
+              agent: agentForDaemon,
               agentVersion: threadChat.agentVersion,
               prompt: finalFinalPrompt,
               sessionId,
               permissionMode: threadChat.permissionMode || "allowAll",
+              ...(shouldUseGatewayz ? { useGatewayz: true } : {}),
               ...(shouldUseCredits ? { useCredits: true } : {}),
             },
             userId,
@@ -562,6 +612,7 @@ async function preparePromptForModel({
       }
       break;
     }
+    case "gatewayz":
     case "amp":
     case "gemini":
     case "opencode":

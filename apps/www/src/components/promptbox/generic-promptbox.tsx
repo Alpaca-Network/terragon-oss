@@ -13,6 +13,7 @@ import { SimplePromptBox } from "./simple-promptbox";
 import { richTextToTiptap } from "./tiptap-to-richtext";
 import { cn } from "@/lib/utils";
 import { Attachment } from "@/lib/attachment-types";
+import type { CodexTier } from "@terragon/shared/db/types";
 
 function getInitialRichText(message: DBUserMessage): DBRichTextPart {
   const nodes: DBRichTextNode[] = [];
@@ -55,6 +56,17 @@ export function GenericPromptBox({
   hideAddContextButton = false,
   hideFileAttachmentButton = false,
   hideVoiceInput = false,
+  hideCodexTierSelector = false,
+  codexTier,
+  onCodexTierChange,
+  showAutoFixFeedback = false,
+  autoFixFeedbackValue = false,
+  onAutoFixFeedbackChange,
+  autoFixFeedbackDisabled = false,
+  showAutoMergePR = false,
+  autoMergePRValue = false,
+  onAutoMergePRChange,
+  autoMergePRDisabled = false,
 }: {
   message: DBUserMessage;
   className?: string;
@@ -77,6 +89,17 @@ export function GenericPromptBox({
   hideAddContextButton?: boolean;
   hideFileAttachmentButton?: boolean;
   hideVoiceInput?: boolean;
+  hideCodexTierSelector?: boolean;
+  codexTier?: CodexTier;
+  onCodexTierChange?: (tier: CodexTier) => void;
+  showAutoFixFeedback?: boolean;
+  autoFixFeedbackValue?: boolean;
+  onAutoFixFeedbackChange?: (value: boolean) => void;
+  autoFixFeedbackDisabled?: boolean;
+  showAutoMergePR?: boolean;
+  autoMergePRValue?: boolean;
+  onAutoMergePRChange?: (value: boolean) => void;
+  autoMergePRDisabled?: boolean;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const repositoryCache = useRepositoryCache({
@@ -129,8 +152,8 @@ export function GenericPromptBox({
     handleFilesAttached,
     removeFile,
     submitForm,
-    permissionMode,
-    setPermissionMode,
+    taskMode,
+    setTaskMode,
     selectedModel,
     selectedModels,
     setSelectedModel,
@@ -202,13 +225,24 @@ export function GenericPromptBox({
       supportSaveAsDraft={supportSaveAsDraft}
       supportSchedule={supportSchedule}
       typeahead={repositoryCache}
-      permissionMode={permissionMode}
-      onPermissionModeChange={setPermissionMode}
+      taskMode={taskMode}
+      onTaskModeChange={setTaskMode}
       hideModelSelector={hideModelSelector}
       hideModeSelector={hideModeSelector}
       hideAddContextButton={hideAddContextButton}
       hideFileAttachmentButton={hideFileAttachmentButton}
       hideVoiceInput={hideVoiceInput}
+      hideCodexTierSelector={hideCodexTierSelector}
+      codexTier={codexTier}
+      onCodexTierChange={onCodexTierChange}
+      showAutoFixFeedback={showAutoFixFeedback}
+      autoFixFeedbackValue={autoFixFeedbackValue}
+      onAutoFixFeedbackChange={onAutoFixFeedbackChange}
+      autoFixFeedbackDisabled={autoFixFeedbackDisabled}
+      showAutoMergePR={showAutoMergePR}
+      autoMergePRValue={autoMergePRValue}
+      onAutoMergePRChange={onAutoMergePRChange}
+      autoMergePRDisabled={autoMergePRDisabled}
     />
   );
 }

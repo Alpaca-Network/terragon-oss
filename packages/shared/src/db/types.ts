@@ -86,6 +86,7 @@ export type ThreadSource =
   | "www-fork"
   | "www-multi-agent"
   | "www-suggested-followup-task"
+  | "www-address-pr-feedback"
   | "webhook" // Deprecated
   | "automation"
   | "slack-mention"
@@ -162,8 +163,10 @@ export type ThreadErrorType =
   | "sandbox-creation-failed"
   | "sandbox-resume-failed"
   | "missing-gemini-credentials"
+  | "invalid-gemini-credentials"
   | "missing-amp-credentials"
   | "chatgpt-sub-required"
+  | "gatewayz-subscription-required"
   | "invalid-codex-credentials"
   | "invalid-claude-credentials"
   | "agent-not-responding"
@@ -226,6 +229,7 @@ export type ThreadInfo = Omit<
   | "contextLength"
   | "messages"
   | "gitDiff"
+  | "codexTier"
 > & {
   isUnread: boolean;
   visibility: ThreadVisibility | null;
@@ -381,11 +385,23 @@ export type UsageEventInsert = typeof schema.usageEvents.$inferInsert;
 export type UserCredit = typeof schema.userCredits.$inferSelect;
 export type UserCreditInsert = typeof schema.userCredits.$inferInsert;
 
+export type GatewayZTier = "free" | "pro" | "max";
+
+// Codex reasoning effort tiers - controls how much thinking the model does
+// Maps to OpenAI's reasoning.effort parameter and Claude's extended thinking budget
+export type CodexTier = "none" | "low" | "medium" | "high" | "xhigh";
+export const defaultCodexTier: CodexTier = "medium";
+
 export type UserCredentials = {
   hasClaude: boolean;
   hasAmp: boolean;
   hasOpenAI: boolean;
   hasOpenAIOAuthCredentials: boolean;
+  hasGemini: boolean;
+  // GatewayZ subscription tier - 'free' means no active subscription
+  gwTier: GatewayZTier;
+  // Whether user has an active Gatewayz subscription (pro or max)
+  hasGatewayz: boolean;
 };
 
 export type SignupTrialInfo = {
@@ -447,6 +463,159 @@ export type OpenAIProviderMetadata = {
   chatgptAccountId?: string;
 };
 
+export type GeminiAgentProviderMetadata = {
+  type: "gemini";
+  accountId?: string;
+  accountEmail?: string;
+  // Indicates if this is via Google account subscription
+  isSubscription?: boolean;
+  // Subscription tier: pro (Google One AI Premium), ultra, or free
+  subscriptionType?: "pro" | "ultra" | "free";
+  scope?: string;
+};
+
 export type AgentProviderMetadata =
   | ClaudeAgentProviderMetadata
-  | OpenAIProviderMetadata;
+  | OpenAIProviderMetadata
+  | GeminiAgentProviderMetadata;
+
+// =============================================================================
+// PR Feedback Types (for Code Review integration)
+// =============================================================================
+
+export type PRComment = {
+  id: number;
+  body: string;
+  path: string;
+  line: number | null;
+  originalLine: number | null;
+  side: "LEFT" | "RIGHT";
+  author: {
+    login: string;
+    avatarUrl: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  inReplyToId?: number;
+  htmlUrl: string;
+};
+
+export type PRReviewThread = {
+  id: string;
+  isResolved: boolean;
+  // True if feedback was queued after this thread's first comment was created,
+  // meaning the agent is currently working on addressing this comment.
+  isInProgress: boolean;
+  comments: PRComment[];
+};
+
+export type PRCheckRun = {
+  id: number;
+  name: string;
+  status: GithubCheckRunStatus;
+  conclusion: GithubCheckRunConclusion | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  detailsUrl: string | null;
+  output?: {
+    title: string | null;
+    summary: string | null;
+  };
+};
+
+export type PRFeedback = {
+  prNumber: number;
+  repoFullName: string;
+  prUrl: string;
+  prTitle: string;
+  prState: GithubPRStatus;
+  baseBranch: string;
+  headBranch: string;
+  headSha: string;
+  comments: {
+    unresolved: PRReviewThread[];
+    resolved: PRReviewThread[];
+    // Threads where feedback was queued after the comment was created
+    // (subset of unresolved threads that are currently being addressed)
+    inProgress: PRReviewThread[];
+  };
+  checks: PRCheckRun[];
+  coverageCheck: PRCheckRun | null;
+  mergeableState: GithubPRMergeableState;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+  isAutoMergeEnabled: boolean;
+};
+
+export type PRFeedbackSummary = {
+  unresolvedCommentCount: number;
+  resolvedCommentCount: number;
+  failingCheckCount: number;
+  pendingCheckCount: number;
+  passingCheckCount: number;
+  hasCoverageCheck: boolean;
+  coverageCheckPassed: boolean | null;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+};
+
+export type PRReference = {
+  repoFullName: string;
+  prNumber: number;
+};
+
+// =============================================================================
+// Split PR Feedback Types (for progressive loading)
+// =============================================================================
+
+/**
+ * Lightweight PR header data - fetched first for fast initial render
+ */
+export type PRHeader = {
+  prNumber: number;
+  repoFullName: string;
+  prUrl: string;
+  prTitle: string;
+  prState: GithubPRStatus;
+  baseBranch: string;
+  headBranch: string;
+  headSha: string;
+  mergeableState: GithubPRMergeableState;
+  hasConflicts: boolean;
+  isMergeable: boolean;
+  isAutoMergeEnabled: boolean;
+};
+
+/**
+ * PR comments data - includes resolution status
+ */
+export type PRCommentsData = {
+  comments: {
+    unresolved: PRReviewThread[];
+    resolved: PRReviewThread[];
+    // Threads where feedback was queued after the comment was created
+    // (subset of unresolved threads that are currently being addressed)
+    inProgress: PRReviewThread[];
+  };
+  summary: {
+    unresolvedCount: number;
+    resolvedCount: number;
+    // Count of threads currently being addressed (subset of unresolved)
+    inProgressCount: number;
+  };
+};
+
+/**
+ * PR checks data - includes coverage check
+ */
+export type PRChecksData = {
+  checks: PRCheckRun[];
+  coverageCheck: PRCheckRun | null;
+  summary: {
+    failingCount: number;
+    pendingCount: number;
+    passingCount: number;
+    hasCoverageCheck: boolean;
+    coverageCheckPassed: boolean | null;
+  };
+};

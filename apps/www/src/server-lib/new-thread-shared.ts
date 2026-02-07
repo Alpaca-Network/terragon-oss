@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { generateThreadName } from "@/server-lib/generate-thread-name";
 import {
   Automation,
+  CodexTier,
   DBUserMessage,
   ThreadSource,
   ThreadSourceMetadata,
@@ -40,6 +41,7 @@ import { sendLoopsEvent, updateLoopsContact } from "@/lib/loops";
 import { getSandboxSizeForUser } from "@/lib/subscription-tiers";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
 import { getThreadChatHistory } from "./compact";
+import { trackRecentRepo } from "@/server-actions/user-repos";
 
 export interface CreateThreadOptions {
   userId: string;
@@ -57,9 +59,12 @@ export interface CreateThreadOptions {
   scheduleAt?: number | null;
   disableGitCheckpointing?: boolean;
   skipSetup?: boolean;
+  autoFixFeedback?: boolean;
+  autoMergePR?: boolean;
   sourceType: ThreadSource;
   sourceMetadata?: ThreadSourceMetadata;
   delayMs?: number;
+  codexTier?: CodexTier;
 }
 
 /**
@@ -82,9 +87,12 @@ export async function createNewThread({
   scheduleAt = null,
   disableGitCheckpointing = false,
   skipSetup = false,
+  autoFixFeedback = false,
+  autoMergePR = false,
   sourceType,
   sourceMetadata,
   delayMs = 0,
+  codexTier,
 }: CreateThreadOptions): Promise<{ threadId: string; threadChatId: string }> {
   // Enforce per-user shadow-ban rate limit if applicable
   await checkShadowBanTaskCreationRateLimit(userId);
@@ -212,6 +220,8 @@ export async function createNewThread({
       githubIssueNumber,
       disableGitCheckpointing,
       skipSetup,
+      autoFixFeedback,
+      autoMergePR,
       sourceType,
       sourceMetadata,
     },
@@ -219,6 +229,8 @@ export async function createNewThread({
       agent,
       permissionMode: message.permissionMode || "allowAll",
       status: scheduleAt ? "scheduled" : saveAsDraft ? "draft" : "queued",
+      lastUsedModel: modelOrDefault,
+      codexTier,
     },
     enableThreadChatCreation,
   });
@@ -236,6 +248,13 @@ export async function createNewThread({
   }
 
   const updateThreadMetadata = () => {
+    // Track recently used repo
+    waitUntil(
+      trackRecentRepo(githubRepoFullName).catch((error) => {
+        console.error("Failed to track recent repo:", error);
+      }),
+    );
+
     if (shouldGenerateName) {
       waitUntil(
         generateAndUpdateThreadName({

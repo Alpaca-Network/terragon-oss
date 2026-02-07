@@ -1,5 +1,5 @@
 import { oc as ocBase } from "@orpc/contract";
-import { AIModelExternalSchema } from "@terragon/agent/types";
+import { AIAgentSchema, AIModelExternalSchema } from "@terragon/agent/types";
 import * as z from "zod/v4";
 
 const oc = ocBase.errors({
@@ -56,7 +56,7 @@ const threadDetailContract = oc
       githubRepoFullName: z.string().nullable(),
       githubPRNumber: z.number().nullable(),
       jsonl: z.array(z.any()).nullable(),
-      agent: z.enum(["claudeCode", "gemini", "amp", "codex", "opencode"]),
+      agent: AIAgentSchema,
       hasChanges: z.boolean().optional(),
     }),
   );

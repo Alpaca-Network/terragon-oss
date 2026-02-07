@@ -60,7 +60,7 @@ class R2Client {
   public async generatePresignedUploadUrl(
     filename: string,
     contentType: string,
-    maxSizeInBytes?: number,
+    contentLength?: number,
     options?: { skipPrefix?: boolean },
   ) {
     // Generate a unique key for the R2 object
@@ -72,17 +72,30 @@ class R2Client {
       Bucket: this.bucketName,
       Key: r2Key,
       ContentType: contentType,
-      // Add content length range condition if maxSizeInBytes is provided
-      ...(maxSizeInBytes && {
-        ContentLength: maxSizeInBytes,
+      // Add content length if provided (for exact size matching)
+      // Use !== undefined to handle zero-byte file uploads correctly
+      ...(contentLength !== undefined && {
+        ContentLength: contentLength,
       }),
     });
 
     try {
       // The expiration time for the pre-signed URL (e.g., 15 minutes)
       const expiresInSeconds = 15 * 60;
+
+      // Build signing options
+      // When ContentLength is specified, we must include it in signableHeaders
+      // so AWS SDK properly signs it. Without this, the presigned URL won't
+      // enforce content length and may cause signature mismatch errors.
+      // See: https://github.com/aws/aws-sdk-js-v3/issues/5268
+      const signableHeaders = new Set<string>(["host", "content-type"]);
+      if (contentLength !== undefined) {
+        signableHeaders.add("content-length");
+      }
+
       const presignedUrl = await getSignedUrl(this.s3Client, command, {
         expiresIn: expiresInSeconds,
+        signableHeaders,
       });
 
       console.log(`Successfully generated pre-signed URL for ${r2Key}`);

@@ -7,6 +7,7 @@ import {
   parseRepoFullName,
 } from "@/lib/github";
 import { getGithubPR } from "@terragon/shared/model/github";
+import { getActiveThreadsForPR } from "@terragon/shared/model/threads";
 import { handleAppMention } from "./handle-app-mention";
 import {
   isAppMentioned,
@@ -26,7 +27,9 @@ import {
   runPullRequestAutomation,
   runIssueAutomation,
 } from "@/server-lib/automations";
+import { maybeQueueAutoFixFollowUp } from "@/server-lib/auto-fix-feedback";
 import { Automation } from "@terragon/shared/db/types";
+import { waitUntil } from "@vercel/functions";
 // publicAppUrl is used within utils via postBillingLinkComment
 export type PullRequestEvent = EmitterWebhookEvent<"pull_request">["payload"];
 export type IssueEvent = EmitterWebhookEvent<"issues">["payload"];
@@ -94,7 +97,10 @@ export async function handlePullRequestUpdated(
           handlePullRequestAutomation(event, automation),
         ),
       );
-      const failed = results.filter((result) => result.status === "rejected");
+      const failed = results.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected",
+      );
       const succeeded = results.filter(
         (result) => result.status === "fulfilled",
       );
@@ -102,9 +108,16 @@ export async function handlePullRequestUpdated(
         `Successfully handled ${succeeded.length} pull request automations`,
       );
       if (failed.length > 0) {
-        console.error(
-          `Error handling ${failed.length} pull request automations: ${failed.map((result) => result.reason).join(", ")}`,
-        );
+        for (const failure of failed) {
+          console.error(`[webhook:pr-automation] Batch automation failed:`, {
+            prNumber,
+            repoFullName,
+            reason:
+              failure.reason instanceof Error
+                ? failure.reason.message
+                : String(failure.reason),
+          });
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
@@ -192,10 +205,15 @@ async function handlePullRequestAutomation(
     prNumber,
     source: "automated",
   }).catch((error) => {
-    console.error(
-      `Error running automation ${automation.id} for PR #${prNumber} in ${repoFullName}:`,
-      error,
-    );
+    console.error(`[webhook:pr-automation] Failed to run automation:`, {
+      automationId: automation.id,
+      automationName: automation.name,
+      prNumber,
+      repoFullName,
+      action: event.action,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
   });
 }
 
@@ -280,6 +298,14 @@ export async function handlePullRequestReviewCommentEvent(
       console.log(
         `Review comment on PR #${prNumber} in ${repoFullName} does not mention the app`,
       );
+      // Trigger auto-fix for threads with auto-fix enabled
+      waitUntil(
+        triggerAutoFixForPR({
+          repoFullName,
+          prNumber,
+          triggerSource: "pr_comment",
+        }),
+      );
       return;
     }
     console.log(
@@ -350,6 +376,20 @@ export async function handlePullRequestReviewEvent(
       console.log(
         `Review on PR #${prNumber} in ${repoFullName} does not mention the app or has no body`,
       );
+      // Trigger auto-fix for threads with auto-fix enabled when a review is submitted
+      // (only if it's a request for changes or a regular review with comments)
+      if (
+        event.review.state === "changes_requested" ||
+        event.review.state === "commented"
+      ) {
+        waitUntil(
+          triggerAutoFixForPR({
+            repoFullName,
+            prNumber,
+            triggerSource: "review",
+          }),
+        );
+      }
       return;
     }
     console.log(
@@ -401,6 +441,28 @@ export async function handleCheckRunEvent(event: CheckRunEvent): Promise<void> {
     console.log(
       `Successfully updated check status for PRs: ${prNumbers.map((pr) => `#${pr}`).join(", ")} in ${repoFullName}`,
     );
+
+    // Trigger auto-fix when a check fails (conclusion is failure, timed_out, or cancelled)
+    const isCheckFailure =
+      event.action === "completed" &&
+      (checkRun.conclusion === "failure" ||
+        checkRun.conclusion === "timed_out" ||
+        checkRun.conclusion === "cancelled");
+
+    if (isCheckFailure) {
+      waitUntil(
+        Promise.all(
+          prNumbers.map((prNumber) =>
+            triggerAutoFixForPR({
+              repoFullName,
+              prNumber,
+              triggerSource: "check_run",
+            }),
+          ),
+        ),
+      );
+    }
+
     return;
   } catch (error) {
     console.error("Error handling check run event:", error);
@@ -551,9 +613,72 @@ async function handleIssueAutomation(
     issueNumber,
     source: "automated",
   }).catch((error) => {
-    console.error(
-      `Error running automation ${automation.id} for issue #${issueNumber} in ${repoFullName}:`,
-      error,
-    );
+    console.error(`[webhook:issue-automation] Failed to run automation:`, {
+      automationId: automation.id,
+      automationName: automation.name,
+      issueNumber,
+      repoFullName,
+      action: event.action,
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
   });
+}
+
+/**
+ * Triggers auto-fix for threads associated with a PR if they have auto-fix enabled.
+ * This is called when PR feedback is received (comments, reviews, check failures).
+ */
+async function triggerAutoFixForPR({
+  repoFullName,
+  prNumber,
+  triggerSource,
+}: {
+  repoFullName: string;
+  prNumber: number;
+  triggerSource: "pr_comment" | "check_run" | "review";
+}): Promise<void> {
+  try {
+    // Get all active threads for this PR
+    const threads = await getActiveThreadsForPR({
+      db,
+      repoFullName,
+      prNumber,
+    });
+
+    if (threads.length === 0) {
+      return;
+    }
+
+    // Filter to threads with auto-fix enabled
+    const autoFixThreads = threads.filter((t) => t.autoFixFeedback);
+    if (autoFixThreads.length === 0) {
+      return;
+    }
+
+    console.log(
+      `Triggering auto-fix for ${autoFixThreads.length} threads on PR #${prNumber} in ${repoFullName} (trigger: ${triggerSource})`,
+    );
+
+    // Queue auto-fix for each thread
+    await Promise.allSettled(
+      autoFixThreads.map((thread) =>
+        maybeQueueAutoFixFollowUp({
+          threadId: thread.id,
+          userId: thread.userId,
+          triggerSource,
+        }).catch((error) => {
+          console.error(
+            `[webhook:auto-fix] Failed to queue auto-fix for thread ${thread.id}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+        }),
+      ),
+    );
+  } catch (error) {
+    console.error(
+      `[webhook:auto-fix] Error triggering auto-fix for PR #${prNumber}:`,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 }

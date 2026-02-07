@@ -17,7 +17,7 @@ export default function TestimonialCard({
   verified?: boolean;
 }) {
   return (
-    <div className="bg-sidebar text-card-foreground rounded-xl border border-border p-6 break-inside-avoid hover:shadow-md transition-shadow">
+    <div className="bg-card text-card-foreground rounded-xl border border-border p-6 break-inside-avoid shadow-sm hover:shadow-md transition-shadow">
       <div
         className={`flex gap-3 mb-3 ${!handle ? "items-center" : "items-start"}`}
       >

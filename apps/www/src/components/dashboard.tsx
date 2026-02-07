@@ -4,11 +4,11 @@ import {
   DashboardPromptBoxHandleSubmit,
   DashboardPromptBox,
 } from "./promptbox/dashboard-promptbox";
-import { ThreadListMain } from "./thread-list/main";
 import { newThread } from "@/server-actions/new-thread";
 import { useTypewriterEffect } from "@/hooks/useTypewriter";
 import { useCallback, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   threadQueryKeys,
@@ -18,27 +18,57 @@ import { convertToPlainText } from "@/lib/db-message-helpers";
 import { HandleUpdate } from "./promptbox/use-promptbox";
 import { cn } from "@/lib/utils";
 import { RecommendedTasks } from "./recommended-tasks";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { selectedModelAtom } from "@/atoms/user-flags";
 import { dashboardViewModeAtom } from "@/atoms/user-cookies";
 import { FeatureUpsellToast } from "@/components/feature-upsell-toast";
 import { unwrapError, unwrapResult } from "@/lib/server-actions";
 import { KanbanBoard } from "./kanban";
+import { TaskViewToggle } from "./task-view-toggle";
+import { RecentReposQuickAccess } from "./onboarding/recent-repos-quick-access";
+import { TemplateRepoSelector } from "./onboarding/template-repo-selector";
+import { KanbanPromotionBanner } from "./onboarding/kanban-promotion-banner";
+import { NewProjectView } from "./onboarding/new-project-view";
+import { getUserRepos } from "@/server-actions/user-repos";
+import { useServerActionQuery } from "@/queries/server-action-helpers";
+import { usePlatform } from "@/hooks/use-platform";
+import { getCookieOrNull } from "@/lib/cookies-client";
+import { dashboardViewModeKey } from "@/lib/cookies";
+import { MobilePendingTasks } from "./mobile-pending-tasks";
 
 export function Dashboard({
   showArchived = false,
+  showBacklog = false,
 }: {
   showArchived?: boolean;
+  showBacklog?: boolean;
 }) {
   const [typewriterEffectEnabled, setTypewriterEffectEnabled] = useState(true);
   const placeholder = useTypewriterEffect(typewriterEffectEnabled);
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
-  const viewMode = useAtomValue(dashboardViewModeAtom);
+  const [viewMode, setViewMode] = useAtom(dashboardViewModeAtom);
+  const platform = usePlatform();
+  const searchParams = useSearchParams();
+  const initialTaskId = searchParams.get("task");
 
+  // Set default view to 'new-project' on mobile for first-time users
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // On mobile, default to 'new-project' view only for users who have never set a view preference.
+  // We check if the cookie exists - if it doesn't exist (null), this is a first-time user.
+  // Once they select any view, the cookie is set and we never override their choice again.
+  useEffect(() => {
+    if (platform === "mobile" && viewMode === "list") {
+      const existingCookie = getCookieOrNull(dashboardViewModeKey);
+      // Only auto-switch if the cookie doesn't exist (truly first-time user)
+      if (existingCookie === null) {
+        setViewMode("new-project");
+      }
+    }
+  }, [platform, viewMode, setViewMode]);
 
   const handleSubmit = useCallback<DashboardPromptBoxHandleSubmit>(
     async ({
@@ -51,6 +81,8 @@ export function Dashboard({
       disableGitCheckpointing,
       skipSetup,
       createNewBranch,
+      autoFixFeedback,
+      autoMergePR,
     }) => {
       try {
         unwrapResult(
@@ -64,6 +96,8 @@ export function Dashboard({
             createNewBranch,
             scheduleAt,
             selectedModels,
+            autoFixFeedback,
+            autoMergePR,
           }),
         );
         if (!saveAsDraft) {
@@ -101,80 +135,138 @@ export function Dashboard({
   const [promptText, setPromptText] = useState<string | null>(null);
   const selectedModel = useAtomValue(selectedModelAtom);
 
-  // Determine if there are any active tasks; used for Sawyer UI empty state
-  const { data } = useInfiniteThreadList({ archived: false });
-  const showRecommendedTasks =
-    (data?.pages.flatMap((page) => page) ?? []).length < 3;
+  // Determine if there are any active tasks; used for onboarding state
+  const { data, isLoading: isLoadingThreads } = useInfiniteThreadList({
+    archived: false,
+  });
+  const activeTaskCount = (data?.pages.flatMap((page) => page) ?? []).length;
 
-  // Show Kanban view on larger screens when viewMode is 'kanban'
+  // Fetch user repos for onboarding
+  const { data: reposResult, isLoading: isLoadingRepos } = useServerActionQuery(
+    {
+      queryKey: ["user-repos"],
+      queryFn: getUserRepos,
+    },
+  );
+  const userRepos = reposResult?.repos ?? [];
+  const repoCount = userRepos.length;
+
+  // Determine user state for onboarding - only calculate once data is loaded
+  const isDataLoaded = !isLoadingThreads && !isLoadingRepos;
+  const isNewUser = isDataLoaded && activeTaskCount === 0;
+  const isGrowingUser =
+    isDataLoaded && activeTaskCount > 0 && activeTaskCount < 3;
+  // Should show template selector only after data is loaded to prevent flash
+  const shouldShowTemplateSelector =
+    isDataLoaded && (isNewUser || repoCount < 3);
+
+  // Show Kanban view when viewMode is 'kanban' (works on both desktop and mobile)
   const showKanbanView = viewMode === "kanban" && mounted;
+  // Show New Project view when viewMode is 'new-project'
+  const showNewProjectView = viewMode === "new-project" && mounted;
+  // Show Inbox (list) view for the remaining case
+  const showInboxView = viewMode === "list" && mounted;
+
+  // Determine query filters for Kanban view
+  const queryFilters = showArchived
+    ? { archived: true }
+    : showBacklog
+      ? { isBacklog: true }
+      : { archived: false, isBacklog: false };
+
+  // Handler to switch back from new-project view after creating a repo
+  const handleBackFromNewProject = useCallback(() => {
+    setViewMode("list");
+  }, [setViewMode]);
 
   return (
-    <div
-      className={cn(
-        "flex flex-col h-full w-full",
-        showKanbanView ? "max-w-full" : "max-w-2xl mx-auto gap-8 pt-2.5",
-      )}
-    >
+    <div className="flex flex-col h-full w-full">
       <FeatureUpsellToast />
 
-      {/* View toggle and prompt box - only show in list view or on mobile */}
-      {!showKanbanView && (
-        <>
-          <DashboardPromptBox
-            placeholder={placeholder}
-            status={null}
-            threadId={null}
-            onUpdate={onUpdate}
-            handleStop={handleStop}
-            handleSubmit={handleSubmit}
-            promptText={promptText ?? undefined}
-          />
-          {showRecommendedTasks && (
-            <div className="space-y-2 hidden lg:block">
-              <h3 className="text-sm font-medium text-muted-foreground/70">
-                Suggested tasks
-              </h3>
-              <RecommendedTasks
-                onTaskSelect={(p) => setPromptText(p)}
-                selectedModel={selectedModel}
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Desktop: Show Kanban or List based on viewMode */}
+      {/* Task View Toggle - consistent position at top-right for all views */}
       {mounted && (
-        <div className="hidden lg:flex flex-1 min-h-0">
-          {showKanbanView ? (
-            <KanbanBoard queryFilters={{ archived: showArchived }} />
-          ) : (
-            <div className="w-full">
-              <ThreadListMain
-                queryFilters={{ archived: showArchived }}
-                viewFilter={showArchived ? "archived" : "active"}
-                allowGroupBy={true}
-                showSuggestedTasks={false}
-                setPromptText={setPromptText}
-              />
-            </div>
-          )}
+        <div className="flex justify-end items-center px-4 py-2 flex-shrink-0">
+          <TaskViewToggle />
         </div>
       )}
 
-      {/* Mobile: Always show list view */}
-      {mounted && (
-        <div className="lg:hidden">
-          <ThreadListMain
-            queryFilters={{ archived: showArchived }}
-            viewFilter={showArchived ? "archived" : "active"}
-            allowGroupBy={true}
-            showSuggestedTasks={showRecommendedTasks}
-            setPromptText={setPromptText}
+      {/* View-specific content */}
+      <div
+        className={cn(
+          "flex flex-col flex-1 min-h-0",
+          !showKanbanView &&
+            !showNewProjectView &&
+            "max-w-2xl mx-auto w-full gap-8",
+        )}
+      >
+        {/* New Project view - full-page template selection */}
+        {showNewProjectView && (
+          <div className="flex-1 overflow-auto">
+            <NewProjectView
+              onBack={handleBackFromNewProject}
+              onRepoCreated={handleBackFromNewProject}
+              className="h-full"
+            />
+          </div>
+        )}
+
+        {/* Inbox view - prompt box and onboarding content */}
+        {showInboxView && (
+          <>
+            <DashboardPromptBox
+              placeholder={placeholder}
+              status={null}
+              threadId={null}
+              onUpdate={onUpdate}
+              handleStop={handleStop}
+              handleSubmit={handleSubmit}
+              promptText={promptText ?? undefined}
+            />
+
+            {/* Mobile: Show pending/ongoing tasks below prompt box */}
+            {platform === "mobile" && <MobilePendingTasks />}
+
+            {/* Onboarding content - conditional based on user state */}
+            <div className="space-y-4">
+              {/* Recent Repos - for growing users with repos */}
+              {isGrowingUser && repoCount >= 1 && (
+                <RecentReposQuickAccess
+                  repos={userRepos.slice(0, 5)}
+                  onTaskSelect={(p) => setPromptText(p)}
+                />
+              )}
+
+              {/* Template Selector - for new users or users with few repos */}
+              {shouldShowTemplateSelector && <TemplateRepoSelector />}
+
+              {/* Kanban Promotion - for engaged but not power users */}
+              {isGrowingUser && <KanbanPromotionBanner />}
+
+              {/* Task Ideas - always show for growing users */}
+              {isGrowingUser && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground/70">
+                    Task Ideas
+                  </h3>
+                  <RecommendedTasks
+                    onTaskSelect={(p) => setPromptText(p)}
+                    selectedModel={selectedModel}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Kanban view - single component handles responsive layout internally */}
+        {showKanbanView && (
+          <KanbanBoard
+            queryFilters={queryFilters}
+            initialSelectedTaskId={initialTaskId}
+            hideViewToggle
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

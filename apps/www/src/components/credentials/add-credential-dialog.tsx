@@ -15,10 +15,13 @@ import {
 import { Eye, EyeOff, ChevronDown, ChevronRight } from "lucide-react";
 import {
   useExchangeClaudeAuthorizationCodeMutation,
+  useExchangeGoogleAuthorizationCodeMutation,
   useSaveCodexAuthJsonMutation,
   useSaveApiKeyMutation,
+  useSaveClaudeCredentialsJsonMutation,
 } from "@/queries/credentials-queries";
 import type { AuthType } from "@/lib/claude-oauth";
+import type { GeminiAuthType } from "@/lib/google-oauth";
 import { Textarea } from "@/components/ui/textarea";
 import { AIAgent } from "@terragon/agent/types";
 
@@ -180,6 +183,7 @@ export function AddAmpCredentialDialog({
   );
 }
 
+// Gemini dialog with Google OAuth subscription or API key
 export function AddGeminiCredentialDialog({
   open,
   onOpenChange,
@@ -187,12 +191,230 @@ export function AddGeminiCredentialDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [mode, setMode] = useState<"api-key" | "subscription" | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [authType, setAuthType] = useState<GeminiAuthType | null>(null);
+  const [codeVerifier, setCodeVerifier] = useState("");
+  const [authCode, setAuthCode] = useState("");
+
+  const saveApiKeyMutation = useSaveApiKeyMutation();
+  const exchangeCodeMutation = useExchangeGoogleAuthorizationCodeMutation();
+
+  const resetForm = () => {
+    setMode(null);
+    setApiKey("");
+    setShowApiKey(false);
+    setCodeVerifier("");
+    setAuthCode("");
+    setAuthType(null);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.type === "google-oauth-started") {
+        setCodeVerifier(event.data.codeVerifier);
+        setLoading(false);
+        toast.info(
+          "Complete authentication in the popup window, then paste the code below",
+        );
+      } else if (event.data.type === "google-oauth-error") {
+        setLoading(false);
+        toast.error(
+          event.data.error || "Google authentication failed. Please try again.",
+        );
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [open]);
+
+  const handleStartGoogleAuth = async (type: GeminiAuthType) => {
+    setLoading(true);
+    setAuthType(type);
+
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      `/auth/google-gemini-redirect?type=${type}`,
+      "google-oauth",
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+    );
+
+    if (!popup) {
+      window.location.href = `/auth/google-gemini-redirect?type=${type}`;
+    }
+  };
+
+  const handleExchangeCode = async () => {
+    if (!authCode || !codeVerifier || !authType) {
+      toast.error("Please complete the authentication flow first");
+      return;
+    }
+    const [actualCode, state] = authCode.split("#");
+    if (!state || !actualCode) {
+      toast.error(
+        "Invalid code format. Please paste the complete code from the authentication window.",
+      );
+      return;
+    }
+    await exchangeCodeMutation.mutateAsync({
+      code: actualCode,
+      codeVerifier,
+      state,
+      authType,
+    });
+    onOpenChange(false);
+    resetForm();
+  };
+
+  const handleSubmit = async () => {
+    if (!apiKey) {
+      toast.error("Please enter a Gemini API key");
+      return;
+    }
+    if (!apiKey.startsWith("AIza")) {
+      toast.error("Invalid API key format. Please check your Gemini API key.");
+      return;
+    }
+    await saveApiKeyMutation.mutateAsync({ agent: "gemini", apiKey });
+    onOpenChange(false);
+    resetForm();
+  };
+
+  useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open]);
+
   return (
-    <AddApiKeyDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      config={API_KEY_CONFIGS.gemini}
-    />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Gemini</DialogTitle>
+          <DialogDescription>
+            {mode === null
+              ? "Choose how you'd like to add credentials for Gemini."
+              : mode === "api-key"
+                ? "Add a new API key for Gemini."
+                : "Connect your Google One AI Premium subscription."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          {mode === null ? (
+            <div className="space-y-3">
+              <Button
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => {
+                  setMode("subscription");
+                  handleStartGoogleAuth("subscription");
+                }}
+                disabled={loading}
+              >
+                {loading && authType === "subscription"
+                  ? "Opening..."
+                  : "Connect Google One AI Premium"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setMode("api-key")}
+              >
+                Add API Key
+              </Button>
+            </div>
+          ) : mode === "api-key" ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Enter your Gemini API key. Get one at{" "}
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Google AI Studio
+                </a>
+              </p>
+              <div className="relative">
+                <Input
+                  id="apiKey"
+                  type={showApiKey ? "text" : "password"}
+                  placeholder="AIza..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value.trim())}
+                  className="pr-10"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-0 top-0 h-full px-3"
+                >
+                  {showApiKey ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {!codeVerifier ? (
+                <p className="text-sm text-muted-foreground">
+                  Complete the authentication in the popup window, then paste
+                  the code below.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Authorize Google in the new window, then paste code below:
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Paste authentication code"
+                    value={authCode}
+                    onChange={(e) => setAuthCode(e.target.value.trim())}
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          {mode === "api-key" && (
+            <Button
+              onClick={handleSubmit}
+              disabled={!apiKey || saveApiKeyMutation.isPending}
+            >
+              {saveApiKeyMutation.isPending ? "Adding..." : "Add Credential"}
+            </Button>
+          )}
+          {mode === "subscription" && codeVerifier && (
+            <Button
+              onClick={handleExchangeCode}
+              disabled={!authCode || exchangeCodeMutation.isPending}
+            >
+              {exchangeCodeMutation.isPending ? "Connecting..." : "Connect"}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -204,16 +426,21 @@ export function AddClaudeCredentialDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [mode, setMode] = useState<"api-key" | "subscription" | null>(null);
+  const [mode, setMode] = useState<
+    "api-key" | "subscription" | "paste-credentials" | null
+  >(null);
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authType, setAuthType] = useState<AuthType | null>(null);
   const [codeVerifier, setCodeVerifier] = useState("");
   const [authCode, setAuthCode] = useState("");
+  const [credentialsJson, setCredentialsJson] = useState("");
+  const [showClaudeHelp, setShowClaudeHelp] = useState(false);
 
   const saveApiKeyMutation = useSaveApiKeyMutation();
   const exchangeCodeMutation = useExchangeClaudeAuthorizationCodeMutation();
+  const saveCredentialsJsonMutation = useSaveClaudeCredentialsJsonMutation();
 
   const resetForm = () => {
     setMode(null);
@@ -223,6 +450,8 @@ export function AddClaudeCredentialDialog({
     setAuthCode("");
     setAuthType(null);
     setLoading(false);
+    setCredentialsJson("");
+    setShowClaudeHelp(false);
   };
 
   useEffect(() => {
@@ -304,6 +533,38 @@ export function AddClaudeCredentialDialog({
     resetForm();
   };
 
+  const handleSaveCredentialsJson = async () => {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(credentialsJson);
+    } catch (e) {
+      toast.error(
+        "Invalid JSON format. Please check your credentials.json and try again.",
+      );
+      return;
+    }
+    if (!parsed || typeof parsed !== "object") {
+      toast.error(
+        "Invalid credentials.json. Make sure it contains valid credential data.",
+      );
+      return;
+    }
+    // Validate required fields before sending to server
+    if (!parsed.claudeAiOauth || typeof parsed.claudeAiOauth !== "object") {
+      toast.error("Invalid credentials format. Missing claudeAiOauth object.");
+      return;
+    }
+    if (!parsed.claudeAiOauth.accessToken) {
+      toast.error("Invalid credentials. Missing accessToken field.");
+      return;
+    }
+    await saveCredentialsJsonMutation.mutateAsync({
+      credentialsJson: JSON.stringify(parsed),
+    });
+    onOpenChange(false);
+    resetForm();
+  };
+
   useEffect(() => {
     if (!open) {
       resetForm();
@@ -320,7 +581,9 @@ export function AddClaudeCredentialDialog({
               ? "Choose how you'd like to add credentials for Claude."
               : mode === "api-key"
                 ? "Add a new API key for Claude."
-                : "Connect your Claude subscription."}
+                : mode === "paste-credentials"
+                  ? "Paste your Claude credentials file."
+                  : "Connect your Claude subscription."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -346,6 +609,14 @@ export function AddClaudeCredentialDialog({
                 onClick={() => setMode("api-key")}
               >
                 Add API Key
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setMode("paste-credentials")}
+              >
+                Paste credentials.json
               </Button>
             </div>
           ) : mode === "api-key" ? (
@@ -383,6 +654,50 @@ export function AddClaudeCredentialDialog({
                   )}
                 </Button>
               </div>
+            </div>
+          ) : mode === "paste-credentials" ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Paste your{" "}
+                <code className="font-mono rounded bg-muted px-1">
+                  ~/.claude/.credentials.json
+                </code>{" "}
+                below:
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-0 text-xs text-muted-foreground justify-start"
+                onClick={() => setShowClaudeHelp((v) => !v)}
+              >
+                {showClaudeHelp ? (
+                  <ChevronDown className="mr-1 h-3 w-3" />
+                ) : (
+                  <ChevronRight className="mr-1 h-3 w-3" />
+                )}
+                {showClaudeHelp
+                  ? "Hide setup instructions"
+                  : "How to get credentials.json"}
+              </Button>
+              {showClaudeHelp && (
+                <div className="mt-2 space-y-2 text-sm">
+                  <pre className="rounded-md bg-muted p-2 overflow-x-auto">
+                    <code>{`# Copy credentials.json (macOS/Linux)
+cat ~/.claude/.credentials.json | pbcopy
+
+# Or on Linux with xclip
+cat ~/.claude/.credentials.json | xclip -selection clipboard`}</code>
+                  </pre>
+                  <p className="text-muted-foreground">Then paste it below.</p>
+                </div>
+              )}
+              <Textarea
+                placeholder={`{\n  "claudeAiOauth": {\n    "accessToken": "...",\n    "refreshToken": "...",\n    "expiresAt": 1234567890,\n    "scopes": [...]\n  }\n}`}
+                value={credentialsJson}
+                onChange={(e) => setCredentialsJson(e.target.value)}
+                className="min-h-24 max-h-48 overflow-x-auto font-mono break-all"
+              />
             </div>
           ) : (
             <div className="space-y-2">
@@ -423,6 +738,16 @@ export function AddClaudeCredentialDialog({
               disabled={!authCode || exchangeCodeMutation.isPending}
             >
               {exchangeCodeMutation.isPending ? "Connecting..." : "Connect"}
+            </Button>
+          )}
+          {mode === "paste-credentials" && (
+            <Button
+              onClick={handleSaveCredentialsJson}
+              disabled={saveCredentialsJsonMutation.isPending}
+            >
+              {saveCredentialsJsonMutation.isPending
+                ? "Connecting..."
+                : "Connect"}
             </Button>
           )}
         </DialogFooter>

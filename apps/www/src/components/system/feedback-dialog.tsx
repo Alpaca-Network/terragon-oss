@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import posthog from "posthog-js";
 import {
   Dialog,
   DialogContent,
@@ -43,10 +44,15 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       toast.error("Please enter a message");
       return;
     }
+    // Capture session replay URL with timestamp to link to the current moment
+    const sessionReplayUrl =
+      posthog.get_session_replay_url?.({ withTimestamp: true }) || null;
+
     await submitFeedbackMutation.mutateAsync({
       type,
       message,
       currentPage: pathname,
+      sessionReplayUrl,
     });
     toast.success("Thank you for your feedback!");
     onOpenChange(false);

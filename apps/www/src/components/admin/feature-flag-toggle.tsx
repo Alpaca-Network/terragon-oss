@@ -124,7 +124,12 @@ export function GlobalFeatureFlagToggle({
   const getConfirmationMessage = () => {
     if (pendingValue === null) return "";
 
-    const newValue = pendingValue === "true" ? "true" : pendingValue === "false" ? "false" : "null";
+    const newValue =
+      pendingValue === "true"
+        ? "true"
+        : pendingValue === "false"
+          ? "false"
+          : "null";
     return `Are you sure you want to change the global override for "${flagName}" to ${newValue}? This will affect all users who don't have a specific override.`;
   };
 

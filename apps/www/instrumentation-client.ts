@@ -8,4 +8,8 @@ posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   capture_exceptions: true, // Enable exception tracking
   autocapture: false, // Disable autocapture events
   debug: process.env.NODE_ENV === "development",
+  // Session recording for user feedback
+  session_recording: {
+    maskAllInputs: true, // Mask sensitive inputs (passwords, etc.)
+  },
 });

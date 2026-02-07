@@ -1,6 +1,40 @@
 import * as z from "zod/v4";
 
+// Code Router optimization modes for Gatewayz integration
+export const CodeRouterModeSchema = z.enum([
+  "balanced", // Default: balanced optimization for price/performance
+  "price", // Optimize for lowest cost
+  "quality", // Optimize for highest quality/performance
+]);
+
+export type CodeRouterMode = z.infer<typeof CodeRouterModeSchema>;
+
 export const AIModelSchema = z.enum([
+  // gatewayz code router - intelligent model selection
+  "gatewayz:code:balanced", // Default balanced mode
+  "gatewayz:code:price", // Optimize for cost
+  "gatewayz:code:performance", // Optimize for performance
+
+  // gatewayz router - Claude Code models
+  "gatewayz/claude-code/opus",
+  "gatewayz/claude-code/sonnet",
+  "gatewayz/claude-code/haiku",
+
+  // gatewayz router - Codex models
+  "gatewayz/codex/gpt-5.2-codex-high",
+  "gatewayz/codex/gpt-5.2-codex-medium",
+  "gatewayz/codex/gpt-5.1-codex-max",
+  "gatewayz/codex/gpt-5.1-codex-high",
+
+  // gatewayz router - Gemini models
+  "gatewayz/gemini/gemini-3-pro",
+  "gatewayz/gemini/gemini-2.5-pro",
+
+  // gatewayz router - OpenCode models
+  "gatewayz/opencode/glm-4.7",
+  "gatewayz/opencode/glm-4.6",
+  "gatewayz/opencode/kimi-k2",
+
   // claude code
   "opus",
   "sonnet",
@@ -44,6 +78,9 @@ export const AIModelSchema = z.enum([
   "opencode/qwen3-coder",
   "opencode/kimi-k2",
   "opencode/glm-4.6",
+  "opencode/glm-4.7",
+  "opencode/glm-4.7-flash",
+  "opencode/glm-4.7-lite",
   "opencode/gemini-2.5-pro",
   "opencode/gemini-3-pro",
   "opencode-oai/gpt-5",
@@ -65,15 +102,23 @@ export const AIModelExternalSchema = z.enum([
   "qwen3-coder",
   "kimi-k2",
   "glm-4.6",
+  "glm-4.7",
+  "glm-4.7-flash",
+  "glm-4.7-lite",
   "opencode/gpt-5",
   "opencode/gpt-5-codex",
   "opencode/sonnet",
+  // Legacy gatewayz code router model names (for backward compatibility)
+  "gatewayz/code-router",
+  "gatewayz/code-router/price",
+  "gatewayz/code-router/quality",
 ]);
 
 export type AIModel = z.infer<typeof AIModelSchema>;
 export type AIModelExternal = z.infer<typeof AIModelExternalSchema>;
 
 export const AIAgentSchema = z.enum([
+  "gatewayz",
   "claudeCode",
   "gemini",
   "amp",
@@ -94,6 +139,42 @@ export type AIAgentSlashCommand = {
   isLoading?: boolean;
 };
 
+// Skill frontmatter fields from SKILL.md files
+export type AIAgentSkillFrontmatter = {
+  name?: string;
+  description?: string;
+  argumentHint?: string;
+  disableModelInvocation?: boolean;
+  userInvocable?: boolean;
+  // Phase 2 fields (not yet implemented)
+  allowedTools?: string[];
+  model?: string;
+  context?: string;
+  agent?: string;
+};
+
+// Skill metadata for display in UI and model context
+export type AIAgentSkill = {
+  name: string;
+  description: string;
+  argumentHint?: string;
+  disableModelInvocation: boolean;
+  userInvocable: boolean;
+  type: "skill";
+  filePath: string;
+  isLoading?: boolean;
+};
+
+// Union type for slash commands and skills
+export type AIAgentSlashCommandOrSkill = AIAgentSlashCommand | AIAgentSkill;
+
+// Type guard to check if an item is a skill
+export function isSkill(
+  item: AIAgentSlashCommandOrSkill,
+): item is AIAgentSkill {
+  return "type" in item && item.type === "skill";
+}
+
 export type SelectedAIModels = {
   [model in AIModel]?: number;
 };
@@ -101,4 +182,12 @@ export type SelectedAIModels = {
 export type AgentModelPreferences = {
   agents?: { [agent in AIAgent]?: boolean };
   models?: { [model in AIModel]?: boolean };
+};
+
+// Code Router settings for Gatewayz integration
+export type CodeRouterSettings = {
+  // Whether to use the Code Router for Gatewayz models
+  enabled: boolean;
+  // Optimization mode: balanced (default), price, or quality
+  mode: CodeRouterMode;
 };

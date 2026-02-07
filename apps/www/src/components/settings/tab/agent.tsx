@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   userAtom,
   allAgentsAtom,
@@ -14,12 +14,16 @@ import {
   AddAmpCredentialDialog,
   AddGeminiCredentialDialog,
 } from "@/components/credentials/add-credential-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsSection, SettingsWithCTA } from "../settings-row";
-import { AIAgent, AIModel } from "@terragon/agent/types";
-import { Plus } from "lucide-react";
+import { AIAgent, AIModel, CodeRouterMode } from "@terragon/agent/types";
+import { Plus, Info, ExternalLink, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { userCredentialsRefetchAtom } from "@/atoms/user-credentials";
 import {
   Dialog,
   DialogContent,
@@ -36,16 +40,27 @@ import {
   getModelDisplayName,
   isModelEnabledByDefault,
   isConnectedCredentialsSupported,
+  getDefaultCodeRouterSettings,
 } from "@terragon/agent/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { userCredentialsAtom } from "@/atoms/user-credentials";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AgentIcon } from "@/components/chat/agent-icon";
 import { cn } from "@/lib/utils";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function AgentSettings() {
   const user = useAtomValue(userAtom);
   const userSettings = useAtomValue(userSettingsAtom);
+  const codeRouterEnabled = useFeatureFlag("gatewayzCodeRouter");
+
   if (!user || !userSettings) {
     return null;
   }
@@ -57,6 +72,7 @@ export function AgentSettings() {
       >
         <CustomSystemPromptSetting />
       </SettingsSection>
+      {codeRouterEnabled && <CodeRouterSettingsSection />}
       <AgentAndModelsEnabledSection />
       <AgentProvidersSection />
     </div>
@@ -307,6 +323,7 @@ function AgentModelItem({
   isEnabled: boolean;
   onToggle: (enabled: boolean) => void;
 }) {
+  const userSettings = useAtomValue(userSettingsAtom);
   const openCodeOpenAIAnthropicModel = useFeatureFlag(
     "opencodeOpenAIAnthropicModelOption",
   );
@@ -317,6 +334,7 @@ function AgentModelItem({
     agentVersion: "latest",
     enableOpenRouterOpenAIAnthropicModel: openCodeOpenAIAnthropicModel,
     enableOpencodeGemini3ProModelOption: openCodeGemini3ProModel,
+    codeRouterSettings: userSettings?.codeRouterSettings ?? undefined,
   });
   const agentLabel = getAgentDisplayName(agent);
   const agentInfo = getAgentInfo(agent);
@@ -392,5 +410,225 @@ function ModelItem({
         )}
       </label>
     </>
+  );
+}
+
+function CodeRouterSettingsSection() {
+  const userSettings = useAtomValue(userSettingsAtom);
+  const userCredentials = useAtomValue(userCredentialsAtom);
+  const userSettingsMutation = useUpdateUserSettingsMutation();
+  const searchParams = useSearchParams();
+  const refetchUserCredentials = useSetAtom(userCredentialsRefetchAtom);
+
+  const codeRouterSettings =
+    userSettings?.codeRouterSettings ?? getDefaultCodeRouterSettings();
+  const hasGatewayz = userCredentials?.hasGatewayz ?? false;
+  const gwTier = userCredentials?.gwTier ?? "free";
+
+  // Handle Gatewayz connection callback (success or error)
+  useEffect(() => {
+    if (searchParams.get("gatewayz_connected") === "true") {
+      // Refetch credentials to update the UI
+      refetchUserCredentials();
+      toast.success("Gatewayz connected successfully!");
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gatewayz_connected");
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    // Handle error cases
+    const error = searchParams.get("error");
+    if (error === "gatewayz_already_linked") {
+      toast.error(
+        "This Gatewayz account is already linked to another user. Please use a different Gatewayz account or contact support.",
+      );
+      // Clean up the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [searchParams, refetchUserCredentials]);
+
+  const updateCodeRouterEnabled = async (enabled: boolean) => {
+    await userSettingsMutation.mutateAsync({
+      codeRouterSettings: {
+        ...codeRouterSettings,
+        enabled,
+      },
+    });
+  };
+
+  const updateCodeRouterMode = async (mode: CodeRouterMode) => {
+    await userSettingsMutation.mutateAsync({
+      codeRouterSettings: {
+        ...codeRouterSettings,
+        mode,
+      },
+    });
+  };
+
+  const handleConnectGatewayz = () => {
+    // Redirect to initiate Gatewayz OAuth flow in "connect" mode
+    const initiateUrl = new URL(
+      "/api/auth/gatewayz/initiate",
+      window.location.origin,
+    );
+    initiateUrl.searchParams.set("mode", "connect");
+    initiateUrl.searchParams.set("returnUrl", "/settings/agent");
+    window.location.href = initiateUrl.toString();
+  };
+
+  return (
+    <div id="code-router-settings">
+      <SettingsSection
+        label={
+          <span className="flex items-center gap-1.5">
+            Gatewayz Optimizer
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                Improves code gen tasks while cutting the cost of inference by
+                35% to 71%.
+              </TooltipContent>
+            </Tooltip>
+          </span>
+        }
+        description="Enable intelligent model routing to automatically select the best model based on your optimization preference"
+      >
+        <div className="space-y-4">
+          {/* Gatewayz Connection Status */}
+          {hasGatewayz ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/20">
+              <Image
+                src="/gatewayz-logo-icon.png"
+                alt="Gatewayz"
+                width={24}
+                height={24}
+                className="flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    Gatewayz Connected
+                  </span>
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                </div>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {gwTier} tier
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-4">
+              <div className="flex items-start gap-3">
+                <Image
+                  src="/gatewayz-logo-icon.png"
+                  alt="Gatewayz"
+                  width={32}
+                  height={32}
+                  className="flex-shrink-0 mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium mb-1">Connect Gatewayz</h4>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Connect your Gatewayz subscription to unlock the Optimizer
+                    and access multiple AI models through a single subscription.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleConnectGatewayz}
+                    className="gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Connect Gatewayz
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Optimizer Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <Label className="text-sm font-medium">
+                Enable Gatewayz Optimizer
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {hasGatewayz
+                  ? "Automatically select the best model for each task"
+                  : "Connect your Gatewayz subscription above to enable this feature"}
+              </p>
+            </div>
+            <Switch
+              checked={codeRouterSettings.enabled}
+              onCheckedChange={updateCodeRouterEnabled}
+              disabled={!hasGatewayz}
+            />
+          </div>
+
+          {codeRouterSettings.enabled && (
+            <div className="pt-2">
+              <Label className="text-sm font-medium mb-3 block">
+                Optimization Mode
+              </Label>
+              <RadioGroup
+                value={codeRouterSettings.mode}
+                onValueChange={(value) =>
+                  updateCodeRouterMode(value as CodeRouterMode)
+                }
+                className="space-y-3"
+              >
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="balanced" id="mode-balanced" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="mode-balanced"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Balanced (Default)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Optimal balance between cost and quality (recommended)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="price" id="mode-price" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="mode-price"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Price
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Minimize costs by using more efficient models when
+                      possible
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="quality" id="mode-quality" />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="mode-quality"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Performance
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Always use the highest quality models for best results
+                    </p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+    </div>
   );
 }

@@ -158,6 +158,25 @@ function ChatContent({
         />
       );
     }
+    case "invalid-gemini-credentials": {
+      return (
+        <ChatErrorContents
+          header="Gemini credentials expired"
+          body={
+            <>
+              Please update your Gemini credentials to continue. Go to{" "}
+              <Link
+                href="/settings/agent#agent-providers"
+                className="underline"
+              >
+                settings
+              </Link>{" "}
+              to update your credentials.
+            </>
+          }
+        />
+      );
+    }
     case "missing-amp-credentials": {
       return (
         <ChatErrorContents
@@ -324,6 +343,14 @@ function ChatContent({
       return (
         <ChatErrorContentsWithPre
           header="Task queue limit reached. Please try again later."
+          errorStr={errorInfo}
+        />
+      );
+    }
+    case "gatewayz-subscription-required": {
+      return (
+        <ChatErrorContentsWithPre
+          header="Gatewayz subscription required to use Gatewayz Router models."
           errorStr={errorInfo}
         />
       );

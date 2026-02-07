@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { FileCog } from "lucide-react";
 import { CreateEnvironmentButton } from "@/components/environments/create-environment-button";
 import { DeleteEnvironmentButton } from "@/components/environments/delete-environment-button";
+import { SmartContextEditor } from "@/components/environments/smart-context-editor";
 import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { publicDocsUrl } from "@terragon/env/next-public";
 import { usePageHeader } from "@/contexts/page-header";
@@ -189,9 +190,10 @@ export function EnvironmentUI({
   );
   const [envVarsDirty, setEnvVarsDirty] = useState(false);
   const [mcpConfigDirty, setMcpConfigDirty] = useState(false);
+  const [smartContextDirty, setSmartContextDirty] = useState(false);
   const { headerActionContainer } = usePageHeader();
 
-  const hasUnsavedChanges = envVarsDirty || mcpConfigDirty;
+  const hasUnsavedChanges = envVarsDirty || mcpConfigDirty || smartContextDirty;
 
   // Use custom hook for navigation warnings
   useUnsavedChangesWarning(hasUnsavedChanges);
@@ -268,6 +270,33 @@ export function EnvironmentUI({
               }}
               onDirtyChange={setMcpConfigDirty}
               disabled={updateMcpConfigMutation.isPending}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 mt-10">
+          <h2 className="text-base font-medium text-muted-foreground">
+            Smart Context
+          </h2>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-muted-foreground">
+              Automatically generate project context based on your codebase.
+              This context is injected into every agent session to help the AI
+              understand your project&apos;s tech stack, conventions, and
+              patterns.{" "}
+              <Link
+                href={`${publicDocsUrl()}/docs/configuration/environment-setup/smart-context`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:no-underline"
+              >
+                Learn more about smart context
+              </Link>
+              .
+            </span>
+            <SmartContextEditor
+              environmentId={environmentId}
+              onDirtyChange={setSmartContextDirty}
             />
           </div>
         </div>

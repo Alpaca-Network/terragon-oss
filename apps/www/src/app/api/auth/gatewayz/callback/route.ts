@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyGatewayZToken } from "@/lib/gatewayz-auth";
-import { createSessionForGatewayZUser } from "@/lib/gatewayz-auth-server";
+import {
+  createSessionForGatewayZUser,
+  connectGatewayZToExistingUser,
+} from "@/lib/gatewayz-auth-server";
+import { getUserIdOrNull } from "@/lib/auth-server";
+import { validateReturnUrl } from "@/lib/url-validation";
 
 /**
  * Get the base URL for redirects.
@@ -18,6 +23,70 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
+ * Default allowed origins for postMessage in embed mode.
+ * These are the trusted GatewayZ domains that can receive auth completion messages.
+ */
+const DEFAULT_ALLOWED_EMBED_ORIGINS = [
+  "https://gatewayz.ai",
+  "https://www.gatewayz.ai",
+  "https://beta.gatewayz.ai",
+  "https://inbox.gatewayz.ai",
+];
+
+/**
+ * Get the allowed origins for postMessage in embed mode.
+ * Uses GATEWAYZ_ALLOWED_ORIGINS env var if set (comma-separated),
+ * otherwise falls back to defaults.
+ *
+ * Security: Filters out empty strings (from extra commas like "a,,b" or empty env var)
+ * and invalid URLs to prevent postMessage from failing silently or being sent to
+ * unintended targets. Falls back to defaults if env var produces no valid origins,
+ * ensuring auth flow never breaks due to misconfiguration.
+ */
+function getAllowedEmbedOrigins(): string[] {
+  const envOrigins = process.env.GATEWAYZ_ALLOWED_ORIGINS;
+  if (envOrigins) {
+    const origins = envOrigins
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0 && isValidHttpsOrigin(origin));
+    // Fall back to defaults if env var produces no valid origins (empty string, only commas, etc.)
+    return origins.length > 0 ? origins : DEFAULT_ALLOWED_EMBED_ORIGINS;
+  }
+  return DEFAULT_ALLOWED_EMBED_ORIGINS;
+}
+
+/**
+ * Escape a string for safe embedding in a JavaScript string literal.
+ * Handles backslashes, quotes, newlines, Unicode line terminators, and HTML special characters.
+ */
+function escapeForJsString(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\") // Escape backslashes first
+    .replace(/'/g, "\\'") // Escape single quotes
+    .replace(/"/g, '\\"') // Escape double quotes
+    .replace(/\n/g, "\\n") // Escape newlines
+    .replace(/\r/g, "\\r") // Escape carriage returns
+    .replace(/\t/g, "\\t") // Escape tabs
+    .replace(/\u2028/g, "\\u2028") // Escape Unicode line separator
+    .replace(/\u2029/g, "\\u2029") // Escape Unicode paragraph separator
+    .replace(/</g, "\\x3c") // Escape < to prevent </script> injection
+    .replace(/>/g, "\\x3e"); // Escape > for consistency
+}
+
+/**
+ * Validate that a string is a valid HTTPS origin URL.
+ */
+function isValidHttpsOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:" && url.origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate an HTML page for embed mode authentication.
  *
  * In embed mode (iframe), third-party cookies are blocked by modern browsers.
@@ -28,15 +97,27 @@ function getBaseUrl(request: NextRequest): string {
  *
  * The parent window (GatewayZ) will receive the session token and can store it
  * to pass along with subsequent requests if needed.
+ *
+ * Security: postMessage is sent only to trusted GatewayZ origins to prevent
+ * information disclosure to malicious iframe parents.
  */
 function generateEmbedAuthPage(
   redirectUrl: string,
   sessionToken: string,
   gwAuthToken: string,
 ): string {
-  // Encode tokens for safe embedding in JavaScript
-  const safeSessionToken = sessionToken.replace(/'/g, "\\'");
-  const safeGwAuthToken = gwAuthToken.replace(/'/g, "\\'");
+  // Encode all dynamic values for safe embedding in JavaScript string literals
+  const safeSessionToken = escapeForJsString(sessionToken);
+  const safeGwAuthToken = escapeForJsString(gwAuthToken);
+  const safeRedirectUrl = escapeForJsString(redirectUrl);
+
+  // Serialize allowed origins for embedding in the HTML response
+  // Use escapeForJsString to prevent XSS via </script> injection in env var values
+  const allowedOrigins = getAllowedEmbedOrigins();
+  const allowedOriginsJson =
+    "[" +
+    allowedOrigins.map((o) => `"${escapeForJsString(o)}"`).join(",") +
+    "]";
 
   return `<!DOCTYPE html>
 <html>
@@ -56,18 +137,27 @@ function generateEmbedAuthPage(
 
         // Notify parent window that auth is complete
         // Parent can use this to track auth state
+        // Security: Only send to trusted GatewayZ origins
         if (window.parent && window.parent !== window) {
-          window.parent.postMessage({
+          var allowedOrigins = ${allowedOriginsJson};
+          var message = {
             type: 'TERRAGON_AUTH_COMPLETE',
             success: true
-          }, '*');
+          };
+          allowedOrigins.forEach(function(origin) {
+            try {
+              window.parent.postMessage(message, origin);
+            } catch (e) {
+              // Ignore errors for origins that don't match the actual parent
+            }
+          });
         }
       } catch (e) {
         console.error('Failed to store session:', e);
       }
 
       // Navigate to dashboard
-      window.location.href = '${redirectUrl}';
+      window.location.href = '${safeRedirectUrl}';
     })();
   </script>
 </body>
@@ -77,41 +167,96 @@ function generateEmbedAuthPage(
 /**
  * GET /api/auth/gatewayz/callback
  *
- * Handle callback from GatewayZ login redirect.
- * Verifies the gwauth token, creates a session, and redirects to the target page.
+ * Handle callback from GatewayZ login/connect redirect.
+ * Verifies the gwauth token and either:
+ * - Creates a new session (login mode)
+ * - Links GatewayZ to existing user (connect mode)
  */
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const baseUrl = getBaseUrl(request);
     const token = url.searchParams.get("gwauth");
-    const returnUrl = url.searchParams.get("returnUrl") || "/dashboard";
+    const rawReturnUrl = url.searchParams.get("returnUrl") || "/dashboard";
+    // Validate returnUrl to prevent open redirect vulnerabilities
+    // This is a defense-in-depth measure since initiate already validates,
+    // but attackers could craft direct callback URLs bypassing initiate
+    const returnUrl = validateReturnUrl(rawReturnUrl, baseUrl);
     const embed = url.searchParams.get("embed") === "true";
+    const mode = url.searchParams.get("mode") || "login"; // "login" or "connect"
 
     if (!token) {
       console.error("GatewayZ callback: Missing token");
-      return NextResponse.redirect(
-        new URL(
-          `/login?error=missing_token&returnUrl=${encodeURIComponent(returnUrl)}`,
-          baseUrl,
-        ),
-      );
+      const errorRedirect =
+        mode === "connect"
+          ? `/settings/agent?error=missing_token`
+          : `/login?error=missing_token&returnUrl=${encodeURIComponent(returnUrl)}`;
+      return NextResponse.redirect(new URL(errorRedirect, baseUrl));
     }
 
     // Verify the GatewayZ token
     const gwSession = verifyGatewayZToken(token);
     if (!gwSession) {
       console.error("GatewayZ callback: Invalid or expired token");
-      return NextResponse.redirect(
-        new URL(
-          `/login?error=invalid_token&returnUrl=${encodeURIComponent(returnUrl)}`,
-          baseUrl,
-        ),
-      );
+      const errorRedirect =
+        mode === "connect"
+          ? `/settings/agent?error=invalid_token`
+          : `/login?error=invalid_token&returnUrl=${encodeURIComponent(returnUrl)}`;
+      return NextResponse.redirect(new URL(errorRedirect, baseUrl));
     }
 
-    // Create or link user and create session
-    const { sessionToken } = await createSessionForGatewayZUser(gwSession);
+    let sessionToken: string;
+
+    // Handle connect mode - link GatewayZ to existing user
+    if (mode === "connect") {
+      const existingUserId = await getUserIdOrNull();
+      if (!existingUserId) {
+        // User not logged in, redirect to login
+        // Build the nested URL properly to avoid double encoding
+        const initiateUrl = `/api/auth/gatewayz/initiate?mode=connect&returnUrl=${encodeURIComponent(returnUrl)}`;
+        return NextResponse.redirect(
+          new URL(
+            `/login?returnUrl=${encodeURIComponent(initiateUrl)}`,
+            baseUrl,
+          ),
+        );
+      }
+
+      try {
+        await connectGatewayZToExistingUser(existingUserId, gwSession);
+        console.log("GatewayZ callback: Connected to existing user", {
+          userId: existingUserId,
+          gwUserId: gwSession.gwUserId,
+          tier: gwSession.tier,
+        });
+
+        // Redirect back to settings with success message
+        // Use URL API to properly handle existing query params/fragments
+        const successUrl = new URL(returnUrl, baseUrl);
+        successUrl.searchParams.set("gatewayz_connected", "true");
+        return NextResponse.redirect(successUrl);
+      } catch (error) {
+        // Handle collision error - GatewayZ account already linked to another user
+        if (
+          error instanceof Error &&
+          error.message.includes("already linked to another user")
+        ) {
+          console.warn("GatewayZ callback: Account already linked", {
+            userId: existingUserId,
+            gwUserId: gwSession.gwUserId,
+          });
+          // Use URL API to properly handle existing query params/fragments
+          const errorUrl = new URL(returnUrl, baseUrl);
+          errorUrl.searchParams.set("error", "gatewayz_already_linked");
+          return NextResponse.redirect(errorUrl);
+        }
+        throw error; // Re-throw other errors
+      }
+    }
+
+    // Handle login mode - create or link user and create session
+    const result = await createSessionForGatewayZUser(gwSession);
+    sessionToken = result.sessionToken;
 
     console.log("GatewayZ callback: Session created successfully", {
       userId: gwSession.gwUserId,
@@ -138,7 +283,9 @@ export async function GET(request: NextRequest) {
     ];
 
     if (embed) {
-      cookies.push(`gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`);
+      cookies.push(
+        `gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`,
+      );
     }
 
     // In embed mode, return an HTML page that stores the session in sessionStorage

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { installDaemon } from "./daemon";
+import { installDaemon, getDaemonLogs, DAEMON_LOG_FILE_PATH } from "./daemon";
 import type { ISandboxSession } from "./types";
 
 // Note: @terragon/bundled is mocked via vitest.config.ts alias
@@ -291,5 +291,139 @@ describe("daemon installation", () => {
       );
       expect(writtenFiles["/tmp/mcp-server.json"]).toBeDefined();
     });
+  });
+});
+
+describe("getDaemonLogs", () => {
+  let mockSession: ISandboxSession;
+  let executedCommands: Array<{ command: string; options?: unknown }> = [];
+
+  beforeEach(() => {
+    executedCommands = [];
+
+    mockSession = {
+      sandboxId: "test-sandbox-id",
+      sandboxProvider: "docker",
+      repoDir: "repo",
+      homeDir: "root",
+      hibernate: vi.fn(),
+      shutdown: vi.fn(),
+      runCommand: vi.fn(async (command: string, options?: unknown) => {
+        executedCommands.push({ command, options });
+        // Return mock log lines
+        return '{"level":"info","message":"test log 1"}\n{"level":"debug","message":"test log 2"}\n';
+      }),
+      runBackgroundCommand: vi.fn(),
+      readTextFile: vi.fn(),
+      writeTextFile: vi.fn(),
+      writeFile: vi.fn(),
+    };
+  });
+
+  it("should use tail command to fetch logs efficiently", async () => {
+    await getDaemonLogs({ session: mockSession });
+
+    expect(executedCommands.length).toBe(1);
+    expect(executedCommands[0]!.command).toContain("tail -n");
+    expect(executedCommands[0]!.command).toContain(DAEMON_LOG_FILE_PATH);
+  });
+
+  it("should use default max lines of 1000", async () => {
+    await getDaemonLogs({ session: mockSession });
+
+    expect(executedCommands[0]!.command).toContain("tail -n 1000");
+  });
+
+  it("should respect custom maxLines parameter", async () => {
+    await getDaemonLogs({ session: mockSession, maxLines: 500 });
+
+    expect(executedCommands[0]!.command).toContain("tail -n 500");
+  });
+
+  it("should sanitize maxLines to prevent command injection", async () => {
+    // Test with potentially malicious input - should be sanitized to a safe number
+    await getDaemonLogs({
+      session: mockSession,
+      maxLines: "100; rm -rf /" as unknown as number,
+    });
+
+    // Should use default value when given invalid input (NaN from parsing string with semicolon)
+    expect(executedCommands[0]!.command).toContain("tail -n 1000");
+    expect(executedCommands[0]!.command).not.toContain("rm");
+    expect(executedCommands[0]!.command).not.toContain(";");
+  });
+
+  it("should handle negative maxLines by using minimum of 1", async () => {
+    await getDaemonLogs({ session: mockSession, maxLines: -5 });
+
+    expect(executedCommands[0]!.command).toContain("tail -n 1");
+  });
+
+  it("should handle decimal maxLines by flooring", async () => {
+    await getDaemonLogs({ session: mockSession, maxLines: 50.9 });
+
+    expect(executedCommands[0]!.command).toContain("tail -n 50");
+  });
+
+  it("should set appropriate timeout for the command", async () => {
+    await getDaemonLogs({ session: mockSession });
+
+    expect(executedCommands[0]!.options).toEqual({
+      cwd: "/",
+      timeoutMs: 5000,
+    });
+  });
+
+  it("should parse JSON logs by default", async () => {
+    const logs = await getDaemonLogs({ session: mockSession });
+
+    expect(logs).toEqual([
+      { level: "info", message: "test log 1" },
+      { level: "debug", message: "test log 2" },
+    ]);
+  });
+
+  it("should return raw strings when parseJson is false", async () => {
+    const logs = await getDaemonLogs({
+      session: mockSession,
+      parseJson: false,
+    });
+
+    expect(logs).toEqual([
+      '{"level":"info","message":"test log 1"}',
+      '{"level":"debug","message":"test log 2"}',
+    ]);
+  });
+
+  it("should handle invalid JSON gracefully", async () => {
+    mockSession.runCommand = vi.fn(async () => {
+      return '{"valid":"json"}\ninvalid json line\n{"another":"valid"}';
+    });
+
+    const logs = await getDaemonLogs({ session: mockSession });
+
+    expect(logs).toEqual([
+      { valid: "json" },
+      "invalid json line",
+      { another: "valid" },
+    ]);
+  });
+
+  it("should filter empty lines", async () => {
+    mockSession.runCommand = vi.fn(async () => {
+      return '{"log":"1"}\n\n\n{"log":"2"}\n';
+    });
+
+    const logs = await getDaemonLogs({ session: mockSession });
+
+    expect(logs).toHaveLength(2);
+  });
+
+  it("should handle empty log file gracefully", async () => {
+    mockSession.runCommand = vi.fn(async () => "");
+
+    const logs = await getDaemonLogs({ session: mockSession });
+
+    expect(logs).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import { AIModel } from "@terragon/agent/types";
+import { processSkillArguments } from "@terragon/agent/skill-frontmatter";
 import {
   DBMessage,
   DBUserMessage,
@@ -7,6 +8,32 @@ import {
 } from "@terragon/shared";
 
 import { nanoid } from "nanoid/non-secure";
+
+/**
+ * Gets the file extension for an image based on its MIME type.
+ * Defaults to .png if the mime type is unknown.
+ */
+export function getImageExtensionFromMimeType(
+  mimeType: string | undefined,
+): string {
+  if (!mimeType) return ".png";
+
+  const mimeToExtension: Record<string, string> = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+    "image/bmp": ".bmp",
+    "image/tiff": ".tiff",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
+    "image/avif": ".avif",
+  };
+
+  return mimeToExtension[mimeType.toLowerCase()] ?? ".png";
+}
 
 export function getPendingToolCallErrorMessages({
   messages,
@@ -239,7 +266,8 @@ export async function convertToPrompt(
   await Promise.all(
     message.parts.map(async (part) => {
       if (part.type === "image") {
-        const fileName = `/tmp/images/image-${nanoid()}.png`;
+        const extension = getImageExtensionFromMimeType(part.mime_type);
+        const fileName = `/tmp/images/image-${nanoid()}${extension}`;
         const content = await fetchFileBuffer(part.image_url);
         const filePath = await writeFileBuffer({ fileName, content });
         imageUrlToFilePath[part.image_url] = filePath;
@@ -337,4 +365,86 @@ export function imageCount(message: DBUserMessage): number {
 
 export function pdfCount(message: DBUserMessage): number {
   return message.parts.filter((part) => part.type === "pdf").length;
+}
+
+/**
+ * Detects if a message starts with a skill invocation pattern.
+ * Returns the skill name and arguments if found.
+ *
+ * @example
+ * detectSkillInvocation("/explain-code src/main.ts") // { skillName: "explain-code", args: "src/main.ts" }
+ * detectSkillInvocation("hello world") // null
+ */
+export function detectSkillInvocation(text: string): {
+  skillName: string;
+  args: string;
+} | null {
+  const trimmed = text.trim();
+  // Get only the first line for skill detection to avoid capturing multi-line content as args
+  const firstLine = trimmed.split("\n")[0] ?? "";
+  // Match /skill-name at the start, followed by optional arguments (first line only)
+  const match = firstLine.match(/^\/([a-zA-Z0-9_-]+)(?:\s+(.*))?$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    skillName: match[1]!,
+    args: match[2]?.trim() || "",
+  };
+}
+
+/**
+ * Processes a skill content by replacing argument placeholders and wrapping
+ * with skill tags.
+ *
+ * @param skillContent - The skill body content (without frontmatter)
+ * @param args - Arguments provided by the user
+ * @param userMessage - The original user message (excluding the /skill-name)
+ * @param sessionId - Optional session ID for ${CLAUDE_SESSION_ID} substitution
+ * @returns The processed message with skill content prepended
+ */
+export function processSkillInMessage({
+  skillContent,
+  args,
+  userMessage,
+  sessionId,
+}: {
+  skillContent: string;
+  args: string;
+  userMessage: string;
+  sessionId?: string;
+}): string {
+  // Process the skill content with argument substitution
+  const processedContent = processSkillArguments(skillContent, args, sessionId);
+
+  // Wrap skill content in tags and append user message
+  const parts: string[] = [];
+
+  parts.push(`<skill>\n${processedContent}\n</skill>`);
+
+  // If there's a user message beyond just the skill invocation, include it
+  if (userMessage.trim()) {
+    parts.push(userMessage.trim());
+  }
+
+  return parts.join("\n\n");
+}
+
+/**
+ * Extracts the user message portion from text that starts with a skill invocation.
+ * Returns the text after the skill name and arguments on the first line.
+ *
+ * @example
+ * extractUserMessageFromSkillInvocation("/explain-code src/main.ts\nPlease explain this") // "Please explain this"
+ */
+export function extractUserMessageFromSkillInvocation(text: string): string {
+  const trimmed = text.trim();
+  const lines = trimmed.split("\n");
+
+  // Remove the first line (which contains /skill-name args)
+  if (lines.length > 1) {
+    return lines.slice(1).join("\n").trim();
+  }
+
+  return "";
 }

@@ -36,12 +36,14 @@ export async function createFeedback({
   type,
   message,
   currentPage,
+  sessionReplayUrl,
 }: {
   db: DB;
   userId: string;
   type: FeedbackType;
   message: string;
   currentPage: string;
+  sessionReplayUrl?: string | null;
 }) {
   const [newFeedback] = await db
     .insert(schema.feedback)
@@ -50,6 +52,7 @@ export async function createFeedback({
       type,
       message,
       currentPage,
+      sessionReplayUrl,
     })
     .returning();
   if (!newFeedback) {
