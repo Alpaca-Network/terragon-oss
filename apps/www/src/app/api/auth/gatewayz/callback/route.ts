@@ -5,6 +5,7 @@ import {
   connectGatewayZToExistingUser,
 } from "@/lib/gatewayz-auth-server";
 import { getUserIdOrNull } from "@/lib/auth-server";
+import { validateReturnUrl } from "@/lib/url-validation";
 
 /**
  * Get the base URL for redirects.
@@ -176,7 +177,11 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const baseUrl = getBaseUrl(request);
     const token = url.searchParams.get("gwauth");
-    const returnUrl = url.searchParams.get("returnUrl") || "/dashboard";
+    const rawReturnUrl = url.searchParams.get("returnUrl") || "/dashboard";
+    // Validate returnUrl to prevent open redirect vulnerabilities
+    // This is a defense-in-depth measure since initiate already validates,
+    // but attackers could craft direct callback URLs bypassing initiate
+    const returnUrl = validateReturnUrl(rawReturnUrl, baseUrl);
     const embed = url.searchParams.get("embed") === "true";
     const mode = url.searchParams.get("mode") || "login"; // "login" or "connect"
 
@@ -226,9 +231,10 @@ export async function GET(request: NextRequest) {
         });
 
         // Redirect back to settings with success message
-        return NextResponse.redirect(
-          new URL(`${returnUrl}?gatewayz_connected=true`, baseUrl),
-        );
+        // Use URL API to properly handle existing query params/fragments
+        const successUrl = new URL(returnUrl, baseUrl);
+        successUrl.searchParams.set("gatewayz_connected", "true");
+        return NextResponse.redirect(successUrl);
       } catch (error) {
         // Handle collision error - GatewayZ account already linked to another user
         if (
@@ -239,9 +245,10 @@ export async function GET(request: NextRequest) {
             userId: existingUserId,
             gwUserId: gwSession.gwUserId,
           });
-          return NextResponse.redirect(
-            new URL(`${returnUrl}?error=gatewayz_already_linked`, baseUrl),
-          );
+          // Use URL API to properly handle existing query params/fragments
+          const errorUrl = new URL(returnUrl, baseUrl);
+          errorUrl.searchParams.set("error", "gatewayz_already_linked");
+          return NextResponse.redirect(errorUrl);
         }
         throw error; // Re-throw other errors
       }

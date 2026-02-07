@@ -10,6 +10,8 @@
     "postinstall": "fumadocs-mdx",
     "start": "next start",
     "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "storybook": "ladle serve",
     "tsc-watch": "tsc --noEmit --watch --preserveWatchOutput",
     "tsc-check": "tsc --noEmit",
@@ -132,6 +134,7 @@
   },
   "devDependencies": {
     "@ladle/react": "^5.0.3",
+    "@playwright/test": "^1.49.1",
     "@slack/web-api": "^7.10.0",
     "@tailwindcss/postcss": "^4.1.10",
     "@terragon/dev-env": "workspace:*",
