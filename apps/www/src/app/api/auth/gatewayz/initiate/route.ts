@@ -18,7 +18,7 @@ const authInitiateRateLimit = new Ratelimit({
  * Get the GatewayZ URL from environment or default to production
  */
 function getGatewayZUrl(): string {
-  return process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://gatewayz.ai";
+  return process.env.NEXT_PUBLIC_GATEWAYZ_URL ?? "https://beta.gatewayz.ai";
 }
 
 /**
