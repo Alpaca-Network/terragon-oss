@@ -77,7 +77,13 @@ export async function getInstallationToken(
         `GitHub App is not installed on repository ${owner}/${repo}`,
       );
     }
-    throw error;
+    console.error(
+      `[getInstallationToken] Failed to get installation token for ${owner}/${repo}:`,
+      error,
+    );
+    throw new Error(
+      `Failed to get GitHub App installation token for ${owner}/${repo}: ${error.message || String(error)}`,
+    );
   }
 }
 
