@@ -32,6 +32,7 @@ import {
   parseCodexErrorMessage,
   parseCodexRateLimitMessage,
   parseClaudeOAuthTokenRevokedMessage,
+  parseAnthropicApiUsageLimitFromMessages,
 } from "@/agent/msg/helpers";
 import { getEligibleQueuedThreadChats } from "./process-queued-thread";
 import { trackUsageEvents } from "./usage-events";
@@ -90,6 +91,8 @@ export async function handleDaemonEvent({
   let isOverloaded = false;
   let rateLimitResetTime: number | undefined;
   let isPromptTooLong = false;
+  let isApiUsageLimit = false;
+  let apiUsageLimitResetDate: string | null = null;
   let customErrorMessage: string | null = null;
   let isOAuthTokenRevoked = false;
   for (const message of messages) {
@@ -193,6 +196,17 @@ export async function handleDaemonEvent({
       }
     }
   }
+
+  // Detect Anthropic API usage limit errors from messages and error info
+  if (isError) {
+    const apiUsageLimitResult =
+      parseAnthropicApiUsageLimitFromMessages(messages);
+    if (apiUsageLimitResult) {
+      isApiUsageLimit = true;
+      apiUsageLimitResetDate = apiUsageLimitResult.resetDate;
+    }
+  }
+
   waitUntil(
     trackUsageEvents({
       userId,
@@ -287,6 +301,11 @@ export async function handleDaemonEvent({
     if (isPromptTooLong) {
       threadChatUpdates.errorMessage = "prompt-too-long";
       threadChatUpdates.errorMessageInfo = null;
+    } else if (isApiUsageLimit) {
+      threadChatUpdates.errorMessage = "api-usage-limit";
+      threadChatUpdates.errorMessageInfo = apiUsageLimitResetDate
+        ? `Access will be restored on ${apiUsageLimitResetDate}.`
+        : null;
     } else if (customErrorMessage) {
       threadChatUpdates.errorMessage = "agent-generic-error";
       threadChatUpdates.errorMessageInfo = customErrorMessage;
