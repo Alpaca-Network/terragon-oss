@@ -11,6 +11,7 @@ const ERROR_TYPES_THAT_HIDE_RETRY_BUTTON = new Set<ThreadErrorType>([
   "request-timeout",
   "unknown-error",
   "prompt-too-long",
+  "api-usage-limit",
 ]);
 
 export function ChatError({
@@ -352,6 +353,19 @@ function ChatContent({
         <ChatErrorContentsWithPre
           header="Gatewayz subscription required to use Gatewayz Router models."
           errorStr={errorInfo}
+        />
+      );
+    }
+    case "api-usage-limit": {
+      return (
+        <ChatErrorContents
+          header="API usage limit reached"
+          body={
+            <>
+              The API has reached its usage limit.
+              {errorInfo ? ` ${errorInfo}` : " Please try again later."}
+            </>
+          }
         />
       );
     }
