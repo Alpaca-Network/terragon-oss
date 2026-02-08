@@ -25,19 +25,27 @@ export async function getGitHubUserAccessTokenOrThrow({
     )
     .execute();
   if (githubAccounts.length === 0) {
-    throw new Error("No GitHub account found");
+    throw new Error(`No GitHub account found for user ${userId}`);
   }
   const githubAccount = githubAccounts[0]!;
 
   if (!githubAccount.accessToken) {
-    throw new Error("No GitHub access token found");
+    throw new Error(
+      `No GitHub access token found for user ${userId} (account ID: ${githubAccount.accountId})`,
+    );
   }
 
   // Decrypt the token if it's encrypted, otherwise return as-is (backwards compatibility)
-  return decryptTokenWithBackwardsCompatibility(
-    githubAccount.accessToken,
-    encryptionKey,
-  );
+  try {
+    return decryptTokenWithBackwardsCompatibility(
+      githubAccount.accessToken,
+      encryptionKey,
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to decrypt GitHub access token for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 export async function getUser({ db, userId }: { db: DB; userId: string }) {

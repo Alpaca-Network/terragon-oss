@@ -65,7 +65,12 @@ export interface GitHubClientOptions {
  * });
  */
 export function createGitHubClient(options: GitHubClientOptions): Octokit {
-  const octokit = new Octokit({ auth: options.auth });
+  const octokit = new Octokit({
+    auth: options.auth,
+    request: {
+      timeout: 30000, // 30 second timeout to prevent hanging requests
+    },
+  });
 
   // After hook: track rate limits from response headers
   octokit.hook.after("request", async (response) => {
