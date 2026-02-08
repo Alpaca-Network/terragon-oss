@@ -141,6 +141,10 @@ export async function getInstallationToken(
       `[getInstallationToken] Failed to get installation token for ${owner}/${repo}:`,
       error,
     );
+    // Re-throw timeout errors as-is since they already have descriptive messages
+    if (error.message && error.message.includes("timeout")) {
+      throw error;
+    }
     throw new Error(
       `Failed to get GitHub App installation token for ${owner}/${repo}: ${error.message || String(error)}`,
     );
