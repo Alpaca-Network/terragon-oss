@@ -4,7 +4,11 @@ import { userOnlyAction } from "@/lib/auth-server";
 import { UserFacingError } from "@/lib/server-actions";
 import { publicAppUrl } from "@terragon/env/next-public";
 import { CREDIT_TOP_UP_REASON } from "@/server-lib/stripe-credit-top-ups";
-import { ensureStripeCustomer } from "@/server-lib/stripe-helpers";
+import {
+  ensureStripeCustomer,
+  isStripeCurrencyMismatchError,
+  recreateStripeCustomer,
+} from "@/server-lib/stripe-helpers";
 import { getStripeCreditPackPriceId } from "@/server-lib/stripe";
 import {
   stripeCheckoutSessionsCreate,
@@ -15,40 +19,54 @@ import { assertStripeConfiguredForCredits } from "@/server-lib/stripe";
 export const createCreditTopUpCheckoutSession = userOnlyAction(
   async function createCreditTopUpCheckoutSession(userId: string) {
     assertStripeConfiguredForCredits();
-    const { customerId } = await ensureStripeCustomer({ userId });
-    const session = await stripeCheckoutSessionsCreate({
-      mode: "payment",
-      customer: customerId,
-      line_items: [
-        {
-          price: getStripeCreditPackPriceId(),
-          quantity: 1,
+
+    const createSession = async (customerId: string) =>
+      stripeCheckoutSessionsCreate({
+        mode: "payment",
+        customer: customerId,
+        line_items: [
+          {
+            price: getStripeCreditPackPriceId(),
+            quantity: 1,
+          },
+        ],
+        allow_promotion_codes: true,
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: {
+              terragon_user_id: userId,
+              reason: CREDIT_TOP_UP_REASON,
+            },
+          },
         },
-      ],
-      allow_promotion_codes: true,
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
+        payment_intent_data: {
+          setup_future_usage: "off_session",
           metadata: {
             terragon_user_id: userId,
             reason: CREDIT_TOP_UP_REASON,
           },
         },
-      },
-      payment_intent_data: {
-        setup_future_usage: "off_session",
         metadata: {
           terragon_user_id: userId,
           reason: CREDIT_TOP_UP_REASON,
         },
-      },
-      metadata: {
-        terragon_user_id: userId,
-        reason: CREDIT_TOP_UP_REASON,
-      },
-      success_url: `${publicAppUrl()}/settings/agent?topup=success`,
-      cancel_url: `${publicAppUrl()}/settings/agent?topup=cancelled`,
-    });
+        success_url: `${publicAppUrl()}/settings/agent?topup=success`,
+        cancel_url: `${publicAppUrl()}/settings/agent?topup=cancelled`,
+      });
+
+    let { customerId } = await ensureStripeCustomer({ userId });
+    let session;
+    try {
+      session = await createSession(customerId);
+    } catch (error: unknown) {
+      if (isStripeCurrencyMismatchError(error)) {
+        customerId = await recreateStripeCustomer({ userId });
+        session = await createSession(customerId);
+      } else {
+        throw error;
+      }
+    }
     if (!session.url) {
       throw new UserFacingError("Failed to create Stripe checkout session");
     }

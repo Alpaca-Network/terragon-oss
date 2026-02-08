@@ -14,6 +14,10 @@ import {
 } from "@terragon/shared/model/subscription";
 import { UserFacingError } from "@/lib/server-actions";
 import { getFeatureFlagsGlobal } from "@terragon/shared/model/feature-flags";
+import {
+  isStripeCurrencyMismatchError,
+  recreateStripeCustomer,
+} from "@/server-lib/stripe-helpers";
 
 export const getBillingInfoAction = userOnlyAction(
   async function getBillingInfoAction() {
@@ -45,9 +49,8 @@ export const getStripeCheckoutUrl = userOnlyAction(
     const cancelUrl = `${publicAppUrl()}/settings/billing?checkout=cancelled`;
 
     // Use Better Auth's Stripe plugin to create the checkout session
-    let res: Record<string, unknown>;
-    try {
-      res = (await auth.api.upgradeSubscription({
+    const callUpgradeSubscription = async () =>
+      (await auth.api.upgradeSubscription({
         body: {
           plan: normalizedPlan,
           successUrl,
@@ -57,12 +60,38 @@ export const getStripeCheckoutUrl = userOnlyAction(
         },
         headers: await headers(),
       })) as Record<string, unknown>;
+
+    let res: Record<string, unknown>;
+    try {
+      res = await callUpgradeSubscription();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("Stripe upgradeSubscription failed:", message, error);
-      throw new UserFacingError(
-        `Failed to get Stripe checkout URL: ${message}`,
-      );
+      // If the customer already has items in a non-USD currency (e.g. CAD),
+      // Stripe rejects USD price operations. Recover by creating a fresh
+      // Stripe customer and retrying.
+      if (isStripeCurrencyMismatchError(error)) {
+        await recreateStripeCustomer({ userId });
+        try {
+          res = await callUpgradeSubscription();
+        } catch (retryError: unknown) {
+          const message =
+            retryError instanceof Error ? retryError.message : "Unknown error";
+          console.error(
+            "Stripe upgradeSubscription failed after customer recreation:",
+            message,
+            retryError,
+          );
+          throw new UserFacingError(
+            `Failed to get Stripe checkout URL: ${message}`,
+          );
+        }
+      } else {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Stripe upgradeSubscription failed:", message, error);
+        throw new UserFacingError(
+          `Failed to get Stripe checkout URL: ${message}`,
+        );
+      }
     }
     // Both response paths (billing portal upgrade and new checkout session)
     // include a `url` property at the top level.

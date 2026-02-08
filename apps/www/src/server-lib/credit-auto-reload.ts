@@ -78,9 +78,13 @@ export async function maybeTriggerCreditAutoReload({
       },
     });
 
-    // Create invoice first, then add items to it
+    // Create invoice first, then add items to it.
+    // Explicitly set currency to USD to avoid inheriting the Stripe
+    // account's default currency (e.g. CAD), which would prevent the
+    // customer from later creating USD subscriptions.
     const invoice = await stripeInvoicesCreate({
       customer: user.stripeCustomerId,
+      currency: "usd",
       default_payment_method: userInfoServerSide.stripeCreditPaymentMethodId,
       auto_advance: false,
       description: DESCRIPTION,
