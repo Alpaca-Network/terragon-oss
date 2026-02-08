@@ -35,14 +35,27 @@ export const getStripeCheckoutUrl = userOnlyAction(
       );
     }
 
-    assertStripeConfigured();
+    try {
+      assertStripeConfigured();
+    } catch {
+      throw new UserFacingError(
+        "Stripe billing is not configured. Please contact support.",
+      );
+    }
     const subscription = await getSubscriptionInfoForUser({
       db,
       userId,
     });
     const normalizedPlan = plan === "pro" ? "pro" : "core";
-    const successUrl = `${publicAppUrl()}/settings/billing?checkout=success`;
-    const cancelUrl = `${publicAppUrl()}/settings/billing?checkout=cancelled`;
+    let successUrl: string;
+    let cancelUrl: string;
+    try {
+      successUrl = `${publicAppUrl()}/settings/billing?checkout=success`;
+      cancelUrl = `${publicAppUrl()}/settings/billing?checkout=cancelled`;
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      throw new UserFacingError(`Failed to get Stripe checkout URL: ${detail}`);
+    }
 
     // Use Better Auth's Stripe plugin to create the checkout session
     let res: Record<string, unknown>;
@@ -81,9 +94,23 @@ export const getStripeCheckoutUrl = userOnlyAction(
 
 export const getStripeBillingPortalUrl = userOnlyAction(
   async function getStripeBillingPortalUrl(): Promise<string> {
-    assertStripeConfigured();
+    try {
+      assertStripeConfigured();
+    } catch {
+      throw new UserFacingError(
+        "Stripe billing is not configured. Please contact support.",
+      );
+    }
 
-    const returnUrl = `${publicAppUrl()}/settings/billing`;
+    let returnUrl: string;
+    try {
+      returnUrl = `${publicAppUrl()}/settings/billing`;
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      throw new UserFacingError(
+        `Failed to get Stripe billing portal URL: ${detail}`,
+      );
+    }
     const res = await auth.api.createBillingPortal({
       body: {
         returnUrl,
