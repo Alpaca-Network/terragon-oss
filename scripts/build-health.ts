@@ -12,7 +12,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,6 +20,8 @@ const __dirname =
   typeof import.meta.dirname === "string"
     ? import.meta.dirname
     : dirname(fileURLToPath(import.meta.url));
+// __dirname resolves to <repo>/scripts/, so one level up is the repo root.
+// This holds true regardless of CWD (e.g. when invoked via pnpm --filter).
 const ROOT = join(__dirname, "..");
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -337,7 +339,7 @@ function checkBreakingChanges(): Finding[] {
   const patterns: {
     name: string;
     pattern: RegExp;
-    glob: string;
+    extensions: string[];
     severity: Finding["severity"];
     message: string;
     fix: string;
@@ -346,7 +348,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "Zod v4 deprecated .email()",
       pattern: /z\.string\(\)\.email\(\)/,
-      glob: "**/*.{ts,tsx}",
+      extensions: ["ts", "tsx"],
       severity: "medium",
       message: "Zod v4: z.string().email() is deprecated, use z.email()",
       fix: "Replace z.string().email() with z.email()",
@@ -354,7 +356,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "Zod v4 deprecated .uuid()",
       pattern: /z\.string\(\)\.uuid\(\)/,
-      glob: "**/*.{ts,tsx}",
+      extensions: ["ts", "tsx"],
       severity: "medium",
       message: "Zod v4: z.string().uuid() is deprecated, use z.uuid()",
       fix: "Replace z.string().uuid() with z.uuid()",
@@ -362,7 +364,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "Zod v4 deprecated .url()",
       pattern: /z\.string\(\)\.url\(\)/,
-      glob: "**/*.{ts,tsx}",
+      extensions: ["ts", "tsx"],
       severity: "medium",
       message: "Zod v4: z.string().url() is deprecated, use z.url()",
       fix: "Replace z.string().url() with z.url()",
@@ -370,8 +372,8 @@ function checkBreakingChanges(): Finding[] {
     // React 19 deprecated APIs
     {
       name: "React deprecated defaultProps",
-      pattern: /\.defaultProps\s*=/,
-      glob: "**/*.{tsx,jsx}",
+      pattern: /\.defaultProps[[:space:]]*=/,
+      extensions: ["tsx", "jsx"],
       severity: "high",
       message: "React 19: defaultProps on function components is deprecated",
       fix: "Use default parameter values in the function signature instead",
@@ -379,7 +381,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "React deprecated findDOMNode",
       pattern: /findDOMNode\(/,
-      glob: "**/*.{ts,tsx,js,jsx}",
+      extensions: ["ts", "tsx", "js", "jsx"],
       severity: "high",
       message: "React 19: findDOMNode is removed",
       fix: "Use refs instead of findDOMNode",
@@ -387,7 +389,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "React deprecated string refs",
       pattern: /ref=["'][a-zA-Z]+["']/,
-      glob: "**/*.{tsx,jsx}",
+      extensions: ["tsx", "jsx"],
       severity: "high",
       message: "React 19: string refs are removed",
       fix: "Use callback refs or useRef() instead",
@@ -396,7 +398,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "Next.js deprecated legacyBehavior",
       pattern: /legacyBehavior/,
-      glob: "**/*.{ts,tsx,js,jsx}",
+      extensions: ["ts", "tsx", "js", "jsx"],
       severity: "low",
       message:
         "Next.js: legacyBehavior prop on next/link is deprecated and will be removed in v16",
@@ -406,7 +408,7 @@ function checkBreakingChanges(): Finding[] {
     {
       name: "Drizzle chained .array().array()",
       pattern: /\.array\(\)\.array\(\)/,
-      glob: "**/*.{ts,tsx}",
+      extensions: ["ts", "tsx"],
       severity: "medium",
       message:
         "Drizzle ORM 0.43+: chained .array().array() is no longer supported",
@@ -418,8 +420,11 @@ function checkBreakingChanges(): Finding[] {
     try {
       // Escape single quotes in the regex source for safe shell embedding
       const escaped = check.pattern.source.replace(/'/g, "'\\''");
+      const includes = check.extensions
+        .map((ext) => `--include='*.${ext}'`)
+        .join(" ");
       const result = execSync(
-        `grep -rn --include='*.ts' --include='*.tsx' --include='*.jsx' --exclude-dir=node_modules --exclude-dir=.next -E '${escaped}' apps/ packages/ 2>/dev/null || true`,
+        `grep -rn ${includes} --exclude-dir=node_modules --exclude-dir=.next -E '${escaped}' apps/ packages/ 2>/dev/null || true`,
         { cwd: ROOT, encoding: "utf-8", timeout: 30_000 },
       );
 
@@ -462,8 +467,8 @@ function checkInstallWarnings(): Finding[] {
   console.log("  [4/4] Checking pnpm install warnings...");
 
   try {
-    // Dry-run install to capture warnings without modifying anything
-    const output = execSync("pnpm install --frozen-lockfile 2>&1", {
+    // Dry-run: report what would change without modifying node_modules
+    const output = execSync("pnpm install --dry-run 2>&1", {
       cwd: ROOT,
       encoding: "utf-8",
       timeout: 120_000,
@@ -629,7 +634,7 @@ function generateReport(findings: Finding[]): string {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
-async function main() {
+function main() {
   console.log("");
   console.log("Build Health Monitor");
   console.log("====================");
@@ -648,7 +653,6 @@ async function main() {
 
   // Write report to file
   const reportPath = join(ROOT, "build-health-report.txt");
-  const { writeFileSync } = await import("node:fs");
   writeFileSync(reportPath, report, "utf-8");
   console.log(`Report written to: ${relative(ROOT, reportPath)}`);
 
