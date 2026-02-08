@@ -3,11 +3,14 @@ builder = "NIXPACKS"
 buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @terragon/www build"
 
 [build.nixpacksPlan.phases.setup]
-nixPkgs = ["nodejs_20", "pnpm-9_x", "openssl"]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[build.nixpacksPlan.phases.install]
+cmds = ["npm install -g corepack@0.31.0 && corepack enable", "pnpm i --frozen-lockfile"]
 
 [deploy]
-startCommand = "cd apps/www && pnpm start"
+startCommand = "mkdir -p apps/www/.next/standalone/apps/www/public apps/www/.next/standalone/apps/www/.next/static && cp -r apps/www/public/. apps/www/.next/standalone/apps/www/public/ && cp -r apps/www/.next/static/. apps/www/.next/standalone/apps/www/.next/static/ && cd apps/www/.next/standalone && HOSTNAME=0.0.0.0 node apps/www/server.js"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 60
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
