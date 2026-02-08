@@ -13,7 +13,8 @@
     "install-cli:dev": "cd apps/cli && ./scripts/install-cli-dev.sh",
     "worktree:new": "bun scripts/new-worktree.ts",
     "worktree:cleanup": "bun scripts/cleanup-worktree.ts",
-    "worktree:list": "bun scripts/cleanup-worktree.ts --list"
+    "worktree:list": "bun scripts/cleanup-worktree.ts --list",
+    "build-health": "pnpm --filter @terragon/shared exec tsx ../../scripts/build-health.ts"
   },
   "keywords": [],
   "packageManager": "pnpm@10.14.0",
