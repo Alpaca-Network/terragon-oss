@@ -293,6 +293,84 @@ export function parseCodexRateLimitMessage(
   return null;
 }
 
+type ApiUsageLimitResult = {
+  resetDate: string | null;
+};
+
+/**
+ * Parses Anthropic API usage limit errors from error text.
+ * Matches errors like:
+ * - "API Error: 400 {"type":"error","error":{"type":"invalid_request_error","message":"...specified API usage limits..."}}"
+ * - "specified API usage limits. You will regain access on 2026-03-01 at 00:00 UTC."
+ */
+export function parseAnthropicApiUsageLimitError(
+  text: string,
+): ApiUsageLimitResult | null {
+  if (!text) {
+    return null;
+  }
+
+  if (!text.includes("API usage limit") && !text.includes("API usage limits")) {
+    return null;
+  }
+
+  // Try to extract the reset date from "You will regain access on YYYY-MM-DD at HH:MM UTC"
+  const dateMatch = text.match(
+    /regain access on (\d{4}-\d{2}-\d{2}(?: at \d{2}:\d{2} UTC)?)/,
+  );
+  const resetDate = dateMatch?.[1] ?? null;
+
+  return { resetDate };
+}
+
+/**
+ * Scans ClaudeMessages for Anthropic API usage limit errors.
+ * Checks custom-error error_info, result error strings, and assistant message content.
+ */
+export function parseAnthropicApiUsageLimitFromMessages(
+  messages: ClaudeMessage[],
+): ApiUsageLimitResult | null {
+  for (const message of messages) {
+    // Check custom-error error_info
+    if (message.type === "custom-error" && message.error_info) {
+      const result = parseAnthropicApiUsageLimitError(message.error_info);
+      if (result) return result;
+    }
+
+    // Check result error messages
+    if (message.type === "result") {
+      if (message.subtype === "error_during_execution" && message.error) {
+        const result = parseAnthropicApiUsageLimitError(message.error);
+        if (result) return result;
+      }
+      if (message.subtype === "success" && message.result) {
+        const result = parseAnthropicApiUsageLimitError(message.result);
+        if (result) return result;
+      }
+    }
+
+    // Check assistant message content for API error text
+    if (message.type === "assistant") {
+      const content = message.message.content;
+      if (typeof content === "string") {
+        const result = parseAnthropicApiUsageLimitError(content);
+        if (result) return result;
+      } else if (Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === "text" && "text" in block) {
+            const result = parseAnthropicApiUsageLimitError(
+              block.text as string,
+            );
+            if (result) return result;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 export function parseClaudeOAuthTokenRevokedMessage(
   message: ClaudeMessage,
 ): boolean {
