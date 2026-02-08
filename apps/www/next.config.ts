@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 import { createMDX } from "fumadocs-mdx/next";
+import path from "path";
 
 const withMDX = createMDX();
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../../"),
   images: {
     remotePatterns: [
       {

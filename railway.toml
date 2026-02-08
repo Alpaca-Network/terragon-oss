@@ -9,7 +9,7 @@ nixPkgs = ["nodejs_20", "openssl"]
 cmds = ["npm install -g corepack@0.31.0 && corepack enable", "pnpm i --frozen-lockfile"]
 
 [deploy]
-startCommand = "cp -r apps/www/public apps/www/.next/standalone/apps/www/public && cp -r apps/www/.next/static apps/www/.next/standalone/apps/www/.next/static && cd apps/www/.next/standalone && HOSTNAME=0.0.0.0 node apps/www/server.js"
+startCommand = "mkdir -p apps/www/.next/standalone/apps/www/public apps/www/.next/standalone/apps/www/.next/static && cp -r apps/www/public/. apps/www/.next/standalone/apps/www/public/ && cp -r apps/www/.next/static/. apps/www/.next/standalone/apps/www/.next/static/ && cd apps/www/.next/standalone && HOSTNAME=0.0.0.0 node apps/www/server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
