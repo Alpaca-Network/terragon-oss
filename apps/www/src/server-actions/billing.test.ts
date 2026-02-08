@@ -42,6 +42,7 @@ vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
       upgradeSubscription: vi.fn(),
+      createBillingPortal: vi.fn(),
     },
   },
 }));
@@ -74,7 +75,7 @@ import { getSubscriptionInfoForUser } from "@terragon/shared/model/subscription"
 import { getFeatureFlagsGlobal } from "@terragon/shared/model/feature-flags";
 import { assertStripeConfigured } from "@/server-lib/stripe";
 import { publicAppUrl } from "@terragon/env/next-public";
-import { getStripeCheckoutUrl } from "./billing";
+import { getStripeCheckoutUrl, getStripeBillingPortalUrl } from "./billing";
 
 describe("getStripeCheckoutUrl", () => {
   const upgradeSubscriptionMock = vi.mocked(auth.api.upgradeSubscription);
@@ -133,15 +134,15 @@ describe("getStripeCheckoutUrl", () => {
     expect(result.errorMessage).toContain("Stripe billing is not configured");
   });
 
-  it("surfaces the actual error when publicAppUrl throws", async () => {
+  it("surfaces a user-friendly error when publicAppUrl throws", async () => {
     vi.mocked(publicAppUrl).mockImplementation(() => {
       throw new Error("NEXT_PUBLIC_APP_URL is not set");
     });
 
     const result = await getStripeCheckoutUrl({ plan: "core" });
     expect(result.success).toBe(false);
-    // After fix: publicAppUrl error is wrapped in UserFacingError
-    expect(result.errorMessage).toContain("NEXT_PUBLIC_APP_URL");
+    // After fix: publicAppUrl error is wrapped with user-friendly message (no internal env var names)
+    expect(result.errorMessage).toContain("Application URL is not configured");
   });
 
   it("shows shutdown message when shutdown mode is enabled", async () => {
@@ -151,5 +152,60 @@ describe("getStripeCheckoutUrl", () => {
     expect(result.success).toBe(false);
     // shutdownMode throws a UserFacingError so the message IS surfaced
     expect(result.errorMessage).toContain("shutting down");
+  });
+});
+
+describe("getStripeBillingPortalUrl", () => {
+  const createBillingPortalMock = vi.mocked(auth.api.createBillingPortal);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    createBillingPortalMock.mockReset();
+  });
+
+  it("returns billing portal URL when createBillingPortal succeeds", async () => {
+    createBillingPortalMock.mockResolvedValue({
+      url: "https://billing.stripe.com/session/test_123",
+    } as any);
+
+    const result = await getStripeBillingPortalUrl();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("https://billing.stripe.com/session/test_123");
+  });
+
+  it("surfaces the actual error when Stripe is not configured", async () => {
+    vi.mocked(assertStripeConfigured).mockImplementation(() => {
+      throw new Error("Stripe is not configured");
+    });
+
+    const result = await getStripeBillingPortalUrl();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain("Stripe billing is not configured");
+  });
+
+  it("surfaces a user-friendly error when publicAppUrl throws", async () => {
+    vi.mocked(publicAppUrl).mockImplementation(() => {
+      throw new Error("NEXT_PUBLIC_APP_URL is not set");
+    });
+
+    const result = await getStripeBillingPortalUrl();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain("Application URL is not configured");
+  });
+
+  it("surfaces the actual error when createBillingPortal throws", async () => {
+    createBillingPortalMock.mockRejectedValue(new Error("Customer not found"));
+
+    const result = await getStripeBillingPortalUrl();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain("Customer not found");
+  });
+
+  it("returns error when response has no url", async () => {
+    createBillingPortalMock.mockResolvedValue({} as any);
+
+    const result = await getStripeBillingPortalUrl();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toBe("Failed to get Stripe billing portal URL");
   });
 });
