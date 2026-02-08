@@ -3,6 +3,8 @@ import posthog from "posthog-js";
 posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   api_host: "/relay-WkjS",
   ui_host: "https://us.posthog.com",
+  defaults: "2025-11-30",
+  person_profiles: "identified_only",
   capture_pageview: "history_change",
   capture_pageleave: true, // Enable pageleave capture
   capture_exceptions: true, // Enable exception tracking
