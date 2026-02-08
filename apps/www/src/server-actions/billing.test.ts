@@ -60,12 +60,20 @@ vi.mock("next/headers", () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
 }));
 
+vi.mock("@/server-lib/stripe", () => ({
+  assertStripeConfigured: vi.fn(),
+}));
+
+vi.mock("@terragon/env/next-public", () => ({
+  publicAppUrl: vi.fn(() => "http://localhost:3000"),
+}));
+
 // ---- imports (after mocks) ----
 import { auth } from "@/lib/auth";
 import { getSubscriptionInfoForUser } from "@terragon/shared/model/subscription";
 import { getFeatureFlagsGlobal } from "@terragon/shared/model/feature-flags";
-import * as stripeConfig from "@/server-lib/stripe";
-import * as envPublic from "@terragon/env/next-public";
+import { assertStripeConfigured } from "@/server-lib/stripe";
+import { publicAppUrl } from "@terragon/env/next-public";
 import { getStripeCheckoutUrl } from "./billing";
 
 describe("getStripeCheckoutUrl", () => {
@@ -115,7 +123,7 @@ describe("getStripeCheckoutUrl", () => {
   });
 
   it("surfaces the actual error when Stripe is not configured", async () => {
-    vi.spyOn(stripeConfig, "assertStripeConfigured").mockImplementation(() => {
+    vi.mocked(assertStripeConfigured).mockImplementation(() => {
       throw new Error("Stripe is not configured");
     });
 
@@ -126,7 +134,7 @@ describe("getStripeCheckoutUrl", () => {
   });
 
   it("surfaces the actual error when publicAppUrl throws", async () => {
-    vi.spyOn(envPublic, "publicAppUrl").mockImplementation(() => {
+    vi.mocked(publicAppUrl).mockImplementation(() => {
       throw new Error("NEXT_PUBLIC_APP_URL is not set");
     });
 
