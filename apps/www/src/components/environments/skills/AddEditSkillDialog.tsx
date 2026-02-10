@@ -15,7 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { UserSkill } from "@terragon/sandbox/skills-config";
+import {
+  type UserSkill,
+  RESERVED_SKILL_NAMES,
+} from "@terragon/sandbox/skills-config";
 
 interface AddEditSkillDialogProps {
   open: boolean;
@@ -27,29 +30,6 @@ interface AddEditSkillDialogProps {
     existingSkill: UserSkill;
   };
 }
-
-// Reserved skill names that cannot be used
-const RESERVED_SKILL_NAMES = [
-  "init",
-  "pr-comments",
-  "review",
-  "clear",
-  "compact",
-  "help",
-  "bug",
-  "config",
-  "cost",
-  "doctor",
-  "login",
-  "logout",
-  "mcp",
-  "memory",
-  "model",
-  "permissions",
-  "resume",
-  "terminal-setup",
-  "vim",
-];
 
 export function AddEditSkillDialog({
   open,

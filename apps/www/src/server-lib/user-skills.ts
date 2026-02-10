@@ -117,7 +117,7 @@ export async function getUserSkillContent({
   userId: string;
   repoFullName: string;
   skillName: string;
-}): Promise<SkillContentResult> {
+}): Promise<SkillContentResult | null> {
   const skill = await getUserConfiguredSkill({
     userId,
     repoFullName,

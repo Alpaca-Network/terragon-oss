@@ -14,6 +14,7 @@ export {
   updateSkillInConfig,
   UserSkillSchema,
   SkillsConfigSchema,
+  RESERVED_SKILL_NAMES,
   type UserSkill,
   type SkillsConfig,
 } from "./skills-config";
