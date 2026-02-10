@@ -115,7 +115,7 @@ const dailyStatsSchema = z.object({
 const insightsContract = oc
   .input(
     z.object({
-      numDays: z.number().min(1).max(30).default(7),
+      numDays: z.number().int().min(1).max(30).default(7),
       timezone: z.string().default("UTC"),
     }),
   )

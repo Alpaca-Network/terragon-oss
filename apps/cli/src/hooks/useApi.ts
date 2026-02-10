@@ -107,9 +107,10 @@ async function fetchInsights(
         throw new Error("Internal server error");
       case "RATE_LIMIT_EXCEEDED":
         throw new Error("Rate limit exceeded. Please try again later.");
-      default:
+      default: {
         const _exhaustiveCheck: never = error;
         throw new Error(`Unknown error: ${_exhaustiveCheck}`);
+      }
     }
   } else if (error) {
     throw new Error("Failed to fetch insights");
