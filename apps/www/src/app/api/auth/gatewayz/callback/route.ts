@@ -283,15 +283,15 @@ export async function GET(request: NextRequest) {
     // and notifies the parent. This avoids third-party cookie blocking issues.
     if (embed) {
       const html = generateEmbedAuthPage(redirectUrl, sessionToken, token);
-      return new Response(html, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          // Still try to set cookies (may work in some browsers), but don't rely on them
-          "Set-Cookie": embedCookies.join(", "),
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
-      });
+      // Use Headers with append() for Set-Cookie - per RFC 7230, Set-Cookie cannot be comma-joined
+      const headers = new Headers();
+      headers.set("Content-Type", "text/html; charset=utf-8");
+      headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+      // Still try to set cookies (may work in some browsers), but don't rely on them
+      for (const cookie of embedCookies) {
+        headers.append("Set-Cookie", cookie);
+      }
+      return new Response(html, { status: 200, headers });
     }
 
     // For non-embed mode (standalone GatewayZ login), use a standard redirect with
