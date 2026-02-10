@@ -116,3 +116,52 @@ export function stripePromotionCodesCreate(
 ) {
   return getStripeClient().promotionCodes.create(params, options);
 }
+
+/**
+ * Checks if an error is a Stripe error by checking for the presence of
+ * Stripe-specific properties. This is more reliable than instanceof in
+ * test environments where the Stripe module may be mocked.
+ */
+function isStripeError(
+  error: unknown,
+): error is { code?: string; type?: string; name?: string } {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  // Stripe errors have a specific structure with type/code and name starting with "Stripe"
+  const err = error as Record<string, unknown>;
+  return (
+    typeof err.name === "string" &&
+    err.name.startsWith("Stripe") &&
+    (typeof err.type === "string" || typeof err.code === "string")
+  );
+}
+
+/**
+ * Sanitizes error messages from Stripe API calls to avoid exposing sensitive
+ * operational details (API keys, internal configuration, etc.) to end users.
+ *
+ * For Stripe errors, we extract the safe error code/type. For other errors,
+ * we return a generic message to avoid information disclosure.
+ */
+export function getSafeStripeErrorMessage(error: unknown): string {
+  // Stripe errors have a specific structure with safe error codes
+  if (isStripeError(error)) {
+    // Stripe error codes are safe to expose (e.g., "card_declined", "invalid_request_error")
+    // They don't contain sensitive configuration details
+    const code = error.code;
+    const type = error.type;
+
+    if (code) {
+      return `Stripe error: ${code}`;
+    }
+    if (type) {
+      return `Stripe error: ${type}`;
+    }
+    return "Stripe error occurred";
+  }
+
+  // For non-Stripe errors, don't expose the raw message as it may contain
+  // sensitive details like database connection strings, API keys, etc.
+  return "An unexpected error occurred";
+}

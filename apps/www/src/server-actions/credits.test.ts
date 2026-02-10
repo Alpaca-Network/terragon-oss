@@ -11,6 +11,20 @@ import {
 } from "./credits";
 import { getUser, updateUser } from "@terragon/shared/model/user";
 
+// Helper to create a mock Stripe error (mimics Stripe SDK error structure)
+function createMockStripeError(
+  code: string,
+  type: string,
+): Error & { code?: string; type?: string } {
+  const error = new Error(
+    "Some internal message that should not be exposed",
+  ) as Error & { code?: string; type?: string };
+  error.name = "StripeInvalidRequestError";
+  error.code = code;
+  error.type = type;
+  return error;
+}
+
 describe("createCreditTopUpCheckoutSession", () => {
   let stripeCheckoutSessionsCreateSpy: MockInstance<
     typeof stripeConfig.stripeCheckoutSessionsCreate
@@ -125,24 +139,26 @@ describe("createCreditTopUpCheckoutSession", () => {
     expect(updatedUser?.stripeCustomerId).toBe("cus_new_123");
   });
 
-  it("surfaces actual error message when ensureStripeCustomer fails", async () => {
+  it("returns sanitized error message when ensureStripeCustomer fails with regular error", async () => {
     const { session } = await createTestUser({
       db,
       skipBillingFeatureFlag: true,
     });
     await mockLoggedInUser(session);
+    // Regular errors should be sanitized to avoid information disclosure
     vi.spyOn(stripeHelpers, "ensureStripeCustomer").mockRejectedValue(
-      new Error("Invalid API key provided"),
+      new Error("Invalid API key: sk_test_xxx"),
     );
     const result = await createCreditTopUpCheckoutSession();
     expect(result.success).toBe(false);
+    // Should NOT expose the raw error message with API key
     expect(result.errorMessage).toBe(
-      "Failed to create Stripe checkout session: Invalid API key provided",
+      "Failed to create Stripe checkout session: An unexpected error occurred",
     );
     expect(stripeCheckoutSessionsCreateSpy).not.toHaveBeenCalled();
   });
 
-  it("surfaces actual error message when stripeCheckoutSessionsCreate fails", async () => {
+  it("surfaces safe Stripe error code when stripeCheckoutSessionsCreate fails with StripeError", async () => {
     const { user, session } = await createTestUser({
       db,
       skipBillingFeatureFlag: true,
@@ -153,13 +169,14 @@ describe("createCreditTopUpCheckoutSession", () => {
       updates: { stripeCustomerId: "cus_existing_123" },
     });
     await mockLoggedInUser(session);
+    // Stripe errors should expose only the safe error code
     stripeCheckoutSessionsCreateSpy.mockRejectedValue(
-      new Error("No such price: 'price_invalid'"),
+      createMockStripeError("resource_missing", "invalid_request_error"),
     );
     const result = await createCreditTopUpCheckoutSession();
     expect(result.success).toBe(false);
     expect(result.errorMessage).toBe(
-      "Failed to create Stripe checkout session: No such price: 'price_invalid'",
+      "Failed to create Stripe checkout session: Stripe error: resource_missing",
     );
   });
 });
@@ -212,24 +229,26 @@ describe("createManagePaymentsSession", () => {
     );
   });
 
-  it("surfaces actual error message when ensureStripeCustomer fails", async () => {
+  it("returns sanitized error message when ensureStripeCustomer fails with regular error", async () => {
     const { session } = await createTestUser({
       db,
       skipBillingFeatureFlag: true,
     });
     await mockLoggedInUser(session);
+    // Regular errors should be sanitized to avoid information disclosure
     vi.spyOn(stripeHelpers, "ensureStripeCustomer").mockRejectedValue(
-      new Error("Invalid API key provided"),
+      new Error("Connection string: postgres://user:password@host"),
     );
     const result = await createManagePaymentsSession();
     expect(result.success).toBe(false);
+    // Should NOT expose the raw error message with sensitive info
     expect(result.errorMessage).toBe(
-      "Failed to create Stripe billing portal session: Invalid API key provided",
+      "Failed to create Stripe billing portal session: An unexpected error occurred",
     );
     expect(billingPortalSessionsCreateSpy).not.toHaveBeenCalled();
   });
 
-  it("surfaces actual error message when billingPortal.sessions.create fails", async () => {
+  it("surfaces safe Stripe error code when billingPortal.sessions.create fails with StripeError", async () => {
     const { user, session } = await createTestUser({
       db,
       skipBillingFeatureFlag: true,
@@ -240,13 +259,14 @@ describe("createManagePaymentsSession", () => {
       updates: { stripeCustomerId: "cus_existing_123" },
     });
     await mockLoggedInUser(session);
+    // Stripe errors should expose only the safe error code
     billingPortalSessionsCreateSpy.mockRejectedValue(
-      new Error("No such customer: 'cus_existing_123'"),
+      createMockStripeError("resource_missing", "invalid_request_error"),
     );
     const result = await createManagePaymentsSession();
     expect(result.success).toBe(false);
     expect(result.errorMessage).toBe(
-      "Failed to create Stripe billing portal session: No such customer: 'cus_existing_123'",
+      "Failed to create Stripe billing portal session: Stripe error: resource_missing",
     );
   });
 });

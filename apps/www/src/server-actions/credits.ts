@@ -9,6 +9,7 @@ import { getStripeCreditPackPriceId } from "@/server-lib/stripe";
 import {
   stripeCheckoutSessionsCreate,
   getStripeClient,
+  getSafeStripeErrorMessage,
 } from "@/server-lib/stripe";
 import { assertStripeConfiguredForCredits } from "@/server-lib/stripe";
 
@@ -21,10 +22,10 @@ export const createCreditTopUpCheckoutSession = userOnlyAction(
       const result = await ensureStripeCustomer({ userId });
       customerId = result.customerId;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("ensureStripeCustomer failed:", message, error);
+      console.error("ensureStripeCustomer failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
       throw new UserFacingError(
-        `Failed to create Stripe checkout session: ${message}`,
+        `Failed to create Stripe checkout session: ${safeMessage}`,
       );
     }
 
@@ -64,10 +65,10 @@ export const createCreditTopUpCheckoutSession = userOnlyAction(
         cancel_url: `${publicAppUrl()}/settings/agent?topup=cancelled`,
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("stripeCheckoutSessionsCreate failed:", message, error);
+      console.error("stripeCheckoutSessionsCreate failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
       throw new UserFacingError(
-        `Failed to create Stripe checkout session: ${message}`,
+        `Failed to create Stripe checkout session: ${safeMessage}`,
       );
     }
 
@@ -89,10 +90,10 @@ export const createManagePaymentsSession = userOnlyAction(
       const result = await ensureStripeCustomer({ userId });
       customerId = result.customerId;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("ensureStripeCustomer failed:", message, error);
+      console.error("ensureStripeCustomer failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
       throw new UserFacingError(
-        `Failed to create Stripe billing portal session: ${message}`,
+        `Failed to create Stripe billing portal session: ${safeMessage}`,
       );
     }
 
@@ -103,14 +104,10 @@ export const createManagePaymentsSession = userOnlyAction(
         return_url: `${publicAppUrl()}/settings/agent`,
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      console.error(
-        "stripe.billingPortal.sessions.create failed:",
-        message,
-        error,
-      );
+      console.error("stripe.billingPortal.sessions.create failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
       throw new UserFacingError(
-        `Failed to create Stripe billing portal session: ${message}`,
+        `Failed to create Stripe billing portal session: ${safeMessage}`,
       );
     }
 
