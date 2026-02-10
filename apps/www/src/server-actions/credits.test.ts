@@ -4,8 +4,26 @@ import { createTestUser } from "@terragon/shared/model/test-helpers";
 import { mockLoggedInUser } from "@/test-helpers/mock-next";
 import * as stripeConfig from "@/server-lib/stripe";
 import { CREDIT_TOP_UP_REASON } from "@/server-lib/stripe-credit-top-ups";
-import { createCreditTopUpCheckoutSession } from "./credits";
+import * as stripeHelpers from "@/server-lib/stripe-helpers";
+import {
+  createCreditTopUpCheckoutSession,
+  createManagePaymentsSession,
+} from "./credits";
 import { getUser, updateUser } from "@terragon/shared/model/user";
+
+// Helper to create a mock Stripe error (mimics Stripe SDK error structure)
+function createMockStripeError(
+  code: string,
+  type: string,
+): Error & { code?: string; type?: string } {
+  const error = new Error(
+    "Some internal message that should not be exposed",
+  ) as Error & { code?: string; type?: string };
+  error.name = "StripeInvalidRequestError";
+  error.code = code;
+  error.type = type;
+  return error;
+}
 
 describe("createCreditTopUpCheckoutSession", () => {
   let stripeCheckoutSessionsCreateSpy: MockInstance<
@@ -119,5 +137,159 @@ describe("createCreditTopUpCheckoutSession", () => {
     );
     const updatedUser = await getUser({ db, userId: user.id });
     expect(updatedUser?.stripeCustomerId).toBe("cus_new_123");
+  });
+
+  it("returns sanitized error message when ensureStripeCustomer fails with regular error", async () => {
+    const { session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await mockLoggedInUser(session);
+    // Regular errors should be sanitized to avoid information disclosure
+    vi.spyOn(stripeHelpers, "ensureStripeCustomer").mockRejectedValue(
+      new Error("Invalid API key: sk_test_xxx"),
+    );
+    const result = await createCreditTopUpCheckoutSession();
+    expect(result.success).toBe(false);
+    // Should NOT expose the raw error message with API key
+    expect(result.errorMessage).toBe(
+      "Failed to create Stripe checkout session: An unexpected error occurred",
+    );
+    expect(stripeCheckoutSessionsCreateSpy).not.toHaveBeenCalled();
+  });
+
+  it("surfaces safe Stripe error code when stripeCheckoutSessionsCreate fails with StripeError", async () => {
+    const { user, session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await updateUser({
+      db,
+      userId: user.id,
+      updates: { stripeCustomerId: "cus_existing_123" },
+    });
+    await mockLoggedInUser(session);
+    // Stripe errors should expose only the safe error code
+    stripeCheckoutSessionsCreateSpy.mockRejectedValue(
+      createMockStripeError("resource_missing", "invalid_request_error"),
+    );
+    const result = await createCreditTopUpCheckoutSession();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toBe(
+      "Failed to create Stripe checkout session: Stripe error: resource_missing",
+    );
+  });
+});
+
+describe("createManagePaymentsSession", () => {
+  let billingPortalSessionsCreateSpy: MockInstance;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.clearAllMocks();
+    const mockStripeClient = {
+      billingPortal: {
+        sessions: {
+          create: vi.fn().mockResolvedValue({
+            url: "https://stripe.test/portal/session_123",
+          }),
+        },
+      },
+    };
+    vi.spyOn(stripeConfig, "getStripeClient").mockReturnValue(
+      mockStripeClient as any,
+    );
+    billingPortalSessionsCreateSpy =
+      mockStripeClient.billingPortal.sessions.create;
+    vi.spyOn(stripeConfig, "stripeCustomersCreate").mockResolvedValue({
+      id: "cus_new_123",
+      email: "test@terragon.com",
+      name: "Test User",
+    } as any);
+  });
+
+  it("creates a billing portal session successfully", async () => {
+    const { user, session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await updateUser({
+      db,
+      userId: user.id,
+      updates: { stripeCustomerId: "cus_existing_123" },
+    });
+    await mockLoggedInUser(session);
+    const result = await createManagePaymentsSession();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("https://stripe.test/portal/session_123");
+    expect(billingPortalSessionsCreateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: "cus_existing_123",
+      }),
+    );
+  });
+
+  it("returns sanitized error message when ensureStripeCustomer fails with regular error", async () => {
+    const { session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await mockLoggedInUser(session);
+    // Regular errors should be sanitized to avoid information disclosure
+    vi.spyOn(stripeHelpers, "ensureStripeCustomer").mockRejectedValue(
+      new Error("Connection string: postgres://user:password@host"),
+    );
+    const result = await createManagePaymentsSession();
+    expect(result.success).toBe(false);
+    // Should NOT expose the raw error message with sensitive info
+    expect(result.errorMessage).toBe(
+      "Failed to create Stripe billing portal session: An unexpected error occurred",
+    );
+    expect(billingPortalSessionsCreateSpy).not.toHaveBeenCalled();
+  });
+
+  it("surfaces safe Stripe error code when billingPortal.sessions.create fails with StripeError", async () => {
+    const { user, session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await updateUser({
+      db,
+      userId: user.id,
+      updates: { stripeCustomerId: "cus_existing_123" },
+    });
+    await mockLoggedInUser(session);
+    // Stripe errors should expose only the safe error code
+    billingPortalSessionsCreateSpy.mockRejectedValue(
+      createMockStripeError("resource_missing", "invalid_request_error"),
+    );
+    const result = await createManagePaymentsSession();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toBe(
+      "Failed to create Stripe billing portal session: Stripe error: resource_missing",
+    );
+  });
+
+  it("throws error when billing portal session has no URL", async () => {
+    const { user, session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await updateUser({
+      db,
+      userId: user.id,
+      updates: { stripeCustomerId: "cus_existing_123" },
+    });
+    await mockLoggedInUser(session);
+    // Simulate session returned without URL (edge case)
+    billingPortalSessionsCreateSpy.mockResolvedValue({
+      id: "bps_test_123",
+      url: null,
+    });
+    const result = await createManagePaymentsSession();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toBe(
+      "Failed to create Stripe billing portal session",
+    );
   });
 });
