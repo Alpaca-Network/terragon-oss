@@ -9,46 +9,69 @@ import { getStripeCreditPackPriceId } from "@/server-lib/stripe";
 import {
   stripeCheckoutSessionsCreate,
   getStripeClient,
+  getSafeStripeErrorMessage,
 } from "@/server-lib/stripe";
 import { assertStripeConfiguredForCredits } from "@/server-lib/stripe";
 
 export const createCreditTopUpCheckoutSession = userOnlyAction(
   async function createCreditTopUpCheckoutSession(userId: string) {
     assertStripeConfiguredForCredits();
-    const { customerId } = await ensureStripeCustomer({ userId });
-    const session = await stripeCheckoutSessionsCreate({
-      mode: "payment",
-      customer: customerId,
-      line_items: [
-        {
-          price: getStripeCreditPackPriceId(),
-          quantity: 1,
+
+    let customerId: string;
+    try {
+      const result = await ensureStripeCustomer({ userId });
+      customerId = result.customerId;
+    } catch (error: unknown) {
+      console.error("ensureStripeCustomer failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
+      throw new UserFacingError(
+        `Failed to create Stripe checkout session: ${safeMessage}`,
+      );
+    }
+
+    let session;
+    try {
+      session = await stripeCheckoutSessionsCreate({
+        mode: "payment",
+        customer: customerId,
+        line_items: [
+          {
+            price: getStripeCreditPackPriceId(),
+            quantity: 1,
+          },
+        ],
+        allow_promotion_codes: true,
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: {
+              terragon_user_id: userId,
+              reason: CREDIT_TOP_UP_REASON,
+            },
+          },
         },
-      ],
-      allow_promotion_codes: true,
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
+        payment_intent_data: {
+          setup_future_usage: "off_session",
           metadata: {
             terragon_user_id: userId,
             reason: CREDIT_TOP_UP_REASON,
           },
         },
-      },
-      payment_intent_data: {
-        setup_future_usage: "off_session",
         metadata: {
           terragon_user_id: userId,
           reason: CREDIT_TOP_UP_REASON,
         },
-      },
-      metadata: {
-        terragon_user_id: userId,
-        reason: CREDIT_TOP_UP_REASON,
-      },
-      success_url: `${publicAppUrl()}/settings/agent?topup=success`,
-      cancel_url: `${publicAppUrl()}/settings/agent?topup=cancelled`,
-    });
+        success_url: `${publicAppUrl()}/settings/agent?topup=success`,
+        cancel_url: `${publicAppUrl()}/settings/agent?topup=cancelled`,
+      });
+    } catch (error: unknown) {
+      console.error("stripeCheckoutSessionsCreate failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
+      throw new UserFacingError(
+        `Failed to create Stripe checkout session: ${safeMessage}`,
+      );
+    }
+
     if (!session.url) {
       throw new UserFacingError("Failed to create Stripe checkout session");
     }
@@ -61,11 +84,38 @@ export const createManagePaymentsSession = userOnlyAction(
   async function createManagePaymentsSession(userId: string) {
     assertStripeConfiguredForCredits();
     const stripe = getStripeClient();
-    const { customerId } = await ensureStripeCustomer({ userId });
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${publicAppUrl()}/settings/agent`,
-    });
+
+    let customerId: string;
+    try {
+      const result = await ensureStripeCustomer({ userId });
+      customerId = result.customerId;
+    } catch (error: unknown) {
+      console.error("ensureStripeCustomer failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
+      throw new UserFacingError(
+        `Failed to create Stripe billing portal session: ${safeMessage}`,
+      );
+    }
+
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${publicAppUrl()}/settings/agent`,
+      });
+    } catch (error: unknown) {
+      console.error("stripe.billingPortal.sessions.create failed:", error);
+      const safeMessage = getSafeStripeErrorMessage(error);
+      throw new UserFacingError(
+        `Failed to create Stripe billing portal session: ${safeMessage}`,
+      );
+    }
+
+    if (!session.url) {
+      throw new UserFacingError(
+        "Failed to create Stripe billing portal session",
+      );
+    }
     return session.url;
   },
   { defaultErrorMessage: "Failed to create Stripe billing portal session" },
