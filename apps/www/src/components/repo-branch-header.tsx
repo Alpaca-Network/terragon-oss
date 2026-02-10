@@ -9,7 +9,6 @@ interface RepoBranchHeaderProps {
   selectedBranch: string | null;
   onChange: (repoFullName: string | null, branch: string | null) => void;
   className?: string;
-  placeholder?: string;
 }
 
 function RepoBranchHeaderInner({
