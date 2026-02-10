@@ -31,8 +31,6 @@ import { BacklogTemplate } from "@/lib/backlog-templates";
 import { buildTemplateDoc, type TaskMode } from "./task-mode";
 import type { CodexTier } from "@terragon/shared/db/types";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
-import { AutoFixFeedbackToggle } from "./auto-fix-feedback-toggle";
-import { AutoMergeToggle } from "./auto-merge-toggle";
 
 export function SimplePromptBox({
   editor,
@@ -230,22 +228,6 @@ export function SimplePromptBox({
                 onChange={onCodexTierChange}
               />
             )}
-          {showAutoFixFeedback && onAutoFixFeedbackChange && (
-            <AutoFixFeedbackToggle
-              disabled={autoFixFeedbackDisabled}
-              disableToast={false}
-              value={autoFixFeedbackValue}
-              onChange={onAutoFixFeedbackChange}
-            />
-          )}
-          {showAutoMergePR && onAutoMergePRChange && (
-            <AutoMergeToggle
-              disabled={autoMergePRDisabled}
-              disableToast={false}
-              value={autoMergePRValue}
-              onChange={onAutoMergePRChange}
-            />
-          )}
         </div>
         <div className="flex-shrink-0 flex flex-row items-center gap-1">
           {!hideAddContextButton && (

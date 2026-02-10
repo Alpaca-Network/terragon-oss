@@ -205,14 +205,6 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
         supportSchedule={true}
         taskMode={taskMode}
         onTaskModeChange={setTaskMode}
-        showAutoFixFeedback={true}
-        autoFixFeedbackValue={autoFixFeedback}
-        onAutoFixFeedbackChange={setAutoFixFeedback}
-        autoFixFeedbackDisabled={!repoFullName}
-        showAutoMergePR={true}
-        autoMergePRValue={autoMergePR}
-        onAutoMergePRChange={setAutoMergePR}
-        autoMergePRDisabled={!repoFullName}
       />
       <CredentialsWarning selectedModel={selectedModel} />
       <div className="flex items-center justify-end w-full">
@@ -221,6 +213,14 @@ export function DashboardPromptBox(props: DashboardPromptBoxProps) {
           skipSetupValue={skipSetup}
           onSkipSetupChange={setSkipSetup}
           skipSetupDisabled={!repoFullName}
+          showAutoFixFeedback={true}
+          autoFixFeedbackValue={autoFixFeedback}
+          onAutoFixFeedbackChange={setAutoFixFeedback}
+          autoFixFeedbackDisabled={!repoFullName}
+          showAutoMergePR={true}
+          autoMergePRValue={autoMergePR}
+          onAutoMergePRChange={setAutoMergePR}
+          autoMergePRDisabled={!repoFullName}
           showCheckpoint={true}
           checkpointValue={disableGitCheckpointing}
           onCheckpointChange={setDisableGitCheckpointing}
