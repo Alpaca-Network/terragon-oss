@@ -30,8 +30,9 @@ export async function getUserConfiguredSkill({
       environmentId: repoEnv.id,
       encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
     });
-    if (repoSkillsConfig?.skills[skillName]) {
-      return repoSkillsConfig.skills[skillName] as UserSkill;
+    const skill = repoSkillsConfig?.skills[skillName];
+    if (skill) {
+      return skill;
     }
   }
 
@@ -44,7 +45,7 @@ export async function getUserConfiguredSkill({
     encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
   });
 
-  return (globalSkillsConfig?.skills[skillName] as UserSkill) || null;
+  return globalSkillsConfig?.skills[skillName] ?? null;
 }
 
 /**
