@@ -111,6 +111,11 @@ export const createManagePaymentsSession = userOnlyAction(
       );
     }
 
+    if (!session.url) {
+      throw new UserFacingError(
+        "Failed to create Stripe billing portal session",
+      );
+    }
     return session.url;
   },
   { defaultErrorMessage: "Failed to create Stripe billing portal session" },

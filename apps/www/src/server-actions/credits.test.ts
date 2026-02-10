@@ -269,4 +269,27 @@ describe("createManagePaymentsSession", () => {
       "Failed to create Stripe billing portal session: Stripe error: resource_missing",
     );
   });
+
+  it("throws error when billing portal session has no URL", async () => {
+    const { user, session } = await createTestUser({
+      db,
+      skipBillingFeatureFlag: true,
+    });
+    await updateUser({
+      db,
+      userId: user.id,
+      updates: { stripeCustomerId: "cus_existing_123" },
+    });
+    await mockLoggedInUser(session);
+    // Simulate session returned without URL (edge case)
+    billingPortalSessionsCreateSpy.mockResolvedValue({
+      id: "bps_test_123",
+      url: null,
+    });
+    const result = await createManagePaymentsSession();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toBe(
+      "Failed to create Stripe billing portal session",
+    );
+  });
 });
