@@ -156,7 +156,7 @@ export const featureFlagsDefinitions = {
   },
   langfuseTracing: {
     defaultValue: true,
-    enabledForPreview: false,
+    // enabledForPreview not needed since defaultValue is true (already enabled for all users)
     description:
       "Enables Langfuse LLM observability tracing for API proxy calls (Anthropic, Gatewayz). Requires LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY environment variables to be configured.",
   },

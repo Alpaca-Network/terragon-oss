@@ -105,7 +105,8 @@ export async function getFeatureFlagGlobalOverride({
   name: FeatureFlagName;
 }): Promise<boolean> {
   const flag = await getFeatureFlag({ db, name });
-  return !!flag?.globalOverride;
+  // Use globalOverride if explicitly set, otherwise fall back to defaultValue
+  return flag?.globalOverride ?? flag?.defaultValue ?? false;
 }
 
 /**
