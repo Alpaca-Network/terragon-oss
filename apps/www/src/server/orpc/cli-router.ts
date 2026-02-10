@@ -342,9 +342,12 @@ export async function getInsightsData({
   >();
 
   // Generate all dates in range
-  let currentDate = new Date(start);
+  // Use the timezone option to ensure date keys match the database data
+  let currentDate = start;
   while (currentDate.getTime() <= end.getTime()) {
-    const dateKey = format(currentDate, "yyyy-MM-dd");
+    const dateKey = format(currentDate, "yyyy-MM-dd", {
+      in: tz(validatedTimezone),
+    });
     if (!dailyStatsMap.has(dateKey)) {
       dailyStatsMap.set(dateKey, {
         date: dateKey,
@@ -352,7 +355,7 @@ export async function getInsightsData({
         prsMerged: 0,
       });
     }
-    currentDate = addDays(currentDate, 1);
+    currentDate = addDays(currentDate, 1, { in: tz(validatedTimezone) });
   }
 
   let totalThreadsCreated = 0;
