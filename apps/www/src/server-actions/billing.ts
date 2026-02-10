@@ -35,14 +35,30 @@ export const getStripeCheckoutUrl = userOnlyAction(
       );
     }
 
-    assertStripeConfigured();
+    try {
+      assertStripeConfigured();
+    } catch (error) {
+      console.error("Stripe configuration check failed:", error);
+      throw new UserFacingError(
+        "Stripe billing is not configured. Please contact support.",
+      );
+    }
     const subscription = await getSubscriptionInfoForUser({
       db,
       userId,
     });
     const normalizedPlan = plan === "pro" ? "pro" : "core";
-    const successUrl = `${publicAppUrl()}/settings/billing?checkout=success`;
-    const cancelUrl = `${publicAppUrl()}/settings/billing?checkout=cancelled`;
+    let baseUrl: string;
+    try {
+      baseUrl = publicAppUrl();
+    } catch (error) {
+      console.error("Failed to resolve app URL:", error);
+      throw new UserFacingError(
+        "Application URL is not configured. Please contact support.",
+      );
+    }
+    const successUrl = `${baseUrl}/settings/billing?checkout=success`;
+    const cancelUrl = `${baseUrl}/settings/billing?checkout=cancelled`;
 
     // Use Better Auth's Stripe plugin to create the checkout session
     let res: Record<string, unknown>;
@@ -81,16 +97,40 @@ export const getStripeCheckoutUrl = userOnlyAction(
 
 export const getStripeBillingPortalUrl = userOnlyAction(
   async function getStripeBillingPortalUrl(): Promise<string> {
-    assertStripeConfigured();
+    try {
+      assertStripeConfigured();
+    } catch (error) {
+      console.error("Stripe configuration check failed:", error);
+      throw new UserFacingError(
+        "Stripe billing is not configured. Please contact support.",
+      );
+    }
 
-    const returnUrl = `${publicAppUrl()}/settings/billing`;
-    const res = await auth.api.createBillingPortal({
-      body: {
-        returnUrl,
-        locale: "auto",
-      },
-      headers: await headers(),
-    });
+    let returnUrl: string;
+    try {
+      returnUrl = `${publicAppUrl()}/settings/billing`;
+    } catch (error) {
+      console.error("Failed to resolve app URL:", error);
+      throw new UserFacingError(
+        "Application URL is not configured. Please contact support.",
+      );
+    }
+    let res: { url?: string };
+    try {
+      res = await auth.api.createBillingPortal({
+        body: {
+          returnUrl,
+          locale: "auto",
+        },
+        headers: await headers(),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("Stripe createBillingPortal failed:", message, error);
+      throw new UserFacingError(
+        `Failed to get Stripe billing portal URL: ${message}`,
+      );
+    }
     const url: string | undefined = res?.url;
     if (!url) {
       throw new UserFacingError("Failed to get Stripe billing portal URL");
