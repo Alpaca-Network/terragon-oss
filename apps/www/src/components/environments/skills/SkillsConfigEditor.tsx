@@ -73,7 +73,7 @@ export function SkillsConfigEditor({
   const handleRemoveSkill = useCallback(
     (skillKey: string) => {
       setLocalConfig((prev) => {
-        const { [skillKey]: removed, ...rest } = prev.skills;
+        const { [skillKey]: _, ...rest } = prev.skills;
         return { skills: rest };
       });
       markDirty();
@@ -100,7 +100,7 @@ export function SkillsConfigEditor({
         // Handle rename: if the key changed, remove old key
         const oldKey = editingSkill?.skillKey;
         if (oldKey && oldKey !== skill.name) {
-          const { [oldKey]: removed, ...rest } = prev.skills;
+          const { [oldKey]: _, ...rest } = prev.skills;
           return {
             skills: {
               ...rest,

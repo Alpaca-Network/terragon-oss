@@ -55,7 +55,7 @@ export function SkillsJsonEditor({
           if (!validationResult.success) {
             setError(validationResult.error);
           }
-        } catch {
+        } catch (_error) {
           setError("Invalid JSON format");
         }
       }
@@ -83,7 +83,7 @@ export function SkillsJsonEditor({
       onChange(validationResult.data);
       setIsDirty(false);
       setError(null);
-    } catch {
+    } catch (_error) {
       setError("Invalid JSON format");
     }
   }, [configText, onChange]);

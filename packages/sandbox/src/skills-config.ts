@@ -26,7 +26,7 @@ export type UserSkill = z.infer<typeof UserSkillSchema>;
 export type SkillsConfig = z.infer<typeof SkillsConfigSchema>;
 
 // Reserved skill names that cannot be used
-export const RESERVED_SKILL_NAMES = [
+export const RESERVED_SKILL_NAMES: readonly string[] = [
   "init",
   "pr-comments",
   "review",
