@@ -163,6 +163,12 @@ function generateEmbedAuthPage(
 </html>`;
 }
 
+// Note: generateStandaloneAuthPage has been removed.
+// For standalone GatewayZ auth, we now use a simpler approach:
+// 1. Set the session token in an unsigned cookie (gw_session_token)
+// 2. The middleware reads this cookie and forwards it as Authorization: Bearer header
+// 3. This allows the server-side auth to validate the session using the bearer() plugin
+
 /**
  * GET /api/auth/gatewayz/callback
  *
@@ -260,26 +266,18 @@ export async function GET(request: NextRequest) {
 
     const redirectUrl = new URL(returnUrl, baseUrl).toString();
 
-    // Build cookie strings for Set-Cookie headers
-    // In embed mode (iframe context), we need sameSite: "none" with secure: true
-    // for cookies to work cross-site. Otherwise use "lax" for regular auth flow.
-    const cookieOptions = embed
-      ? `; Path=/; Secure; SameSite=None; Partitioned`
-      : `; Path=/; Secure; SameSite=Lax`;
-
     const sessionCookieMaxAge = 60 * 60 * 24 * 60; // 60 days
     const gwTokenMaxAge = 60 * 60; // 1 hour
 
-    const cookies = [
-      `better-auth.session_token=${sessionToken}; Max-Age=${sessionCookieMaxAge}; HttpOnly${cookieOptions}`,
-      `gw_auth_token=${token}; Max-Age=${gwTokenMaxAge}; HttpOnly${cookieOptions}`,
+    // Build cookie strings for Set-Cookie headers (only used in embed mode)
+    // In embed mode (iframe context), we need sameSite: "none" with secure: true
+    // for cookies to work cross-site.
+    const embedCookieOptions = `; Path=/; Secure; SameSite=None; Partitioned`;
+    const embedCookies = [
+      `better-auth.session_token=${sessionToken}; Max-Age=${sessionCookieMaxAge}; HttpOnly${embedCookieOptions}`,
+      `gw_auth_token=${token}; Max-Age=${gwTokenMaxAge}; HttpOnly${embedCookieOptions}`,
+      `gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${embedCookieOptions}`,
     ];
-
-    if (embed) {
-      cookies.push(
-        `gw_embed_mode=true; Max-Age=${gwTokenMaxAge}${cookieOptions}`,
-      );
-    }
 
     // In embed mode, return an HTML page that stores the session in sessionStorage
     // and notifies the parent. This avoids third-party cookie blocking issues.
@@ -290,16 +288,21 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           // Still try to set cookies (may work in some browsers), but don't rely on them
-          "Set-Cookie": cookies.join(", "),
+          "Set-Cookie": embedCookies.join(", "),
           "Cache-Control": "no-store, no-cache, must-revalidate",
         },
       });
     }
 
-    // For non-embed mode, use standard redirect with cookies
+    // For non-embed mode (standalone GatewayZ login), use a standard redirect with
+    // an unsigned session token cookie. The middleware will read this cookie and
+    // forward it as an Authorization: Bearer header, allowing the server-side auth
+    // to validate the session using the bearer() plugin.
     const response = NextResponse.redirect(redirectUrl);
 
-    response.cookies.set("better-auth.session_token", sessionToken, {
+    // Set the session token in an unsigned cookie that the middleware can read
+    // This is different from better-auth.session_token which requires signing
+    response.cookies.set("gw_session_token", sessionToken, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
@@ -307,12 +310,22 @@ export async function GET(request: NextRequest) {
       maxAge: sessionCookieMaxAge,
     });
 
+    // Also set the GatewayZ auth token for reference
     response.cookies.set("gw_auth_token", token, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
       path: "/",
       maxAge: gwTokenMaxAge,
+    });
+
+    // Mark as using GatewayZ standalone auth
+    response.cookies.set("gw_standalone_auth", "true", {
+      httpOnly: false,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: sessionCookieMaxAge,
     });
 
     return response;
