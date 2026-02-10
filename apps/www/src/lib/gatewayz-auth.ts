@@ -5,6 +5,10 @@ export interface GatewayZSession {
   email: string;
   username: string;
   tier: string;
+  // GatewayZ credits information (in cents)
+  credits?: number;
+  subscriptionAllowance?: number;
+  purchasedCredits?: number;
   keyHash: string; // Hash of API key, not the key itself
   exp: number;
   iat: number;

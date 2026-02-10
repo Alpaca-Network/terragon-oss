@@ -28,6 +28,7 @@ import {
 } from "@terragon/shared/db/types";
 import { useUserCreditBalanceQuery } from "@/queries/user-credit-balance-queries";
 import { CreditsSection } from "../credits";
+import { GatewayZCredits } from "../gatewayz-credits";
 import { useServerActionMutation } from "@/queries/server-action-helpers";
 import { publicDocsUrl } from "@terragon/env/next-public";
 
@@ -554,6 +555,21 @@ export function BillingSettings({
           />
         )}
       </SettingsSection>
+
+      {/* GatewayZ Credits Section - shows when user has GatewayZ account */}
+      {hasGatewayZSubscription && data?.gatewayZTier && (
+        <SettingsSection
+          label="GatewayZ Account"
+          description="Your GatewayZ subscription provides access to Terragon."
+        >
+          <GatewayZCredits
+            tierInfo={data.gatewayZTier}
+            credits={data.gwCredits}
+            subscriptionAllowance={data.gwSubscriptionAllowance}
+            purchasedCredits={data.gwPurchasedCredits}
+          />
+        </SettingsSection>
+      )}
       <div className="space-y-4">
         <SettingsSection
           label="Subscription"

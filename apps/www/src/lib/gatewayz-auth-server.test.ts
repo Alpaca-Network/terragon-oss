@@ -118,6 +118,82 @@ describe("gatewayz-auth-server", () => {
 
       expect(users[0]!.gwTier).toBe("free");
     });
+
+    it("should store credits fields when creating new user", async () => {
+      const gwSession: GatewayZSession = {
+        gwUserId: 44444,
+        email: `${testEmailPrefix}-credits@example.com`,
+        username: "creditsuser",
+        tier: "pro",
+        credits: 5000, // $50 in cents
+        subscriptionAllowance: 2000, // $20 monthly
+        purchasedCredits: 3000, // $30 purchased
+        keyHash: "credits123",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      const result = await findOrCreateUserFromGatewayZ(gwSession);
+      createdUserIds.push(result.userId);
+
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, result.userId));
+
+      expect(users).toHaveLength(1);
+      const user = users[0]!;
+      expect(user.gwCredits).toBe(5000);
+      expect(user.gwSubscriptionAllowance).toBe(2000);
+      expect(user.gwPurchasedCredits).toBe(3000);
+      expect(user.gwCreditsUpdatedAt).toBeDefined();
+    });
+
+    it("should update credits fields when user already exists", async () => {
+      // First create a user with old credits
+      const existingUserId = crypto.randomUUID();
+      await db.insert(schema.user).values({
+        id: existingUserId,
+        email: `${testEmailPrefix}-updatecredits@example.com`,
+        name: "Existing Credits User",
+        emailVerified: true,
+        gwCredits: 1000, // Old credits
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      createdUserIds.push(existingUserId);
+
+      // Now link with updated credits
+      const gwSession: GatewayZSession = {
+        gwUserId: 55555,
+        email: `${testEmailPrefix}-updatecredits@example.com`,
+        username: "gwcreditsuser",
+        tier: "max",
+        credits: 10000, // Updated credits
+        subscriptionAllowance: 5000,
+        purchasedCredits: 5000,
+        keyHash: "newcredits456",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+      };
+
+      const result = await findOrCreateUserFromGatewayZ(gwSession);
+
+      expect(result.isNewUser).toBe(false);
+      expect(result.userId).toBe(existingUserId);
+
+      // Verify credits were updated
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, existingUserId));
+
+      const user = users[0]!;
+      expect(user.gwCredits).toBe(10000);
+      expect(user.gwSubscriptionAllowance).toBe(5000);
+      expect(user.gwPurchasedCredits).toBe(5000);
+      expect(user.gwCreditsUpdatedAt).toBeDefined();
+    });
   });
 
   describe("createSessionForGatewayZUser", () => {

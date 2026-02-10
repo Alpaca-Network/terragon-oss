@@ -21,6 +21,10 @@ export type User = WithOptional<
   | "gwUserId"
   | "gwTier"
   | "gwTierUpdatedAt"
+  | "gwCredits"
+  | "gwSubscriptionAllowance"
+  | "gwPurchasedCredits"
+  | "gwCreditsUpdatedAt"
 >;
 export type Session = WithOptional<
   SessionInner,
@@ -440,6 +444,10 @@ export type BillingInfo = {
   isShutdownMode?: boolean;
   // GatewayZ subscription info (takes priority over Stripe)
   gatewayZTier: GatewayZTierInfo | null;
+  // GatewayZ credits (in cents)
+  gwCredits?: number | null;
+  gwSubscriptionAllowance?: number | null;
+  gwPurchasedCredits?: number | null;
 };
 
 export type ClaudeAgentProviderMetadata = {

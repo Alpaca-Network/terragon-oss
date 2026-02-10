@@ -118,7 +118,12 @@ export async function getBillingInfoForUser({
       getSignupTrialInfoForUser({ db, userId }),
       getFeatureFlagsGlobal({ db }),
       db
-        .select({ gwTier: schema.user.gwTier })
+        .select({
+          gwTier: schema.user.gwTier,
+          gwCredits: schema.user.gwCredits,
+          gwSubscriptionAllowance: schema.user.gwSubscriptionAllowance,
+          gwPurchasedCredits: schema.user.gwPurchasedCredits,
+        })
         .from(schema.user)
         .where(eq(schema.user.id, userId))
         .limit(1),
@@ -145,5 +150,9 @@ export async function getBillingInfoForUser({
     unusedPromotionCode: !!unusedPromotionCode,
     isShutdownMode: featureFlags.shutdownMode,
     gatewayZTier,
+    // GatewayZ credits (in cents)
+    gwCredits: userRecord[0]?.gwCredits,
+    gwSubscriptionAllowance: userRecord[0]?.gwSubscriptionAllowance,
+    gwPurchasedCredits: userRecord[0]?.gwPurchasedCredits,
   };
 }
