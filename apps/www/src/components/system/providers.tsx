@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { ThemeColorMeta } from "./theme-color-meta";
 import { AutoRefresh } from "./auto-refresh";
+import { DynamicFaviconProvider } from "./dynamic-favicon-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <TooltipProvider>
             <ThemeColorMeta />
             <AutoRefresh />
+            <DynamicFaviconProvider />
             {children}
           </TooltipProvider>
         </ThemeProvider>
