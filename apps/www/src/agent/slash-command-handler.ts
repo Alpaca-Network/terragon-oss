@@ -28,9 +28,6 @@ const AGENT_HANDLED_COMMANDS = [
   "test-prompt-too-long", // For end-to-end testing
 ];
 
-// Server-handled slash commands
-const SERVER_HANDLED_COMMANDS = ["clear", "compact"];
-
 /**
  * Extract slash command name from message text.
  * Returns the command name (without /) if the message starts with a slash command pattern,
@@ -117,13 +114,13 @@ export async function handleSlashCommand({
   // - Is not a server-handled command (/clear, /compact)
   // - Is not a known agent-handled command (/init, /pr-comments, /review)
   // - Is not a valid skill in the repository
-  // Then it's an unknown command - show error to user
+  // Then it's an unknown command - log it and pass through to agent
+  // This allows patterns like "/audit" or URL-like references to work as keywords
   if (commandName) {
-    return await handleUnknownSlashCommand({
+    logUnknownSlashCommand({
       userId,
       threadId,
       threadChatId,
-      message,
       commandName,
     });
   }
@@ -252,20 +249,23 @@ async function handleCompactCommand({
   };
 }
 
-async function handleUnknownSlashCommand({
+function logUnknownSlashCommand({
   userId,
   threadId,
   threadChatId,
-  message,
   commandName,
 }: {
   userId: string;
   threadId: string;
   threadChatId: string;
-  message: DBUserMessage;
   commandName: string;
-}): Promise<SlashCommandResult> {
-  console.log(`Unknown slash command: /${commandName}`);
+}): void {
+  // Log for analytics purposes, but don't block the message
+  // Unknown slash commands are passed through to the agent as regular messages
+  // This allows patterns like "/audit" or "/inbox" to be treated as keywords
+  console.log(
+    `Unknown slash command /${commandName} - passing through to agent`,
+  );
   getPostHogServer().capture({
     distinctId: userId,
     event: "slash_command_unknown",
@@ -275,36 +275,6 @@ async function handleUnknownSlashCommand({
       command: commandName,
     },
   });
-
-  // Only show server-handled commands that are guaranteed to work
-  // Agent-handled commands may not be supported depending on the agent/model
-  const systemMessage: DBSystemMessage = {
-    type: "system",
-    message_type: "unknown-slash-command",
-    parts: [
-      {
-        type: "text",
-        text: `Unknown command: /${commandName}. Available commands: ${SERVER_HANDLED_COMMANDS.map((c) => `/${c}`).join(", ")}. You can also use custom slash commands defined in your repository's .claude/commands/ directory.`,
-      },
-    ],
-    timestamp: new Date().toISOString(),
-  };
-
-  await updateThreadChatWithTransition({
-    userId,
-    threadId,
-    threadChatId,
-    eventType: "system.slash-command-done",
-    chatUpdates: {
-      appendMessages: [message, systemMessage],
-      sessionId: null,
-      errorMessage: null,
-      errorMessageInfo: null,
-      contextLength: null,
-    },
-  });
-
-  return { handled: true };
 }
 
 /**
