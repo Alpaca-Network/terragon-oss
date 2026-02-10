@@ -18,6 +18,7 @@ import { withThreadChat } from "./thread-resource";
 import { ThreadError } from "./error";
 import { getFeatureFlagForUser } from "@terragon/shared/model/feature-flags";
 import { getSkillContentInternal } from "@/server-lib/github-skills";
+import { getUserSkillContent } from "@/server-lib/user-skills";
 
 // Built-in slash commands that are passed through to the agent (daemon)
 // These are handled by Claude Code or other agents, not the server
@@ -352,28 +353,43 @@ async function handleSkillInvocation({
     return { handled: false };
   }
 
-  // Fetch skill content
+  // Fetch skill content - check user-configured skills first, then fall back to GitHub
   try {
-    const skillContent = await getSkillContentInternal(
+    // First, check user-configured skills (global + repo-specific)
+    let skillContent = await getUserSkillContent({
       userId,
-      thread.githubRepoFullName,
-      thread.branchName,
+      repoFullName: thread.githubRepoFullName,
       skillName,
-    );
+    });
+
+    // Fall back to GitHub-based skills if not found in user config
+    if (!skillContent) {
+      skillContent = await getSkillContentInternal(
+        userId,
+        thread.githubRepoFullName,
+        thread.branchName,
+        skillName,
+      );
+    }
 
     if (!skillContent) {
       // Skill not found - let it pass through as regular message
       console.log(
-        `Skill "${skillName}" not found in ${thread.githubRepoFullName}`,
+        `Skill "${skillName}" not found in user config or ${thread.githubRepoFullName}`,
       );
       return { handled: false };
     }
 
-    // Check if skill is user-invocable
+    // Check if skill is user-invocable (already checked in getUserSkillContent, but double-check for GitHub skills)
     if (!skillContent.userInvocable) {
       console.log(`Skill "${skillName}" is not user-invocable`);
       return { handled: false };
     }
+
+    // Determine skill source for analytics
+    const skillSource = skillContent.filePath.startsWith("[user-configured:")
+      ? "user-configured"
+      : "github";
 
     getPostHogServer().capture({
       distinctId: userId,
@@ -383,6 +399,7 @@ async function handleSkillInvocation({
         skillName,
         hasArgs: !!args,
         repoFullName: thread.githubRepoFullName,
+        skillSource,
       },
     });
 

@@ -3,6 +3,7 @@ import {
   getOrCreateGlobalEnvironment,
   getEnvironment,
   getDecryptedMcpConfig,
+  getDecryptedSkillsConfig,
 } from "@terragon/shared/model/environments";
 import { getUserIdOrNull, getUserIdOrRedirect } from "@/lib/auth-server";
 import { notFound } from "next/navigation";
@@ -49,32 +50,42 @@ export default async function EnvironmentPage({
   if (!environment) {
     return notFound();
   }
-  const [environmentVariables, mcpConfig, globalEnvironmentVariableKeys] =
-    await Promise.all([
-      getDecryptedEnvironmentVariables({
+  const [
+    environmentVariables,
+    mcpConfig,
+    skillsConfig,
+    globalEnvironmentVariableKeys,
+  ] = await Promise.all([
+    getDecryptedEnvironmentVariables({
+      db,
+      userId,
+      environmentId: id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+    getDecryptedMcpConfig({
+      db,
+      userId,
+      environmentId: id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+    getDecryptedSkillsConfig({
+      db,
+      userId,
+      environmentId: id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+    (async () => {
+      const globalEnvironment = await getOrCreateGlobalEnvironment({
         db,
         userId,
-        environmentId: id,
-        encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
-      }),
-      getDecryptedMcpConfig({
-        db,
-        userId,
-        environmentId: id,
-        encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
-      }),
-      (async () => {
-        const globalEnvironment = await getOrCreateGlobalEnvironment({
-          db,
-          userId,
-        });
-        return (
-          globalEnvironment.environmentVariables?.map(
-            (variable) => variable.key,
-          ) ?? []
-        );
-      })(),
-    ]);
+      });
+      return (
+        globalEnvironment.environmentVariables?.map(
+          (variable) => variable.key,
+        ) ?? []
+      );
+    })(),
+  ]);
   return (
     <EnvironmentUI
       environmentId={id}
@@ -82,6 +93,7 @@ export default async function EnvironmentPage({
       environmentVariables={environmentVariables}
       globalEnvironmentVariableKeys={globalEnvironmentVariableKeys}
       mcpConfig={mcpConfig || undefined}
+      skillsConfig={skillsConfig || undefined}
     />
   );
 }

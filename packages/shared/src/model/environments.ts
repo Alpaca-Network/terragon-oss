@@ -272,6 +272,34 @@ export async function getDecryptedMcpConfig({
   }
 }
 
+export async function getDecryptedSkillsConfig({
+  db,
+  userId,
+  environmentId,
+  encryptionMasterKey,
+}: {
+  db: DB;
+  userId: string;
+  environmentId: string;
+  encryptionMasterKey: string;
+}): Promise<{ skills: Record<string, any> } | null> {
+  const environment = await getEnvironment({ db, userId, environmentId });
+  if (!environment || !environment.skillsConfigEncrypted) {
+    return null;
+  }
+
+  try {
+    const decryptedConfig = decryptValue(
+      environment.skillsConfigEncrypted,
+      encryptionMasterKey,
+    );
+    return JSON.parse(decryptedConfig);
+  } catch (error) {
+    console.error("Failed to decrypt skills config:", error);
+    return null;
+  }
+}
+
 export async function getEnvironmentForAdmin({
   db,
   environmentId,

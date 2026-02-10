@@ -582,6 +582,7 @@ export const environment = pgTable(
       .$type<Array<{ key: string; valueEncrypted: string }>>()
       .default([]),
     mcpConfigEncrypted: text("mcp_config_encrypted"),
+    skillsConfigEncrypted: text("skills_config_encrypted"),
     setupScript: text("setup_script"),
     smartContextEncrypted: text("smart_context_encrypted"),
     smartContextGeneratedAt: timestamp("smart_context_generated_at"),
