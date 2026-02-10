@@ -173,6 +173,27 @@ export const auth = betterAuth({
           );
         }
       }
+
+      // Clear GatewayZ session cookies on sign-out
+      if (context.path === "/sign-out") {
+        const response = context.context.returned as Response | undefined;
+        if (response) {
+          const newResponse = new Response(response.body, response);
+          // Clear all GatewayZ-related cookies
+          const cookiesToClear = [
+            "gw_session_token",
+            "gw_auth_token",
+            "gw_standalone_auth",
+          ];
+          for (const cookieName of cookiesToClear) {
+            newResponse.headers.append(
+              "Set-Cookie",
+              `${cookieName}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+            );
+          }
+          return newResponse;
+        }
+      }
     }),
   },
   databaseHooks: {
