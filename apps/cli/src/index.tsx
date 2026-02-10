@@ -9,6 +9,7 @@ import { AuthCommand } from "./commands/auth.js";
 import { PullCommand } from "./commands/pull.js";
 import { CreateCommand } from "./commands/create.js";
 import { ListCommand } from "./commands/list.js";
+import { InsightsCommand } from "./commands/insights.js";
 import { QueryProvider } from "./providers/QueryProvider.js";
 import { RootLayout } from "./components/RootLayout.js";
 import { startMCPServer } from "./mcp-server/index.js";
@@ -184,6 +185,30 @@ program
       console.error("Failed to start MCP server:", error);
       process.exit(1);
     }
+  });
+
+program
+  .command("insights")
+  .description("View usage insights and statistics")
+  .option("-d, --days <days>", "Number of days to show (1-30)", "7")
+  .option(
+    "-t, --timezone <timezone>",
+    "Timezone for date calculations",
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+  )
+  .action((options: { days?: string; timezone?: string }) => {
+    const numDays = Math.min(
+      30,
+      Math.max(1, parseInt(options.days || "7", 10)),
+    );
+    const timezone = options.timezone || "UTC";
+    render(
+      <QueryProvider>
+        <RootLayout>
+          <InsightsCommand numDays={numDays} timezone={timezone} />
+        </RootLayout>
+      </QueryProvider>,
+    );
   });
 
 program.parse();

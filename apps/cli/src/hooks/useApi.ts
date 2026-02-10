@@ -85,3 +85,42 @@ export function useSaveApiKey() {
     },
   });
 }
+
+async function fetchInsights(
+  numDays: number,
+  timezone: string,
+): Promise<Outputs["insights"]> {
+  const [error, result] = await safe(
+    apiClient.insights({
+      numDays,
+      timezone,
+    }),
+  );
+
+  if (isDefinedError(error)) {
+    switch (error.code) {
+      case "UNAUTHORIZED":
+        throw new Error("Authentication failed. Try running 'terry auth'.");
+      case "NOT_FOUND":
+        throw new Error("No insights found");
+      case "INTERNAL_ERROR":
+        throw new Error("Internal server error");
+      case "RATE_LIMIT_EXCEEDED":
+        throw new Error("Rate limit exceeded. Please try again later.");
+      default:
+        const _exhaustiveCheck: never = error;
+        throw new Error(`Unknown error: ${_exhaustiveCheck}`);
+    }
+  } else if (error) {
+    throw new Error("Failed to fetch insights");
+  }
+
+  return result;
+}
+
+export function useInsights(numDays: number, timezone: string) {
+  return useQuery({
+    queryKey: ["insights", numDays, timezone],
+    queryFn: () => fetchInsights(numDays, timezone),
+  });
+}

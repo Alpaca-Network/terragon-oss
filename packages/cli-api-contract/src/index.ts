@@ -81,6 +81,60 @@ const createThreadContract = oc
     }),
   );
 
+// Token usage breakdown by provider
+const tokenUsageSchema = z.object({
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  cachedInputTokens: z.number(),
+  cacheCreationInputTokens: z.number(),
+});
+
+// Cost breakdown by provider
+const costBreakdownSchema = z.object({
+  anthropic: z.number(), // in cents
+  openai: z.number(),
+  google: z.number(),
+  openrouter: z.number(),
+  total: z.number(),
+});
+
+// Credit balance info
+const creditBalanceSchema = z.object({
+  totalCreditsCents: z.number(),
+  totalUsageCents: z.number(),
+  balanceCents: z.number(),
+});
+
+// Daily stats breakdown
+const dailyStatsSchema = z.object({
+  date: z.string(),
+  threadsCreated: z.number(),
+  prsMerged: z.number(),
+});
+
+const insightsContract = oc
+  .input(
+    z.object({
+      numDays: z.number().min(1).max(30).default(7),
+      timezone: z.string().default("UTC"),
+    }),
+  )
+  .output(
+    z.object({
+      // Activity summary
+      totalThreadsCreated: z.number(),
+      totalPRsMerged: z.number(),
+      // Token usage
+      tokenUsage: tokenUsageSchema,
+      // Cost breakdown by provider
+      costBreakdown: costBreakdownSchema,
+      // Credit balance
+      creditBalance: creditBalanceSchema,
+      // Daily breakdown
+      dailyStats: z.array(dailyStatsSchema),
+    }),
+  );
+
 // Define the CLI API contract router
 export const cliAPIContract = {
   threads: {
@@ -92,4 +146,5 @@ export const cliAPIContract = {
     // Minimal endpoint for VSCode to discover the current user id
     whoami: oc.input(z.void()).output(z.object({ userId: z.string() })),
   },
+  insights: insightsContract,
 };
