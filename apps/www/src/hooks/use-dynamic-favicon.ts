@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useCallback, useState } from "react";
-import {
-  useInfiniteThreadList,
-  ThreadListFilters,
-} from "@/queries/thread-queries";
-import { getKanbanColumn } from "@/components/kanban/types";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useRealtimeThreadMatch } from "@/hooks/useRealtime";
 import { useAtomValue } from "jotai";
 import { userAtom } from "@/atoms/user";
+import { useQuery } from "@tanstack/react-query";
+import { getReviewCountAction } from "@/server-actions/get-review-count";
+import { unwrapResult } from "@/lib/server-actions";
 
 const FAVICON_SIZE = 32;
 const BADGE_RADIUS = 7;
@@ -156,6 +154,7 @@ function restoreFavicon() {
  * of tasks in the "Review" (in_review) Kanban column.
  *
  * Features:
+ * - Uses a dedicated server-side count endpoint for accurate counts (no pagination issues)
  * - Updates in real-time when tasks move in/out of review
  * - Skips updates when tab is hidden
  * - Only runs for logged-in users
@@ -184,25 +183,17 @@ export function useDynamicFavicon() {
     };
   }, []);
 
-  // Only fetch threads if user is logged in
-  const filters: ThreadListFilters = useMemo(
-    () => ({
-      archived: false,
-      isBacklog: false,
-    }),
-    [],
-  );
-
-  const { data, refetch } = useInfiniteThreadList(filters);
-
-  // Count threads in the in_review column
-  const reviewCount = useMemo(() => {
-    if (!data?.pages) return 0;
-
-    const threads = data.pages.flatMap((page) => page);
-    return threads.filter((thread) => getKanbanColumn(thread) === "in_review")
-      .length;
-  }, [data]);
+  // Fetch review count from server using dedicated endpoint
+  // This gets the accurate count across all threads without pagination issues
+  const { data: reviewCount = 0, refetch } = useQuery({
+    queryKey: ["review-count"],
+    queryFn: async () => {
+      return unwrapResult(await getReviewCountAction());
+    },
+    enabled: !!user,
+    staleTime: 30 * 1000, // 30 seconds - matches thread list cache
+    refetchOnWindowFocus: true,
+  });
 
   // Set up real-time updates
   const matchThread = useCallback(

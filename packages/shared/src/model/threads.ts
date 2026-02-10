@@ -1781,3 +1781,102 @@ export async function getScheduledThreadChatsDueToRun({
     return dueToRun;
   });
 }
+
+/**
+ * Get the count of threads in the "in_review" Kanban column for a user.
+ *
+ * A thread is in "in_review" if:
+ * - It's not in backlog AND not archived
+ * - Has error/working-error/stopped/working-stopped status, OR
+ * - Has complete status with no merged PR
+ *
+ * This mirrors the logic in getKanbanColumn from apps/www/src/components/kanban/types.ts
+ */
+export async function getInReviewThreadCount({
+  db,
+  userId,
+}: {
+  db: DB;
+  userId: string;
+}): Promise<number> {
+  // Statuses that always go to in_review (if not backlog)
+  const reviewStatuses: ThreadStatus[] = [
+    "error",
+    "working-error",
+    "stopped",
+    "working-stopped",
+  ];
+
+  // We need to count:
+  // 1. Threads with error/stopped statuses (not archived, not backlog)
+  // 2. Complete threads without a merged PR (not archived, not backlog)
+
+  // For threads with threadChats (v1+), we need to check threadChat status
+  // For legacy threads (v0), we check the thread.status directly
+
+  // Optimized: Use a single query with SQL CASE to handle the complex logic
+  const result = await db
+    .select({
+      count: count(),
+    })
+    .from(schema.thread)
+    .leftJoin(
+      schema.threadChat,
+      and(
+        eq(schema.threadChat.threadId, schema.thread.id),
+        eq(schema.threadChat.userId, schema.thread.userId),
+      ),
+    )
+    .leftJoin(
+      schema.githubPR,
+      and(
+        eq(schema.githubPR.repoFullName, schema.thread.githubRepoFullName),
+        eq(schema.githubPR.number, schema.thread.githubPRNumber),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.thread.userId, userId),
+        eq(schema.thread.archived, false),
+        eq(schema.thread.isBacklog, false),
+        or(
+          // Legacy threads (version 0): check thread.status directly
+          and(
+            eq(schema.thread.version, 0),
+            or(
+              // Error/stopped statuses
+              inArray(schema.thread.status, reviewStatuses),
+              // Complete with no merged PR
+              and(
+                eq(schema.thread.status, "complete"),
+                or(
+                  isNull(schema.githubPR.status),
+                  ne(schema.githubPR.status, "merged"),
+                ),
+              ),
+            ),
+          ),
+          // Version 1+ threads: check threadChat.status
+          and(
+            ne(schema.thread.version, 0),
+            or(
+              // Error/stopped statuses in any threadChat
+              inArray(schema.threadChat.status, reviewStatuses),
+              // Complete with no merged PR in any threadChat
+              and(
+                eq(schema.threadChat.status, "complete"),
+                or(
+                  isNull(schema.githubPR.status),
+                  ne(schema.githubPR.status, "merged"),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    )
+    .groupBy(schema.thread.id);
+
+  // Each row represents one distinct thread
+  return result.length;
+}
