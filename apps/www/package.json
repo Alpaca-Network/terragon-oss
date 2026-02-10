@@ -130,6 +130,7 @@
     "zod": "4.1.11"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.1.0",
     "@ladle/react": "^5.0.3",
     "@slack/web-api": "^7.10.0",
     "@tailwindcss/postcss": "^4.1.10",
@@ -151,6 +152,7 @@
     "typescript": "^5.8.3",
     "vercel-cron": "^1.3.0",
     "vite": "^6.3.5",
-    "vitest": "^3.1.4"
+    "vitest": "^3.1.4",
+    "jsdom": "^26.1.0"
   }
 }

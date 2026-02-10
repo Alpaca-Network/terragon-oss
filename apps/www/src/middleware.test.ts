@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "./middleware";
 
+// Type for our mock response
+interface MockResponse {
+  type: "redirect" | "next";
+  url?: string;
+  headers: Headers;
+  cookies: { set: ReturnType<typeof vi.fn> };
+  request?: { headers: Headers };
+}
+
 // Mock NextResponse
 vi.mock("next/server", async () => {
   const actual = await vi.importActual("next/server");
@@ -77,7 +86,7 @@ describe("middleware", () => {
         },
       });
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       // Check that the response forwards the request with Authorization header
       expect(response.type).toBe("next");
@@ -95,7 +104,7 @@ describe("middleware", () => {
         },
       });
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       // Check that normal next() is called without header modification
       expect(response.type).toBe("next");
@@ -111,7 +120,7 @@ describe("middleware", () => {
         },
       });
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       // Should not redirect to GatewayZ
       expect(response.type).toBe("next");
@@ -124,7 +133,7 @@ describe("middleware", () => {
 
       const request = createMockRequest("/");
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       expect(response.type).toBe("redirect");
       expect(response.url).toBe("https://beta.gatewayz.ai/inbox");
@@ -139,7 +148,7 @@ describe("middleware", () => {
         },
       });
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       expect(response.type).toBe("next");
     });
@@ -149,7 +158,7 @@ describe("middleware", () => {
 
       const request = createMockRequest("/dashboard");
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       expect(response.type).toBe("next");
     });
@@ -163,7 +172,7 @@ describe("middleware", () => {
         },
       });
 
-      const response = middleware(request);
+      const response = middleware(request) as unknown as MockResponse;
 
       expect(response.type).toBe("next");
     });
