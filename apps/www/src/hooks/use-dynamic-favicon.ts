@@ -163,6 +163,7 @@ function restoreFavicon() {
 export function useDynamicFavicon() {
   const user = useAtomValue(userAtom);
   const previousCountRef = useRef<number>(-1);
+  const updateVersionRef = useRef<number>(0);
   const [isTabVisible, setIsTabVisible] = useState(() =>
     typeof document !== "undefined"
       ? document.visibilityState === "visible"
@@ -253,7 +254,8 @@ export function useDynamicFavicon() {
       return;
     }
 
-    previousCountRef.current = reviewCount;
+    // Increment version to handle race conditions with async updates
+    const currentVersion = ++updateVersionRef.current;
 
     // Use the PNG favicon as base for canvas drawing
     const baseFaviconUrl = "/favicon.png";
@@ -261,13 +263,19 @@ export function useDynamicFavicon() {
     if (reviewCount === 0) {
       // Restore original favicon when count is 0
       restoreFavicon();
+      previousCountRef.current = reviewCount;
     } else {
       // Draw favicon with badge
       drawFaviconWithBadge(baseFaviconUrl, reviewCount)
         .then((dataUrl) => {
-          updateFavicon(dataUrl);
+          // Only update if this is still the latest version (prevents stale updates)
+          if (updateVersionRef.current === currentVersion) {
+            updateFavicon(dataUrl);
+            previousCountRef.current = reviewCount;
+          }
         })
         .catch((error) => {
+          // Don't update previousCountRef on error so we can retry on next render
           console.error("Failed to update favicon:", error);
         });
     }

@@ -187,18 +187,4 @@ describe("useDynamicFavicon", () => {
       expect(formatBadgeText(999)).toBe("99+");
     });
   });
-
-  describe("query filters", () => {
-    it("should use correct filters for fetching threads", () => {
-      // The hook should fetch non-archived, non-backlog threads
-      const expectedFilters = {
-        archived: false,
-        isBacklog: false,
-      };
-
-      // This is a documentation test to ensure the filters are correct
-      expect(expectedFilters.archived).toBe(false);
-      expect(expectedFilters.isBacklog).toBe(false);
-    });
-  });
 });
