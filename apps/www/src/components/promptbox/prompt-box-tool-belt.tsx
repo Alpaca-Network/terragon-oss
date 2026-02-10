@@ -159,22 +159,6 @@ export function PromptBoxToolBelt({
           onChange={onSkipSetupChange!}
         />
       )}
-      {showCreateNewBranchOption && isBranchToggleEnabled && (
-        <BranchToggle
-          disabled={createNewBranchDisabled}
-          checkpointValue={checkpointValue}
-          value={createNewBranchValue}
-          onChange={onCreateNewBranchChange!}
-        />
-      )}
-      {showCheckpoint && (
-        <CheckpointToggle
-          disabled={checkpointDisabled}
-          value={checkpointValue}
-          onChange={onCheckpointChange!}
-          showDialog={checkpointShowDialog}
-        />
-      )}
       {showAutoFixFeedback && (
         <AutoFixFeedbackToggle
           disabled={autoFixFeedbackDisabled}
@@ -189,6 +173,22 @@ export function PromptBoxToolBelt({
           disableToast={autoMergePRDisableToast}
           value={autoMergePRValue}
           onChange={onAutoMergePRChange!}
+        />
+      )}
+      {showCreateNewBranchOption && isBranchToggleEnabled && (
+        <BranchToggle
+          disabled={createNewBranchDisabled}
+          checkpointValue={checkpointValue}
+          value={createNewBranchValue}
+          onChange={onCreateNewBranchChange!}
+        />
+      )}
+      {showCheckpoint && (
+        <CheckpointToggle
+          disabled={checkpointDisabled}
+          value={checkpointValue}
+          onChange={onCheckpointChange!}
+          showDialog={checkpointShowDialog}
         />
       )}
     </div>
