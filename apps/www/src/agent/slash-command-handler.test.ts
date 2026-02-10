@@ -12,6 +12,13 @@ vi.mock("@/lib/posthog-server", () => ({
   }),
 }));
 
+// Shared helper to create user messages for testing
+const createMessage = (text: string): DBUserMessage => ({
+  type: "user",
+  model: null,
+  parts: [{ type: "text", text }],
+});
+
 describe("extractSlashCommandName", () => {
   it("should extract command name from simple slash command", () => {
     expect(extractSlashCommandName("/clear")).toBe("clear");
@@ -59,12 +66,6 @@ describe("extractSlashCommandName", () => {
 });
 
 describe("getSlashCommandOrNull", () => {
-  const createMessage = (text: string): DBUserMessage => ({
-    type: "user",
-    model: null,
-    parts: [{ type: "text", text }],
-  });
-
   it("should return /clear for exact /clear command", () => {
     expect(getSlashCommandOrNull(createMessage("/clear"))).toBe("/clear");
   });
@@ -111,11 +112,5 @@ describe("unknown slash command handling", () => {
     // so they would pass through to the agent
     expect(getSlashCommandOrNull(createMessage("/audit"))).toBe(null);
     expect(getSlashCommandOrNull(createMessage("/inbox"))).toBe(null);
-  });
-
-  const createMessage = (text: string): DBUserMessage => ({
-    type: "user",
-    model: null,
-    parts: [{ type: "text", text }],
   });
 });
