@@ -302,19 +302,24 @@ export async function getInsightsData({
   };
 
   for (const event of usageAggregated) {
-    const sku = event.eventType;
+    const eventType = event.eventType;
     const value = Number(event.value ?? 0);
 
-    // Determine provider from event type
-    if (sku.includes("anthropic")) {
+    // Only process billable USD event types for cost breakdown
+    // Filter for billable_*_usd types and claude_cost_usd (legacy)
+    if (
+      eventType === "billable_anthropic_usd" ||
+      eventType === "claude_cost_usd"
+    ) {
       costByProvider.anthropic += value * 100; // Convert USD to cents
-    } else if (sku.includes("openai")) {
+    } else if (eventType === "billable_openai_usd") {
       costByProvider.openai += value * 100;
-    } else if (sku.includes("google")) {
+    } else if (eventType === "billable_google_usd") {
       costByProvider.google += value * 100;
-    } else if (sku.includes("openrouter")) {
+    } else if (eventType === "billable_openrouter_usd") {
       costByProvider.openrouter += value * 100;
     }
+    // Skip non-cost types like sandbox_usage_time_*_ms
   }
 
   // Get token totals from usage events (need to fetch separately with token details)

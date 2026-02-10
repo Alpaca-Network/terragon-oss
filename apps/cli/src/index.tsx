@@ -197,10 +197,10 @@ program
     Intl.DateTimeFormat().resolvedOptions().timeZone,
   )
   .action((options: { days?: string; timezone?: string }) => {
-    const numDays = Math.min(
-      30,
-      Math.max(1, parseInt(options.days || "7", 10)),
-    );
+    const parsedDays = parseInt(options.days || "7", 10);
+    const numDays = Number.isNaN(parsedDays)
+      ? 7
+      : Math.min(30, Math.max(1, parsedDays));
     const timezone = options.timezone || "UTC";
     render(
       <QueryProvider>
