@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import {
   getFeatureFlag,
   getFeatureFlags,
+  getFeatureFlagGlobalOverride,
   deleteFeatureFlag,
   getFeatureFlagsForUser,
   getFeatureFlagForUser,
@@ -130,6 +131,73 @@ describe("feature-flags", () => {
       // @ts-expect-error - ignore in tests
       const flag2 = await getFeatureFlag({ db: db, name: "to-delete" });
       expect(flag2).toBeUndefined();
+    });
+  });
+
+  describe("getFeatureFlagGlobalOverride", () => {
+    it("should return false for non-existent flag", async () => {
+      const result = await getFeatureFlagGlobalOverride({
+        db: db,
+        // @ts-expect-error - ignore in tests
+        name: "non-existent",
+      });
+      expect(result).toBe(false);
+    });
+
+    it("should return defaultValue when globalOverride is null", async () => {
+      await upsertFeatureFlag({
+        db: db,
+        name: "test-flag-default-true",
+        updates: { defaultValue: true, globalOverride: null },
+      });
+      const result = await getFeatureFlagGlobalOverride({
+        db: db,
+        // @ts-expect-error - ignore in tests
+        name: "test-flag-default-true",
+      });
+      expect(result).toBe(true);
+    });
+
+    it("should return defaultValue false when globalOverride is null", async () => {
+      await upsertFeatureFlag({
+        db: db,
+        name: "test-flag-default-false",
+        updates: { defaultValue: false, globalOverride: null },
+      });
+      const result = await getFeatureFlagGlobalOverride({
+        db: db,
+        // @ts-expect-error - ignore in tests
+        name: "test-flag-default-false",
+      });
+      expect(result).toBe(false);
+    });
+
+    it("should return globalOverride when set to true", async () => {
+      await upsertFeatureFlag({
+        db: db,
+        name: "test-flag-override-true",
+        updates: { defaultValue: false, globalOverride: true },
+      });
+      const result = await getFeatureFlagGlobalOverride({
+        db: db,
+        // @ts-expect-error - ignore in tests
+        name: "test-flag-override-true",
+      });
+      expect(result).toBe(true);
+    });
+
+    it("should return globalOverride when set to false", async () => {
+      await upsertFeatureFlag({
+        db: db,
+        name: "test-flag-override-false",
+        updates: { defaultValue: true, globalOverride: false },
+      });
+      const result = await getFeatureFlagGlobalOverride({
+        db: db,
+        // @ts-expect-error - ignore in tests
+        name: "test-flag-override-false",
+      });
+      expect(result).toBe(false);
     });
   });
 

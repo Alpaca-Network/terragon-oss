@@ -155,8 +155,8 @@ export const featureFlagsDefinitions = {
       "Enables Claude Code Agent Teams (experimental), allowing the agent to coordinate multiple Claude Code instances working together as a team with shared tasks and inter-agent messaging.",
   },
   langfuseTracing: {
-    defaultValue: false,
-    enabledForPreview: false,
+    defaultValue: true,
+    // enabledForPreview not needed since defaultValue is true (already enabled for all users)
     description:
       "Enables Langfuse LLM observability tracing for API proxy calls (Anthropic, Gatewayz). Requires LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY environment variables to be configured.",
   },
