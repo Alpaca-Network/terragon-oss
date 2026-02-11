@@ -7,6 +7,7 @@ import { userAtom } from "@/atoms/user";
 import { useQuery } from "@tanstack/react-query";
 import { getReviewCountAction } from "@/server-actions/get-review-count";
 import { unwrapResult } from "@/lib/server-actions";
+import { useDebouncedCallback } from "use-debounce";
 
 const FAVICON_SIZE = 32;
 const BADGE_RADIUS = 7;
@@ -115,9 +116,20 @@ function drawFaviconWithBadge(
 }
 
 /**
- * Updates the favicon in the document head
+ * Updates the favicon in the document head.
+ * Hides the static favicons and adds a dynamic one to ensure it takes precedence.
  */
 function updateFavicon(dataUrl: string) {
+  // Hide existing static favicons (SVG and PNG) so our dynamic one takes precedence
+  // We hide instead of remove so we can restore them later
+  const staticFavicons = document.querySelectorAll(
+    'link[rel="icon"]:not([data-dynamic="true"])',
+  );
+  staticFavicons.forEach((link) => {
+    (link as HTMLLinkElement).setAttribute("data-hidden-by-dynamic", "true");
+    (link as HTMLLinkElement).rel = "prefetch"; // Change rel to prevent it from being used as favicon
+  });
+
   // Remove existing dynamic favicon if present
   const existingDynamic = document.querySelector(
     'link[rel="icon"][data-dynamic="true"]',
@@ -140,13 +152,23 @@ function updateFavicon(dataUrl: string) {
 }
 
 /**
- * Restores the original favicon by removing dynamic favicon
+ * Restores the original favicon by removing dynamic favicon and unhiding static ones
  */
 function restoreFavicon() {
+  // Remove dynamic favicon
   const dynamicLinks = document.querySelectorAll(
     'link[rel="icon"][data-dynamic="true"]',
   );
   dynamicLinks.forEach((link) => link.remove());
+
+  // Restore hidden static favicons
+  const hiddenFavicons = document.querySelectorAll(
+    'link[data-hidden-by-dynamic="true"]',
+  );
+  hiddenFavicons.forEach((link) => {
+    (link as HTMLLinkElement).rel = "icon";
+    (link as HTMLLinkElement).removeAttribute("data-hidden-by-dynamic");
+  });
 }
 
 /**
@@ -195,6 +217,12 @@ export function useDynamicFavicon() {
     refetchOnWindowFocus: true,
   });
 
+  // Debounce refetch to prevent flooding on rapid realtime events
+  // 500ms delay coalesces multiple rapid status changes into a single refetch
+  const debouncedRefetch = useDebouncedCallback(() => {
+    refetch();
+  }, 500);
+
   // Set up real-time updates
   const matchThread = useCallback(
     (
@@ -224,7 +252,7 @@ export function useDynamicFavicon() {
   useRealtimeThreadMatch({
     matchThread,
     onThreadChange: () => {
-      refetch();
+      debouncedRefetch();
     },
   });
 
