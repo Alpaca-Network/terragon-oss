@@ -10,8 +10,9 @@ import { unwrapResult } from "@/lib/server-actions";
 import { useDebouncedCallback } from "use-debounce";
 
 const FAVICON_SIZE = 32;
-const BADGE_RADIUS = 7;
-const BADGE_FONT_SIZE = 10;
+// Badge takes up ~1/4 of favicon (16px diameter = 8px radius)
+const BADGE_RADIUS = 8;
+const BADGE_FONT_SIZE = 12;
 const BADGE_COLOR = "#ef4444"; // Red color for attention
 const BADGE_TEXT_COLOR = "#ffffff";
 
@@ -51,11 +52,11 @@ function drawFaviconWithBadge(
 
         // Badge dimensions - pill shape for multi-digit, circle for single digit
         const badgeHeight = BADGE_RADIUS * 2;
-        const badgeWidth = Math.max(badgeHeight, textWidth + 6);
+        const badgeWidth = Math.max(badgeHeight, textWidth + 8); // More padding for text
 
-        // Badge position (bottom-right corner)
+        // Badge position (top-right corner, slight inset for visibility)
         const badgeX = FAVICON_SIZE - badgeWidth;
-        const badgeY = FAVICON_SIZE - badgeHeight;
+        const badgeY = 0;
 
         // Draw badge background (pill/rounded rectangle)
         ctx.beginPath();
