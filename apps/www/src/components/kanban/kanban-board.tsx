@@ -245,10 +245,13 @@ export const KanbanBoard = memo(function KanbanBoard({
     useInfiniteThreadList(queryFilters);
 
   // Always fetch archived threads to show in Done column
+  // Note: We explicitly exclude isBacklog from the filter because archived tasks
+  // should appear in Done regardless of their previous backlog status
   const archivedFilters = useMemo(
     () => ({
       ...queryFilters,
       archived: true,
+      isBacklog: undefined, // Don't filter by isBacklog for archived tasks
     }),
     [queryFilters],
   );
