@@ -47,7 +47,8 @@ function createMockRequest(
   const requestUrl = new URL(url, "https://terragon.ai");
   const headers = new Headers(options.headers || {});
 
-  // Create a mock cookies object
+  // Create a mock cookies object that matches NextRequest.cookies.get() shape
+  // Real NextRequest.cookies.get() returns { name, value }
   const cookiesMap = new Map<string, { name: string; value: string }>();
   if (options.cookies) {
     Object.entries(options.cookies).forEach(([key, value]) => {
@@ -108,6 +109,25 @@ describe("middleware", () => {
 
       // Check that normal next() is called without header modification
       expect(response.type).toBe("next");
+      expect(response.request).toBeUndefined();
+    });
+
+    it("should not clobber existing Authorization header", async () => {
+      const existingAuthHeader = "Bearer existing-token";
+      const request = createMockRequest("/api/endpoint", {
+        cookies: {
+          gw_session_token: "test-session-token",
+        },
+        headers: {
+          Authorization: existingAuthHeader,
+        },
+      });
+
+      const response = middleware(request) as unknown as MockResponse;
+
+      // Check that normal next() is called without modifying the existing Authorization header
+      expect(response.type).toBe("next");
+      // Should not modify request headers when Authorization header already exists
       expect(response.request).toBeUndefined();
     });
 

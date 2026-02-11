@@ -169,27 +169,29 @@ describe("useGatewayZAuth", () => {
 
   it("should send auth request to parent window", async () => {
     vi.useFakeTimers();
-    const mockPostMessage = vi.fn();
-    Object.defineProperty(window, "parent", {
-      value: { postMessage: mockPostMessage },
-      writable: true,
-      configurable: true,
-    });
+    try {
+      const mockPostMessage = vi.fn();
+      Object.defineProperty(window, "parent", {
+        value: { postMessage: mockPostMessage },
+        writable: true,
+        configurable: true,
+      });
 
-    renderHook(() => useGatewayZAuth({ enabled: true }));
+      renderHook(() => useGatewayZAuth({ enabled: true }));
 
-    // Advance timers to trigger the request
-    act(() => {
-      vi.advanceTimersByTime(150);
-    });
+      // Advance timers to trigger the request
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
 
-    // Should have sent auth request to allowed origins
-    expect(mockPostMessage).toHaveBeenCalledWith(
-      { type: "GATEWAYZ_AUTH_REQUEST" },
-      expect.any(String),
-    );
-
-    vi.useRealTimers();
+      // Should have sent auth request to allowed origins
+      expect(mockPostMessage).toHaveBeenCalledWith(
+        { type: "GATEWAYZ_AUTH_REQUEST" },
+        expect.any(String),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("should only process auth once (prevent duplicates)", () => {
