@@ -1,5 +1,6 @@
 import {
   getDecryptedEnvironmentVariables,
+  getDecryptedSkillsConfig,
   getOrCreateGlobalEnvironment,
 } from "@terragon/shared/model/environments";
 import { getUserIdOrRedirect } from "@/lib/auth-server";
@@ -21,16 +22,25 @@ export default async function EnvironmentPage() {
   if (!environment) {
     return notFound();
   }
-  const environmentVariables = await getDecryptedEnvironmentVariables({
-    db,
-    userId,
-    environmentId: environment.id,
-    encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
-  });
+  const [environmentVariables, skillsConfig] = await Promise.all([
+    getDecryptedEnvironmentVariables({
+      db,
+      userId,
+      environmentId: environment.id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+    getDecryptedSkillsConfig({
+      db,
+      userId,
+      environmentId: environment.id,
+      encryptionMasterKey: env.ENCRYPTION_MASTER_KEY,
+    }),
+  ]);
   return (
     <GlobalEnvironmentUI
       environmentId={environment.id}
       environmentVariables={environmentVariables}
+      skillsConfig={skillsConfig || undefined}
     />
   );
 }

@@ -7,11 +7,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { EnvironmentVariablesEditor } from "@/components/environments/environment-variables-editor";
 import { McpConfigEditor } from "@/components/environments/mcp-config-editor";
+import { SkillsConfigEditor } from "@/components/environments/skills";
 import { updateEnvironmentVariables } from "@/server-actions/environment-variables";
 import { updateMcpConfig } from "@/server-actions/mcp-config";
+import { updateSkillsConfig } from "@/server-actions/skills-config";
 import { toast } from "sonner";
 import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { McpConfig } from "@terragon/sandbox/mcp-config";
+import { SkillsConfig } from "@terragon/sandbox/skills-config";
 import { Button } from "@/components/ui/button";
 import { FileCog } from "lucide-react";
 import { CreateEnvironmentButton } from "@/components/environments/create-environment-button";
@@ -177,23 +180,30 @@ export function EnvironmentUI({
   environmentVariables,
   globalEnvironmentVariableKeys,
   mcpConfig,
+  skillsConfig,
 }: {
   environmentId: string;
   environment: Pick<Environment, "repoFullName">;
   environmentVariables: Array<{ key: string; value: string }>;
   globalEnvironmentVariableKeys: string[];
   mcpConfig?: McpConfig;
+  skillsConfig?: SkillsConfig;
 }) {
   const router = useRouter();
   const [mcpConfigState, setMcpConfigState] = useState(
     mcpConfig || { mcpServers: {} },
   );
+  const [skillsConfigState, setSkillsConfigState] = useState(
+    skillsConfig || { skills: {} },
+  );
   const [envVarsDirty, setEnvVarsDirty] = useState(false);
   const [mcpConfigDirty, setMcpConfigDirty] = useState(false);
+  const [skillsConfigDirty, setSkillsConfigDirty] = useState(false);
   const [smartContextDirty, setSmartContextDirty] = useState(false);
   const { headerActionContainer } = usePageHeader();
 
-  const hasUnsavedChanges = envVarsDirty || mcpConfigDirty || smartContextDirty;
+  const hasUnsavedChanges =
+    envVarsDirty || mcpConfigDirty || skillsConfigDirty || smartContextDirty;
 
   // Use custom hook for navigation warnings
   useUnsavedChangesWarning(hasUnsavedChanges);
@@ -218,6 +228,16 @@ export function EnvironmentUI({
       setMcpConfigState(mcpConfig);
       setMcpConfigDirty(false); // Reset dirty state after successful save
       toast.success("MCP configuration saved successfully");
+      router.refresh();
+    },
+  });
+
+  const updateSkillsConfigMutation = useServerActionMutation({
+    mutationFn: updateSkillsConfig,
+    onSuccess: (_, { skillsConfig }) => {
+      setSkillsConfigState(skillsConfig);
+      setSkillsConfigDirty(false); // Reset dirty state after successful save
+      toast.success("Skills configuration saved successfully");
       router.refresh();
     },
   });
@@ -270,6 +290,39 @@ export function EnvironmentUI({
               }}
               onDirtyChange={setMcpConfigDirty}
               disabled={updateMcpConfigMutation.isPending}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 mt-10">
+          <h2 className="text-base font-medium text-muted-foreground">
+            Skills Configuration
+          </h2>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-muted-foreground">
+              Create custom skills with instructions and workflows for your
+              agent. Skills can be invoked with slash commands (e.g.,
+              /my-skill).{" "}
+              <Link
+                href={`${publicDocsUrl()}/docs/configuration/skills`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:no-underline"
+              >
+                Learn more about skills
+              </Link>
+              .
+            </span>
+            <SkillsConfigEditor
+              value={skillsConfigState}
+              onChange={async (config) => {
+                await updateSkillsConfigMutation.mutateAsync({
+                  environmentId,
+                  skillsConfig: config,
+                });
+              }}
+              onDirtyChange={setSkillsConfigDirty}
+              disabled={updateSkillsConfigMutation.isPending}
             />
           </div>
         </div>
@@ -355,13 +408,30 @@ export function EnvironmentUI({
 export function GlobalEnvironmentUI({
   environmentId,
   environmentVariables,
+  skillsConfig,
 }: {
   environmentId: string;
   environmentVariables: Array<{ key: string; value: string }>;
+  skillsConfig?: SkillsConfig;
 }) {
+  const router = useRouter();
   const [envVarsDirty, setEnvVarsDirty] = useState(false);
-  const hasUnsavedChanges = envVarsDirty;
+  const [skillsConfigState, setSkillsConfigState] = useState(
+    skillsConfig || { skills: {} },
+  );
+  const [skillsConfigDirty, setSkillsConfigDirty] = useState(false);
+  const hasUnsavedChanges = envVarsDirty || skillsConfigDirty;
   useUnsavedChangesWarning(hasUnsavedChanges);
+
+  const updateSkillsConfigMutation = useServerActionMutation({
+    mutationFn: updateSkillsConfig,
+    onSuccess: (_, { skillsConfig }) => {
+      setSkillsConfigState(skillsConfig);
+      setSkillsConfigDirty(false);
+      toast.success("Skills configuration saved successfully");
+      router.refresh();
+    },
+  });
 
   return (
     <div className="flex flex-col justify-start h-full w-full max-w-4xl">
@@ -373,6 +443,37 @@ export function GlobalEnvironmentUI({
         globalEnvironmentVariableKeys={[]}
         onDirtyChange={setEnvVarsDirty}
       />
+      <div className="flex flex-col gap-2 mt-10">
+        <h2 className="text-base font-medium text-muted-foreground">
+          Global Skills Configuration
+        </h2>
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-muted-foreground">
+            Create custom skills that apply to all your repositories. Skills can
+            be invoked with slash commands (e.g., /my-skill).{" "}
+            <Link
+              href={`${publicDocsUrl()}/docs/configuration/skills`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:no-underline"
+            >
+              Learn more about skills
+            </Link>
+            .
+          </span>
+          <SkillsConfigEditor
+            value={skillsConfigState}
+            onChange={async (config) => {
+              await updateSkillsConfigMutation.mutateAsync({
+                environmentId,
+                skillsConfig: config,
+              });
+            }}
+            onDirtyChange={setSkillsConfigDirty}
+            disabled={updateSkillsConfigMutation.isPending}
+          />
+        </div>
+      </div>
     </div>
   );
 }
