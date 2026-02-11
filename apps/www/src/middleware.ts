@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
+ * Cookie name for storing the session token from GatewayZ standalone auth.
+ * This is an unsigned cookie that the middleware can read and forward as a Bearer token.
+ */
+const GW_SESSION_COOKIE = "gw_session_token";
+
+/**
  * Get the GatewayZ URL to redirect to when users visit Terragon directly.
  * This enables seamless SSO by redirecting to the GatewayZ-hosted inbox.
  *
@@ -37,6 +43,10 @@ export function middleware(request: NextRequest) {
   // Check if user is already authenticated with Terragon
   const hasSessionToken = request.cookies.has("better-auth.session_token");
 
+  // Check for GatewayZ standalone auth session token (unsigned cookie)
+  // This is set during the GatewayZ standalone auth flow
+  const gwSessionToken = request.cookies.get(GW_SESSION_COOKIE)?.value;
+
   // Check if request is coming from an iframe using Sec-Fetch-Dest header
   // This is more reliable than query params which can be lost during navigation
   const secFetchDest = request.headers.get("Sec-Fetch-Dest");
@@ -62,6 +72,7 @@ export function middleware(request: NextRequest) {
     !awaitAuth &&
     !hasEmbedCookie &&
     !hasSessionToken &&
+    !gwSessionToken &&
     !isAuthCallback &&
     !gwAuthToken &&
     !isIframeRequest &&
@@ -150,6 +161,24 @@ export function middleware(request: NextRequest) {
     // Redirect to the clean URL
     return NextResponse.redirect(url, {
       headers: response.headers,
+    });
+  }
+
+  // Forward GatewayZ session token as Authorization header if present
+  // This allows the server-side auth check to validate the session using the Bearer token mechanism
+  // The token is stored in an unsigned cookie during GatewayZ standalone auth
+  // Only set if no Authorization header is already present to avoid clobbering other auth schemes
+  if (
+    gwSessionToken &&
+    !hasSessionToken &&
+    !request.headers.has("Authorization")
+  ) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("Authorization", `Bearer ${gwSessionToken}`);
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
     });
   }
 
