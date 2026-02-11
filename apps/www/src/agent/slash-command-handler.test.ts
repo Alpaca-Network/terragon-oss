@@ -1,9 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   extractSlashCommandName,
   getSlashCommandOrNull,
 } from "./slash-command-handler";
 import type { DBUserMessage } from "@terragon/shared";
+
+// Mock dependencies that handleSlashCommand would use
+vi.mock("@/lib/posthog-server", () => ({
+  getPostHogServer: () => ({
+    capture: vi.fn(),
+  }),
+}));
+
+// Shared helper to create user messages for testing
+const createMessage = (text: string): DBUserMessage => ({
+  type: "user",
+  model: null,
+  parts: [{ type: "text", text }],
+});
 
 describe("extractSlashCommandName", () => {
   it("should extract command name from simple slash command", () => {
@@ -52,12 +66,6 @@ describe("extractSlashCommandName", () => {
 });
 
 describe("getSlashCommandOrNull", () => {
-  const createMessage = (text: string): DBUserMessage => ({
-    type: "user",
-    model: null,
-    parts: [{ type: "text", text }],
-  });
-
   it("should return /clear for exact /clear command", () => {
     expect(getSlashCommandOrNull(createMessage("/clear"))).toBe("/clear");
   });
@@ -89,5 +97,20 @@ describe("getSlashCommandOrNull", () => {
     // /clear and /compact only match exactly
     expect(getSlashCommandOrNull(createMessage("/clear now"))).toBe(null);
     expect(getSlashCommandOrNull(createMessage("/compact please"))).toBe(null);
+  });
+});
+
+describe("unknown slash command handling", () => {
+  it("should detect unknown slash commands but treat them as keywords", () => {
+    // Unknown slash commands like "/audit" should be detected for logging
+    // but should pass through to the agent as regular messages
+    expect(extractSlashCommandName("/audit")).toBe("audit");
+    expect(extractSlashCommandName("/audit the code")).toBe("audit");
+    expect(extractSlashCommandName("/inbox")).toBe("inbox");
+
+    // These are detected as commands but are NOT server-handled commands
+    // so they would pass through to the agent
+    expect(getSlashCommandOrNull(createMessage("/audit"))).toBe(null);
+    expect(getSlashCommandOrNull(createMessage("/inbox"))).toBe(null);
   });
 });
