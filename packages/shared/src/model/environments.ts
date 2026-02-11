@@ -3,6 +3,7 @@ import * as schema from "../db/schema";
 import { and, eq, getTableColumns } from "drizzle-orm";
 import { publishBroadcastUserMessage } from "../broadcast-server";
 import { decryptValue } from "@terragon/utils/encryption";
+import type { SkillsConfig } from "@terragon/sandbox/skills-config";
 
 export function getEnvironments({
   db,
@@ -268,6 +269,34 @@ export async function getDecryptedMcpConfig({
     return JSON.parse(decryptedConfig);
   } catch (error) {
     console.error("Failed to decrypt MCP config:", error);
+    return null;
+  }
+}
+
+export async function getDecryptedSkillsConfig({
+  db,
+  userId,
+  environmentId,
+  encryptionMasterKey,
+}: {
+  db: DB;
+  userId: string;
+  environmentId: string;
+  encryptionMasterKey: string;
+}): Promise<SkillsConfig | null> {
+  const environment = await getEnvironment({ db, userId, environmentId });
+  if (!environment || !environment.skillsConfigEncrypted) {
+    return null;
+  }
+
+  try {
+    const decryptedConfig = decryptValue(
+      environment.skillsConfigEncrypted,
+      encryptionMasterKey,
+    );
+    return JSON.parse(decryptedConfig);
+  } catch (error) {
+    console.error("Failed to decrypt skills config:", error);
     return null;
   }
 }
