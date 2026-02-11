@@ -126,6 +126,79 @@ PR Number       N/A
 Total: 2 tasks
 ```
 
+### `terry insights`
+
+View your usage statistics and insights from the Terragon platform:
+
+```bash
+# View last 7 days of usage statistics
+terry insights
+
+# View last 30 days
+terry insights --days 30
+
+# Specify a timezone for date calculations
+terry insights --timezone America/New_York
+```
+
+#### Options
+
+- `-d, --days <days>`: Number of days to show (1-30, default: 7)
+- `-t, --timezone <timezone>`: Timezone for date calculations (default: your system timezone)
+
+#### What's Included
+
+- **Activity Summary**: Total threads created and PRs merged
+- **Token Usage**: Input, output, cached, and cache creation tokens
+- **Cost Breakdown**: Costs by provider (Anthropic, OpenAI, Google, OpenRouter)
+- **Credit Balance**: Current balance and spend in the period
+- **Daily Stats**: Day-by-day breakdown of threads and PRs
+
+### `terry local-insights`
+
+Analyze local session data and generate a comprehensive HTML insights report, similar to Claude Code's `/insights` command:
+
+```bash
+# Analyze sessions from the last 30 days
+terry local-insights
+
+# Analyze sessions from the last 7 days
+terry local-insights --days 7
+
+# Save report to a custom location
+terry local-insights --output ~/my-report.html
+```
+
+#### Options
+
+- `-d, --days <days>`: Number of days to analyze (default: 30)
+- `-o, --output <path>`: Custom output path for HTML report (default: `~/.terry/usage-data/local-report.html`)
+
+#### What's Included
+
+This command analyzes session transcripts stored in `~/.claude/projects/` (created when you run `terry pull`) and generates a detailed HTML report with:
+
+- **Goal Classification**: What tasks were you trying to accomplish?
+- **Outcome Tracking**: Success, partial success, failure, or unknown
+- **Satisfaction Analysis**: User satisfaction levels across sessions
+- **Friction Detection**: Common friction points and blockers
+- **Session Summaries**: AI-generated summaries of each session
+
+#### Requirements
+
+Set the `ANTHROPIC_API_KEY` environment variable to enable AI-powered analysis:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+terry local-insights
+```
+
+Without an API key, the command will still generate a report but with limited analysis.
+
+#### Caching
+
+Facet data is cached in `~/.terry/usage-data/facets/` to avoid re-analyzing the same sessions on subsequent runs, saving API costs and time.
+
 ### `terry mcp`
 
 Run an MCP (Model Context Protocol) server for the git repository:

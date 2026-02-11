@@ -10,6 +10,7 @@ import { PullCommand } from "./commands/pull.js";
 import { CreateCommand } from "./commands/create.js";
 import { ListCommand } from "./commands/list.js";
 import { InsightsCommand } from "./commands/insights.js";
+import { LocalInsightsCommand } from "./commands/local-insights.js";
 import { QueryProvider } from "./providers/QueryProvider.js";
 import { RootLayout } from "./components/RootLayout.js";
 import { startMCPServer } from "./mcp-server/index.js";
@@ -208,6 +209,21 @@ program
           <InsightsCommand numDays={numDays} timezone={timezone} />
         </RootLayout>
       </QueryProvider>,
+    );
+  });
+
+program
+  .command("local-insights")
+  .description("Analyze local session data and generate insights report")
+  .option("-d, --days <days>", "Number of days to analyze (default: 30)", "30")
+  .option("-o, --output <path>", "Custom output path for HTML report")
+  .action((options: { days?: string; output?: string }) => {
+    const numDays = parseInt(options.days || "30", 10);
+    const outputPath = options.output;
+    render(
+      <RootLayout>
+        <LocalInsightsCommand days={numDays} outputPath={outputPath} />
+      </RootLayout>,
     );
   });
 
