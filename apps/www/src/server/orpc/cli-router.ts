@@ -5,6 +5,7 @@ import {
   getThread,
   getThreadMinimal,
   getThreads,
+  getThreadsAndPRsStats,
 } from "@terragon/shared/model/threads";
 import { getPrimaryThreadChat } from "@terragon/shared/utils/thread-utils";
 import { newThreadInternal } from "@/server-lib/new-thread-internal";
@@ -17,6 +18,11 @@ import { checkCliTaskCreationRateLimit } from "@/lib/rate-limit";
 import { ensureAgent } from "@terragon/agent/utils";
 import { getUserIdOrNullFromDaemonToken } from "@/lib/auth-server";
 import { combineThreadStatuses } from "@/agent/thread-status";
+import { getUserCreditBalance } from "@terragon/shared/model/credits";
+import { getUserUsageEventsAggregated } from "@terragon/shared/model/usage-events";
+import { validateTimezone } from "@terragon/shared/utils/timezone";
+import { subDays, set as setDateValues, format, addDays } from "date-fns";
+import { tz } from "@date-fns/tz";
 
 const os = implement(cliAPIContract)
   .$context<{
@@ -244,6 +250,187 @@ const whoAmI = os.auth.whoami.handler(async ({ context }) => {
   return { userId: context.userId } as const;
 });
 
+// Exported for testing
+export async function getInsightsData({
+  userId,
+  numDays,
+  timezone,
+}: {
+  userId: string;
+  numDays: number;
+  timezone: string;
+}) {
+  const validatedTimezone = validateTimezone(timezone);
+  const end = setDateValues(new Date(), {}, { in: tz(validatedTimezone) });
+  const start = setDateValues(
+    subDays(end, numDays - 1, { in: tz(validatedTimezone) }),
+    { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 },
+  );
+
+  // Fetch all data in parallel
+  const [creditBalance, usageAggregated, threadsAndPRsStats] =
+    await Promise.all([
+      getUserCreditBalance({ db, userId }),
+      getUserUsageEventsAggregated({
+        db,
+        userId,
+        startDate: start,
+        endDate: end,
+        timezone: validatedTimezone,
+      }),
+      getThreadsAndPRsStats({
+        db,
+        userId,
+        startDate: start,
+        endDate: end,
+        timezone: validatedTimezone,
+      }),
+    ]);
+
+  // Calculate token usage totals
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalCachedInputTokens = 0;
+  let totalCacheCreationInputTokens = 0;
+
+  // Calculate cost breakdown by provider
+  const costByProvider = {
+    anthropic: 0,
+    openai: 0,
+    google: 0,
+    openrouter: 0,
+  };
+
+  for (const event of usageAggregated) {
+    const eventType = event.eventType;
+    const value = Number(event.value ?? 0);
+
+    // Only process billable USD event types for cost breakdown
+    // Filter for billable_*_usd types and claude_cost_usd (legacy)
+    if (
+      eventType === "billable_anthropic_usd" ||
+      eventType === "claude_cost_usd"
+    ) {
+      costByProvider.anthropic += value * 100; // Convert USD to cents
+    } else if (eventType === "billable_openai_usd") {
+      costByProvider.openai += value * 100;
+    } else if (eventType === "billable_google_usd") {
+      costByProvider.google += value * 100;
+    } else if (eventType === "billable_openrouter_usd") {
+      costByProvider.openrouter += value * 100;
+    }
+    // Skip non-cost types like sandbox_usage_time_*_ms
+  }
+
+  // Get token totals from usage events (need to fetch separately with token details)
+  const { getUserUsageEvents } = await import(
+    "@terragon/shared/model/usage-events"
+  );
+  const usageEvents = await getUserUsageEvents({
+    db,
+    userId,
+    startDate: start,
+    endDate: end,
+  });
+
+  for (const event of usageEvents) {
+    totalInputTokens += event.inputTokens ?? 0;
+    totalOutputTokens += event.outputTokens ?? 0;
+    totalCachedInputTokens += event.cachedInputTokens ?? 0;
+    totalCacheCreationInputTokens += event.cacheCreationInputTokens ?? 0;
+  }
+
+  // Build daily stats
+  const dailyStatsMap = new Map<
+    string,
+    { date: string; threadsCreated: number; prsMerged: number }
+  >();
+
+  // Generate all dates in range
+  // Use the timezone option to ensure date keys match the database data
+  let currentDate = start;
+  while (currentDate.getTime() <= end.getTime()) {
+    const dateKey = format(currentDate, "yyyy-MM-dd", {
+      in: tz(validatedTimezone),
+    });
+    if (!dailyStatsMap.has(dateKey)) {
+      dailyStatsMap.set(dateKey, {
+        date: dateKey,
+        threadsCreated: 0,
+        prsMerged: 0,
+      });
+    }
+    currentDate = addDays(currentDate, 1, { in: tz(validatedTimezone) });
+  }
+
+  let totalThreadsCreated = 0;
+  let totalPRsMerged = 0;
+
+  for (const data of threadsAndPRsStats.threadsCreated) {
+    const stats = dailyStatsMap.get(data.date);
+    if (stats) {
+      stats.threadsCreated = data.threadsCreated;
+      totalThreadsCreated += data.threadsCreated;
+    }
+  }
+
+  for (const data of threadsAndPRsStats.prsMerged) {
+    const stats = dailyStatsMap.get(data.date);
+    if (stats) {
+      stats.prsMerged = data.prsMerged;
+      totalPRsMerged += data.prsMerged;
+    }
+  }
+
+  const dailyStats = Array.from(dailyStatsMap.values()).sort((a, b) =>
+    b.date.localeCompare(a.date),
+  );
+
+  const totalCost =
+    costByProvider.anthropic +
+    costByProvider.openai +
+    costByProvider.google +
+    costByProvider.openrouter;
+
+  return {
+    totalThreadsCreated,
+    totalPRsMerged,
+    tokenUsage: {
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
+      cachedInputTokens: totalCachedInputTokens,
+      cacheCreationInputTokens: totalCacheCreationInputTokens,
+    },
+    costBreakdown: {
+      anthropic: Math.round(costByProvider.anthropic),
+      openai: Math.round(costByProvider.openai),
+      google: Math.round(costByProvider.google),
+      openrouter: Math.round(costByProvider.openrouter),
+      total: Math.round(totalCost),
+    },
+    creditBalance: {
+      totalCreditsCents: creditBalance.totalCreditsCents,
+      totalUsageCents: creditBalance.totalUsageCents,
+      balanceCents: creditBalance.balanceCents,
+    },
+    dailyStats,
+  };
+}
+
+// Insights handler
+const getInsights = os.insights.handler(async ({ input, context }) => {
+  const userId = context.userId;
+  const { numDays, timezone } = input;
+
+  console.log("cli insights", {
+    userId,
+    numDays,
+    timezone,
+  });
+
+  return getInsightsData({ userId, numDays, timezone });
+});
+
 // Create the router
 export const cliRouter = os.router({
   threads: {
@@ -254,4 +441,5 @@ export const cliRouter = os.router({
   auth: {
     whoami: whoAmI,
   },
+  insights: getInsights,
 });
