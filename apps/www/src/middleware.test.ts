@@ -48,10 +48,10 @@ function createMockRequest(
   const headers = new Headers(options.headers || {});
 
   // Create a mock cookies object
-  const cookiesMap = new Map<string, { value: string }>();
+  const cookiesMap = new Map<string, { name: string; value: string }>();
   if (options.cookies) {
     Object.entries(options.cookies).forEach(([key, value]) => {
-      cookiesMap.set(key, { value });
+      cookiesMap.set(key, { name: key, value });
     });
   }
 

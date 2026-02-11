@@ -167,7 +167,12 @@ export function middleware(request: NextRequest) {
   // Forward GatewayZ session token as Authorization header if present
   // This allows the server-side auth check to validate the session using the Bearer token mechanism
   // The token is stored in an unsigned cookie during GatewayZ standalone auth
-  if (gwSessionToken && !hasSessionToken) {
+  // Only set if no Authorization header is already present to avoid clobbering other auth schemes
+  if (
+    gwSessionToken &&
+    !hasSessionToken &&
+    !request.headers.has("Authorization")
+  ) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("Authorization", `Bearer ${gwSessionToken}`);
     return NextResponse.next({
