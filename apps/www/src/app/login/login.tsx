@@ -77,33 +77,33 @@ export default function Login({ returnUrl }: { returnUrl: string }) {
           </div>
 
           <div className="space-y-4">
-            {/* Primary option: Gatewayz */}
+            {/* Primary option: GitHub */}
             <Button
               variant="default"
               size="lg"
               className="w-full relative"
-              onClick={handleGatewayzSignIn}
+              onClick={handleGithubSignIn}
               disabled={isLoading}
             >
-              {isGatewayzLoading ? (
+              {isGithubLoading ? (
                 "Signing in..."
               ) : (
                 <>
                   <Image
-                    src="/gatewayz-logo-white.png"
-                    alt="Gatewayz"
+                    src="https://cdn.terragonlabs.com/github-mark-white-Ue4J.svg"
+                    alt="GitHub"
                     width={20}
                     height={20}
                     className="hidden dark:block absolute left-4"
                   />
                   <Image
-                    src="/gatewayz-logo-black.png"
-                    alt="Gatewayz"
+                    src="https://cdn.terragonlabs.com/github-mark-Z5SF.svg"
+                    alt="GitHub"
                     width={20}
                     height={20}
                     className="block dark:hidden absolute left-4"
                   />
-                  Continue with Gatewayz
+                  Continue with GitHub
                 </>
               )}
             </Button>
@@ -132,28 +132,28 @@ export default function Login({ returnUrl }: { returnUrl: string }) {
                   variant="outline"
                   size="lg"
                   className="w-full relative"
-                  onClick={handleGithubSignIn}
+                  onClick={handleGatewayzSignIn}
                   disabled={isLoading}
                 >
-                  {isGithubLoading ? (
+                  {isGatewayzLoading ? (
                     "Signing in..."
                   ) : (
                     <>
                       <Image
-                        src="https://cdn.terragonlabs.com/github-mark-Z5SF.svg"
-                        alt="GitHub"
+                        src="/gatewayz-logo-white.png"
+                        alt="Gatewayz"
                         width={20}
                         height={20}
                         className="hidden dark:block absolute left-4"
                       />
                       <Image
-                        src="https://cdn.terragonlabs.com/github-mark-white-Ue4J.svg"
-                        alt="GitHub"
+                        src="/gatewayz-logo-black.png"
+                        alt="Gatewayz"
                         width={20}
                         height={20}
                         className="block dark:hidden absolute left-4"
                       />
-                      Continue with GitHub
+                      Continue with Gatewayz
                     </>
                   )}
                 </Button>
