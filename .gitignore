@@ -49,6 +49,9 @@ output.txt
 # claude code
 .claude/settings.local.json
 
+# build health reports
+build-health-report.txt
+
 # turborepo
 .turbo
 
