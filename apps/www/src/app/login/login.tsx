@@ -94,14 +94,7 @@ export default function Login({ returnUrl }: { returnUrl: string }) {
                     alt="GitHub"
                     width={20}
                     height={20}
-                    className="hidden dark:block absolute left-4"
-                  />
-                  <Image
-                    src="https://cdn.terragonlabs.com/github-mark-Z5SF.svg"
-                    alt="GitHub"
-                    width={20}
-                    height={20}
-                    className="block dark:hidden absolute left-4"
+                    className="absolute left-4"
                   />
                   Continue with GitHub
                 </>
